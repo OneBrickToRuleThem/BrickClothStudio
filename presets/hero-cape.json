@@ -1,0 +1,19 @@
+{
+  "name": "Hero Cape",
+  "description": "Classic superhero cape with standard proportions",
+  "version": "1.0.0",
+  "elementType": "cape",
+  "templateVariant": "standard",
+  "parameters": {
+    "length": 70,
+    "width": 50,
+    "holeRadius": 2.5,
+    "clearance": 0.2,
+    "slitWidth": 1.2,
+    "enableSlit": true,
+    "seed": 12345
+  },
+  "decorations": [],
+  "createdAt": "2026-03-10T00:00:00Z",
+  "author": "Brick Cloth Studio"
+}

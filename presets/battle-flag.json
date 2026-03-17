@@ -1,0 +1,19 @@
+{
+  "name": "Battle Flag",
+  "description": "Rectangular flag with pole sleeve for mounting on accessories",
+  "version": "1.0.0",
+  "elementType": "flag",
+  "templateVariant": "standard",
+  "parameters": {
+    "length": 80,
+    "width": 50,
+    "holeRadius": 2.5,
+    "clearance": 0.2,
+    "slitWidth": 1.2,
+    "enableSlit": false,
+    "seed": 12345
+  },
+  "decorations": [],
+  "createdAt": "2026-03-10T00:00:00Z",
+  "author": "Brick Cloth Studio"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Mini Cape",
+  "description": "Small cape for baby faces and small torsos",
+  "version": "1.0.0",
+  "elementType": "cape",
+  "templateVariant": "short",
+  "parameters": {
+    "length": 35,
+    "width": 35,
+    "holeRadius": 2.4,
+    "clearance": 0.2,
+    "slitWidth": 1.0,
+    "enableSlit": true,
+    "seed": 12345
+  },
+  "decorations": [],
+  "createdAt": "2026-03-10T00:00:00Z",
+  "author": "Brick Cloth Studio"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Tattered Cloak",
+  "description": "Weathered, torn appearance with jagged hem edges",
+  "version": "1.0.0",
+  "elementType": "cape",
+  "templateVariant": "tattered",
+  "parameters": {
+    "length": 90,
+    "width": 60,
+    "holeRadius": 2.5,
+    "clearance": 0.2,
+    "slitWidth": 1.2,
+    "enableSlit": false,
+    "seed": 42
+  },
+  "decorations": [],
+  "createdAt": "2026-03-10T00:00:00Z",
+  "author": "Brick Cloth Studio"
+}
