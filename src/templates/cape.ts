@@ -7,6 +7,9 @@ import { Template, TemplateParams, generateAttachmentHole } from './base';
 import { SVGPath, scallopedPath } from '../geometry/primitives';
 import { SeededRNG } from '../utils/rng';
 
+/** Reference cape height in mm — upper portion stays fixed at this scale */
+const REF_H = 39;
+
 /**
  * Draw the reference cape outline — 25 symmetric cubic beziers per side.
  * Traced from standard-cape.svg, left side as authority, right side mirrored.
@@ -131,6 +134,257 @@ function drawRefRightSide(path: SVGPath, w: number, h: number) {
   path.cubicBezierTo(w * 0.68710, h * 0.01849, w * 0.65942, h * 0.01217, w * 0.64415, h * 0.00946);
 }
 
+/**
+ * Generate an angled sword slit as a single cut line.
+ * A simple line segment at the given angle, positioned on either side of the cape.
+ *
+ * @param w       cape width in mm
+ * @param h       cape height in mm
+ * @param side    'left' | 'right' — which side of the cape
+ * @param angle   degrees from vertical (0 = vertical, 90 = horizontal)
+ * @param yFrac   vertical position as fraction of height (0 = top, 1 = bottom)
+ * @param slitLen length of the slit in mm (default 8, sized for 66964 greatsword blade ~5mm, crossguard ~12mm catches)
+ */
+function generateSwordSlit(
+  w: number,
+  h: number,
+  side: string,
+  angle: number,
+  yFrac: number,
+  slitLen: number = 8
+): string {
+  const path = new SVGPath();
+  const half = slitLen / 2;
+
+  // Center of the slit — closer to center: 35% / 65% of width
+  const cx = side === 'left' ? w * 0.35 : w * 0.65;
+  const cy = h * yFrac;
+
+  // Angle in radians (positive = tilted toward shoulder)
+  const rad = (side === 'left' ? -angle : angle) * Math.PI / 180;
+  const sinA = Math.sin(rad);
+  const cosA = Math.cos(rad);
+
+  // Line endpoints
+  path.moveTo(cx - half * sinA, cy - half * cosA);
+  path.lineTo(cx + half * sinA, cy + half * cosA);
+
+  return path.toString();
+}
+
+// ---------------------------------------------------------------------------
+// Cape modifier geometry helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Draw a modified bottom hem replacing the standard reference bottom.
+ * Uses drawRefLeftSide (21 segs to ~0.897h), then the chosen hem, then drawRefRightSide.
+ * Returns with the path at the right shoulder peak.
+ *
+ * hemType: 'standard' | 'tattered' | 'scalloped' | 'fishtail' | 'asymmetric'
+ */
+/**
+ * Draw the standard bottom hem (no modifier) with independent length control.
+ * Maps the reference bottom beziers from the side endpoints down to actual height h.
+ */
+function drawRefStandardHem(path: SVGPath, w: number, refH: number, h: number) {
+  const sideEndY = refH * 0.89712;
+  const refBottom = refH * 0.99925;
+  // Map a reference Y fraction to actual Y, stretching only the bottom zone
+  function yMap(refFrac: number): number {
+    const refY = refH * refFrac;
+    if (refY <= sideEndY) return refY;
+    const t = (refY - sideEndY) / (refBottom - sideEndY);
+    return sideEndY + t * (h - sideEndY);
+  }
+  // Left bottom 4 beziers
+  path.cubicBezierTo(w * 0.00409, yMap(0.90125), w * 0.00828, yMap(0.90362), w * 0.03267, yMap(0.91449));
+  path.cubicBezierTo(w * 0.07094, yMap(0.93155), w * 0.12346, yMap(0.94865), w * 0.18105, yMap(0.96279));
+  path.cubicBezierTo(w * 0.22355, yMap(0.97322), w * 0.23299, yMap(0.97505), w * 0.29379, yMap(0.98465));
+  path.cubicBezierTo(w * 0.35859, yMap(0.99487), w * 0.37646, yMap(0.99729), w * 0.40180, yMap(0.99925));
+  // Bridge
+  path.lineTo(w * 0.59820, yMap(0.99925));
+  // Right bottom 4 beziers
+  path.cubicBezierTo(w * 0.62354, yMap(0.99729), w * 0.64141, yMap(0.99487), w * 0.70621, yMap(0.98465));
+  path.cubicBezierTo(w * 0.76701, yMap(0.97505), w * 0.77645, yMap(0.97322), w * 0.81895, yMap(0.96279));
+  path.cubicBezierTo(w * 0.87654, yMap(0.94865), w * 0.92906, yMap(0.93155), w * 0.96733, yMap(0.91449));
+  path.cubicBezierTo(w * 0.99172, yMap(0.90362), w * 0.99591, yMap(0.90125), w * 0.99807, yMap(0.89712));
+}
+
+function drawModifiedOutline(
+  path: SVGPath, w: number, h: number, params: TemplateParams
+) {
+  const refH = REF_H;
+  const tattered = params.tattered as boolean;
+  const scalloped = params.scalloped as boolean;
+  const fishtail = params.fishtail as boolean;
+  const asymmetric = params.asymmetric as boolean;
+
+  // If no hem modifier, draw sides at reference height and stretch bottom to h
+  if (!tattered && !scalloped && !fishtail && !asymmetric) {
+    drawRefLeftSide(path, w, refH);
+    drawRefStandardHem(path, w, refH, h);
+    drawRefRightSide(path, w, refH);
+    return;
+  }
+
+  // Draw the left side at reference height
+  drawRefLeftSide(path, w, refH);
+  // Side endpoints use refH so upper shape stays fixed
+  const leftX = w * 0.00193;
+  const leftY = refH * 0.89712;
+  const rightX = w * 0.99807;
+  const rightY = leftY;
+
+  if (tattered) {
+    const rng = new SeededRNG((params.seed as number) || 12345);
+    const intensity = (params.tatteredIntensity as number) || 0.06;
+    const jitterMax = w * intensity;
+    const segmentCount = Math.max(12, Math.floor(w / 2.5));
+    let prevY = leftY;
+    for (let i = 0; i <= segmentCount; i++) {
+      const t = i / segmentCount;
+      const xPos = leftX + (rightX - leftX) * t;
+      const baseY = leftY + (h - leftY) * Math.sin(t * Math.PI);
+      const yJitter = rng.nextRange(-jitterMax * 0.2, jitterMax);
+      let targetY = baseY + yJitter;
+      targetY = Math.max(targetY, leftY);
+      const maxStep = jitterMax * 1.2;
+      if (Math.abs(targetY - prevY) > maxStep) {
+        targetY = prevY + Math.sign(targetY - prevY) * maxStep;
+      }
+      prevY = targetY;
+      path.lineTo(xPos, targetY);
+    }
+  } else if (scalloped) {
+    const count = (params.scallopCount as number) || 8;
+    const depth = (params.scallopDepth as number) || 3;
+    const inverted = params.scallopInverted as boolean;
+    const hemW = rightX - leftX;
+    const segW = hemW / count;
+    const droop = h - leftY;
+    for (let i = 0; i < count; i++) {
+      const ex = leftX + segW * (i + 1);
+      const startY = leftY + droop * Math.sin((i / count) * Math.PI);
+      const endY = leftY + droop * Math.sin(((i + 1) / count) * Math.PI);
+      const midX = leftX + segW * (i + 0.5);
+      const midBaseY = (startY + endY) / 2;
+      const ctrlY = inverted ? midBaseY - depth : midBaseY + depth;
+      path.quadraticBezierTo(midX, ctrlY, ex, endY);
+    }
+  } else if (fishtail) {
+    const depthFrac = (params.fishtailDepth as number) || 0.15;
+    const notchCount = (params.fishtailNotches as number) || 3;
+    const notchDepth = h * depthFrac;
+    const hemBottom = h;
+    // Curve from left side down to hem
+    const hemLeft = w * 0.12;
+    const hemRight = w * 0.88;
+    path.cubicBezierTo(leftX, leftY + (hemBottom - leftY) * 0.4, w * 0.06, hemBottom, hemLeft, hemBottom);
+    // Distribute V-notches evenly across the hem
+    const hemSpan = hemRight - hemLeft;
+    const notchW = Math.min(w * 0.06, hemSpan / (notchCount * 2));
+    for (let i = 0; i < notchCount; i++) {
+      const nc = hemLeft + hemSpan * (i + 1) / (notchCount + 1);
+      path.lineTo(nc - notchW, hemBottom);
+      path.lineTo(nc, hemBottom - notchDepth);
+      path.lineTo(nc + notchW, hemBottom);
+    }
+    path.lineTo(hemRight, hemBottom);
+    // Curve from hem up to right side
+    path.cubicBezierTo(w * 0.94, hemBottom, rightX, rightY + (hemBottom - rightY) * 0.4, rightX, rightY);
+  } else if (asymmetric) {
+    const skew = (params.asymmetricSkew as number) || 0.15;
+    const side = (params.asymmetricSide as string) || 'left';
+    const hemBase = h;
+    const leftDrop = (side === 'left' || side === 'both') ? hemBase : leftY;
+    const rightDrop = (side === 'right' || side === 'both') ? hemBase : rightY;
+    const leftHem = (side === 'right') ? leftY + (hemBase - leftY) * (1 - skew) : leftDrop;
+    const rightHem = (side === 'left') ? rightY + (hemBase - rightY) * (1 - skew) : rightDrop;
+    const midHem = (leftHem + rightHem) / 2;
+    path.cubicBezierTo(leftX, leftY + (leftHem - leftY) * 0.4, w * 0.12, leftHem, w * 0.30, leftHem);
+    path.lineTo(w * 0.50, midHem);
+    path.lineTo(w * 0.70, rightHem);
+    path.cubicBezierTo(w * 0.88, rightHem, rightX, rightY + (rightHem - rightY) * 0.4, rightX, rightY);
+  }
+
+  // Draw the right side back up at reference height
+  drawRefRightSide(path, w, refH);
+}
+
+/**
+ * Generate star-shaped battle damage holes as separate cut paths.
+ * Deterministic positions from seed, placed in the body area of the cape.
+ */
+function generateStarHoles(
+  w: number, h: number, count: number, size: number, seed: number
+): string[] {
+  const rng = new SeededRNG(seed);
+  const paths: string[] = [];
+  const placed: Array<{x: number; y: number}> = [];
+
+  for (let i = 0; i < count; i++) {
+    // Try to avoid overlapping previous holes
+    let cx = 0, cy = 0;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      cx = w * (0.12 + rng.next() * 0.76);
+      cy = h * (0.22 + rng.next() * 0.55);
+      const tooClose = placed.some(p =>
+        Math.hypot(p.x - cx, p.y - cy) < size * 3
+      );
+      if (!tooClose) break;
+    }
+    placed.push({ x: cx, y: cy });
+
+    // Vary per-hole: size ±40%, point count 4-7, rotation, inner ratio
+    const holeSize = size * (0.6 + rng.next() * 0.8);
+    const points = 4 + Math.floor(rng.next() * 4);
+    const rotation = rng.next() * Math.PI * 2;
+    const innerRatio = 0.3 + rng.next() * 0.25; // 0.3-0.55 inner radius
+
+    const path = new SVGPath();
+    const totalVerts = points * 2;
+    for (let p = 0; p <= totalVerts; p++) {
+      const angle = (p * Math.PI) / points + rotation;
+      const isOuter = p % 2 === 0;
+      const r = isOuter ? holeSize : holeSize * innerRatio;
+      // Add slight per-vertex wobble for organic feel
+      const wobble = 1 + (rng.next() - 0.5) * 0.3;
+      const x = cx + r * wobble * Math.cos(angle);
+      const y = cy + r * wobble * Math.sin(angle);
+      if (p === 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
+    }
+    path.closePath();
+    paths.push(path.toString());
+  }
+  return paths;
+}
+
+/**
+ * Generate arm slit cut lines as separate cut paths (one per side).
+ */
+function generateArmSlits(
+  w: number, h: number, yFrac: number, slitLen: number
+): string[] {
+  const refH = REF_H;
+  const cy = refH * yFrac;
+  const half = slitLen / 2;
+  // Clamp slit to stay below attachment holes and above the hem
+  const holeBottom = refH * 0.156 + 2.36 + 1.5;
+  const hemTop = refH * 0.89712 - 1.5;
+  const top = Math.max(cy - half, holeBottom);
+  const bottom = Math.min(cy + half, hemTop);
+  // Place at ~22% / 78% width — safely inside the cape body
+  const leftPath = new SVGPath();
+  leftPath.moveTo(w * 0.22, top);
+  leftPath.lineTo(w * 0.22, bottom);
+  const rightPath = new SVGPath();
+  rightPath.moveTo(w * 0.78, top);
+  rightPath.lineTo(w * 0.78, bottom);
+  return [leftPath.toString(), rightPath.toString()];
+}
+
 /** Reference slit half-width factor (fraction of width) */
 const REF_SLIT_HW = 0.008;
 /** Reference keyhole radius in mm */
@@ -190,14 +444,15 @@ function closeRefNeckAndSlit(path: SVGPath, w: number, h: number, sw: number, cx
 
 /**
  * Generate standard reference hole paths for a cape variant.
+ * Uses reference positions but respects the user's chosen hole radius.
  */
-function generateRefHoles(w: number, h: number, slitWidth: number, enableSlit: boolean): string[] {
+function generateRefHoles(w: number, h: number, holeRadius: number): string[] {
   const cx = w / 2;
   const holeOffset = w * REF_HOLE_OFFSET;
   const holeY = h * REF_HOLE_Y;
   return [
-    generateAttachmentHole(cx - holeOffset, holeY, REF_HOLE_RADIUS, slitWidth, 8, enableSlit),
-    generateAttachmentHole(cx + holeOffset, holeY, REF_HOLE_RADIUS, slitWidth, 8, enableSlit),
+    generateAttachmentHole(cx - holeOffset, holeY, holeRadius, 0, 0, false),
+    generateAttachmentHole(cx + holeOffset, holeY, holeRadius, 0, 0, false),
   ];
 }
 
@@ -212,17 +467,44 @@ export class CapeStandard extends Template {
     const path = new SVGPath();
     const w = width;
     const h = length;
+    const refH = REF_H;
 
-    path.moveTo(w / 2 - w * REF_SLIT_HW, h * 0.04778);
-    const { sw, cx, arcJoinY } = drawRefNeckAndSlit(path, w, h);
-    drawRefOutline(path, w, h);
-    closeRefNeckAndSlit(path, w, h, sw, cx, arcJoinY);
+    // Use refH for the neck/slit so the top stays fixed regardless of length
+    path.moveTo(w / 2 - w * REF_SLIT_HW, refH * 0.04778);
+    const { sw, cx, arcJoinY } = drawRefNeckAndSlit(path, w, refH);
+    drawModifiedOutline(path, w, h, params);
+    closeRefNeckAndSlit(path, w, refH, sw, cx, arcJoinY);
     return path.toString();
   }
 
   generateCutPaths(params: TemplateParams): string[] {
-    const { width, length, slitWidth, enableSlit } = params;
-    return [this.generateCutPath(params), ...generateRefHoles(width, length, slitWidth, enableSlit)];
+    const { width, length, holeRadius } = params;
+    // Holes use REF_H so they stay in the same position regardless of length
+    const paths = [this.generateCutPath(params), ...generateRefHoles(width, REF_H, holeRadius)];
+    if (params.swordSlit) {
+      paths.push(generateSwordSlit(
+        width, length,
+        params.swordSide as string || 'right',
+        params.swordAngle as number || 35,
+        params.swordY as number || 0.45
+      ));
+    }
+    if (params.starHoles) {
+      paths.push(...generateStarHoles(
+        width, length,
+        (params.starHoleCount as number) || 5,
+        (params.starHoleSize as number) || 1.5,
+        (params.seed as number) || 12345
+      ));
+    }
+    if (params.armSlits) {
+      paths.push(...generateArmSlits(
+        width, length,
+        (params.armSlitY as number) || 0.25,
+        (params.armSlitLength as number) || 6
+      ));
+    }
+    return paths;
   }
 
   generateScorePaths(params: TemplateParams): string[] { return []; }
@@ -248,9 +530,18 @@ export class CapeShort extends Template {
   }
 
   generateCutPaths(params: TemplateParams): string[] {
-    const { width, length, slitWidth, enableSlit } = params;
+    const { width, length, holeRadius } = params;
     const h = length * 0.6;
-    return [this.generateCutPath(params), ...generateRefHoles(width, h, slitWidth, enableSlit)];
+    const paths = [this.generateCutPath(params), ...generateRefHoles(width, h, holeRadius)];
+    if (params.swordSlit) {
+      paths.push(generateSwordSlit(
+        width, h,
+        params.swordSide as string || 'right',
+        params.swordAngle as number || 35,
+        params.swordY as number || 0.45
+      ));
+    }
+    return paths;
   }
 
   generateScorePaths(params: TemplateParams): string[] { return []; }
@@ -323,9 +614,18 @@ export class CapeLong extends Template {
   }
 
   generateCutPaths(params: TemplateParams): string[] {
-    const { width, length, slitWidth, enableSlit } = params;
+    const { width, length, holeRadius } = params;
     const h = length * 1.4;
-    return [this.generateCutPath(params), ...generateRefHoles(width, h, slitWidth, enableSlit)];
+    const paths = [this.generateCutPath(params), ...generateRefHoles(width, h, holeRadius)];
+    if (params.swordSlit) {
+      paths.push(generateSwordSlit(
+        width, h,
+        params.swordSide as string || 'right',
+        params.swordAngle as number || 35,
+        params.swordY as number || 0.45
+      ));
+    }
+    return paths;
   }
 
   generateScorePaths(params: TemplateParams): string[] { return []; }
@@ -374,8 +674,17 @@ export class CapeTattered extends Template {
   }
 
   generateCutPaths(params: TemplateParams): string[] {
-    const { width, length, slitWidth, enableSlit } = params;
-    return [this.generateCutPath(params), ...generateRefHoles(width, length, slitWidth, enableSlit)];
+    const { width, length, holeRadius } = params;
+    const paths = [this.generateCutPath(params), ...generateRefHoles(width, length, holeRadius)];
+    if (params.swordSlit) {
+      paths.push(generateSwordSlit(
+        width, length,
+        params.swordSide as string || 'right',
+        params.swordAngle as number || 35,
+        params.swordY as number || 0.45
+      ));
+    }
+    return paths;
   }
 
   generateScorePaths(params: TemplateParams): string[] { return []; }
@@ -498,25 +807,8 @@ export class CapeReferenceTest extends Template {
   }
 
   generateCutPaths(params: TemplateParams): string[] {
-    const { width, length, holeRadius, slitWidth, enableSlit } = params;
-    const mainPath = this.generateCutPath(params);
-    const paths = [mainPath];
-
-    const w = width;
-    const h = length;
-    const cx = w / 2;
-    // Hole positions from reference: offset 12.7% of width from center, y at 15.6% of height
-    const holeOffset = w * 0.127;
-    const holeY = h * 0.156;
-    const leftHoleX = cx - holeOffset;
-    const rightHoleX = cx + holeOffset;
-
-    // Reference hole radius ≈ 2.36mm — override the default param
-    const refHoleRadius = 2.36;
-    paths.push(generateAttachmentHole(leftHoleX, holeY, refHoleRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(rightHoleX, holeY, refHoleRadius, slitWidth, 8, enableSlit));
-
-    return paths;
+    const { width, length, holeRadius } = params;
+    return [this.generateCutPath(params), ...generateRefHoles(width, length, holeRadius)];
   }
 
   generateScorePaths(params: TemplateParams): string[] {

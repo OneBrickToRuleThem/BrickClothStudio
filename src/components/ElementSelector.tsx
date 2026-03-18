@@ -71,9 +71,6 @@ function ElementVariantSelector() {
   const variants: Record<ElementType, Array<{ value: string; label: string }>> = {
     cape: [
       { value: 'standard', label: 'Standard' },
-      { value: 'short', label: 'Short' },
-      { value: 'long', label: 'Long' },
-      { value: 'tattered', label: 'Tattered' },
       { value: 'reference-test', label: 'Reference Test' },
     ],
     cloak: [
