@@ -6,6 +6,7 @@
 import { Template, TemplateParams, generateAttachmentHole } from './base';
 import { SVGPath, scallopedPath } from '../geometry/primitives';
 import { SeededRNG } from '../utils/rng';
+import type { PatternExport } from '../utils/types';
 
 /** Reference cape height in mm — upper portion stays fixed at this scale */
 const REF_H = 39;
@@ -81,28 +82,37 @@ function drawRefOutline(path: SVGPath, w: number, h: number) {
  * Shoulder peak → left side down to y ≈ 0.897h.
  * Used by CapeTattered to replace the bottom hem with jitter.
  */
-function drawRefLeftSide(path: SVGPath, w: number, h: number) {
-  path.cubicBezierTo(w * 0.34058, h * 0.01217, w * 0.31290, h * 0.01849, w * 0.30793, h * 0.02040);
-  path.cubicBezierTo(w * 0.29702, h * 0.02459, w * 0.28376, h * 0.03298, w * 0.27895, h * 0.03873);
-  path.cubicBezierTo(w * 0.27002, h * 0.04942, w * 0.25938, h * 0.06828, w * 0.23779, h * 0.11174);
-  path.cubicBezierTo(w * 0.22615, h * 0.13518, w * 0.21624, h * 0.15492, w * 0.21578, h * 0.15561);
-  path.cubicBezierTo(w * 0.21459, h * 0.15739, w * 0.19440, h * 0.20213, w * 0.18948, h * 0.21389);
-  path.cubicBezierTo(w * 0.18724, h * 0.21926, w * 0.17947, h * 0.23755, w * 0.17222, h * 0.25453);
-  path.cubicBezierTo(w * 0.16105, h * 0.28069, w * 0.14695, h * 0.31696, w * 0.14695, h * 0.31955);
-  path.cubicBezierTo(w * 0.14695, h * 0.31996, w * 0.14615, h * 0.32208, w * 0.14517, h * 0.32427);
-  path.cubicBezierTo(w * 0.14150, h * 0.33246, w * 0.10078, h * 0.45578, w * 0.09352, h * 0.48070);
-  path.cubicBezierTo(w * 0.09170, h * 0.48694, w * 0.08892, h * 0.49630, w * 0.08734, h * 0.50149);
-  path.cubicBezierTo(w * 0.08405, h * 0.51230, w * 0.07365, h * 0.54804, w * 0.06387, h * 0.58214);
-  path.cubicBezierTo(w * 0.06019, h * 0.59496, w * 0.05631, h * 0.60828, w * 0.05526, h * 0.61175);
-  path.cubicBezierTo(w * 0.04892, h * 0.63252, w * 0.04331, h * 0.65211, w * 0.04119, h * 0.66089);
-  path.cubicBezierTo(w * 0.03985, h * 0.66643, w * 0.03771, h * 0.67494, w * 0.03644, h * 0.67979);
-  path.cubicBezierTo(w * 0.03518, h * 0.68464, w * 0.03328, h * 0.69229, w * 0.03223, h * 0.69680);
-  path.cubicBezierTo(w * 0.03118, h * 0.70130, w * 0.02728, h * 0.71775, w * 0.02356, h * 0.73334);
-  path.cubicBezierTo(w * 0.01984, h * 0.74893, w * 0.01564, h * 0.76849, w * 0.01424, h * 0.77681);
-  path.cubicBezierTo(w * 0.01284, h * 0.78513, w * 0.01031, h * 0.80015, w * 0.00862, h * 0.81020);
-  path.cubicBezierTo(w * 0.00694, h * 0.82025, w * 0.00532, h * 0.82932, w * 0.00503, h * 0.83036);
-  path.cubicBezierTo(w * 0.00473, h * 0.83140, w * 0.00333, h * 0.84161, w * 0.00191, h * 0.85304);
-  path.cubicBezierTo(w * -0.00065, h * 0.87357, w * -0.00063, h * 0.89219, w * 0.00193, h * 0.89712);
+function drawRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0) {
+  const cx = w / 2;
+  // Progressively adjust X from center: at y=0 no adjustment, at y=0.897h full hemWidth
+  function xAdj(xFrac: number, yFrac: number): number {
+    const x = w * xFrac;
+    if (hemWidth === 1.0) return x;
+    const t = Math.max(0, yFrac / 0.89712); // 0 at top, 1 at side bottom
+    const adjusted = cx + (x - cx) * hemWidth;
+    return x + (adjusted - x) * t;
+  }
+  path.cubicBezierTo(xAdj(0.34058, 0.01217), h * 0.01217, xAdj(0.31290, 0.01849), h * 0.01849, xAdj(0.30793, 0.02040), h * 0.02040);
+  path.cubicBezierTo(xAdj(0.29702, 0.02459), h * 0.02459, xAdj(0.28376, 0.03298), h * 0.03298, xAdj(0.27895, 0.03873), h * 0.03873);
+  path.cubicBezierTo(xAdj(0.27002, 0.04942), h * 0.04942, xAdj(0.25938, 0.06828), h * 0.06828, xAdj(0.23779, 0.11174), h * 0.11174);
+  path.cubicBezierTo(xAdj(0.22615, 0.13518), h * 0.13518, xAdj(0.21624, 0.15492), h * 0.15492, xAdj(0.21578, 0.15561), h * 0.15561);
+  path.cubicBezierTo(xAdj(0.21459, 0.15739), h * 0.15739, xAdj(0.19440, 0.20213), h * 0.20213, xAdj(0.18948, 0.21389), h * 0.21389);
+  path.cubicBezierTo(xAdj(0.18724, 0.21926), h * 0.21926, xAdj(0.17947, 0.23755), h * 0.23755, xAdj(0.17222, 0.25453), h * 0.25453);
+  path.cubicBezierTo(xAdj(0.16105, 0.28069), h * 0.28069, xAdj(0.14695, 0.31696), h * 0.31696, xAdj(0.14695, 0.31955), h * 0.31955);
+  path.cubicBezierTo(xAdj(0.14695, 0.31996), h * 0.31996, xAdj(0.14615, 0.32208), h * 0.32208, xAdj(0.14517, 0.32427), h * 0.32427);
+  path.cubicBezierTo(xAdj(0.14150, 0.33246), h * 0.33246, xAdj(0.10078, 0.45578), h * 0.45578, xAdj(0.09352, 0.48070), h * 0.48070);
+  path.cubicBezierTo(xAdj(0.09170, 0.48694), h * 0.48694, xAdj(0.08892, 0.49630), h * 0.49630, xAdj(0.08734, 0.50149), h * 0.50149);
+  path.cubicBezierTo(xAdj(0.08405, 0.51230), h * 0.51230, xAdj(0.07365, 0.54804), h * 0.54804, xAdj(0.06387, 0.58214), h * 0.58214);
+  path.cubicBezierTo(xAdj(0.06019, 0.59496), h * 0.59496, xAdj(0.05631, 0.60828), h * 0.60828, xAdj(0.05526, 0.61175), h * 0.61175);
+  path.cubicBezierTo(xAdj(0.04892, 0.63252), h * 0.63252, xAdj(0.04331, 0.65211), h * 0.65211, xAdj(0.04119, 0.66089), h * 0.66089);
+  path.cubicBezierTo(xAdj(0.03985, 0.66643), h * 0.66643, xAdj(0.03771, 0.67494), h * 0.67494, xAdj(0.03644, 0.67979), h * 0.67979);
+  path.cubicBezierTo(xAdj(0.03518, 0.68464), h * 0.68464, xAdj(0.03328, 0.69229), h * 0.69229, xAdj(0.03223, 0.69680), h * 0.69680);
+  path.cubicBezierTo(xAdj(0.03118, 0.70130), h * 0.70130, xAdj(0.02728, 0.71775), h * 0.71775, xAdj(0.02356, 0.73334), h * 0.73334);
+  path.cubicBezierTo(xAdj(0.01984, 0.74893), h * 0.74893, xAdj(0.01564, 0.76849), h * 0.76849, xAdj(0.01424, 0.77681), h * 0.77681);
+  path.cubicBezierTo(xAdj(0.01284, 0.78513), h * 0.78513, xAdj(0.01031, 0.80015), h * 0.80015, xAdj(0.00862, 0.81020), h * 0.81020);
+  path.cubicBezierTo(xAdj(0.00694, 0.82025), h * 0.82025, xAdj(0.00532, 0.82932), h * 0.82932, xAdj(0.00503, 0.83036), h * 0.83036);
+  path.cubicBezierTo(xAdj(0.00473, 0.83140), h * 0.83140, xAdj(0.00333, 0.84161), h * 0.84161, xAdj(0.00191, 0.85304), h * 0.85304);
+  path.cubicBezierTo(xAdj(-0.00065, 0.87357), h * 0.87357, xAdj(-0.00063, 0.89219), h * 0.89219, xAdj(0.00193, 0.89712), h * 0.89712);
 }
 
 /**
@@ -110,28 +120,36 @@ function drawRefLeftSide(path: SVGPath, w: number, h: number) {
  * From y ≈ 0.897h up to right shoulder peak.
  * Mirror of drawRefLeftSide. Used by CapeTattered.
  */
-function drawRefRightSide(path: SVGPath, w: number, h: number) {
-  path.cubicBezierTo(w * 1.00065, h * 0.89219, w * 1.00063, h * 0.87357, w * 0.99809, h * 0.85304);
-  path.cubicBezierTo(w * 0.99667, h * 0.84161, w * 0.99527, h * 0.83140, w * 0.99497, h * 0.83036);
-  path.cubicBezierTo(w * 0.99468, h * 0.82932, w * 0.99306, h * 0.82025, w * 0.99138, h * 0.81020);
-  path.cubicBezierTo(w * 0.98969, h * 0.80015, w * 0.98716, h * 0.78513, w * 0.98576, h * 0.77681);
-  path.cubicBezierTo(w * 0.98436, h * 0.76849, w * 0.98016, h * 0.74893, w * 0.97644, h * 0.73334);
-  path.cubicBezierTo(w * 0.97272, h * 0.71775, w * 0.96882, h * 0.70130, w * 0.96777, h * 0.69680);
-  path.cubicBezierTo(w * 0.96672, h * 0.69229, w * 0.96482, h * 0.68464, w * 0.96356, h * 0.67979);
-  path.cubicBezierTo(w * 0.96229, h * 0.67494, w * 0.96015, h * 0.66643, w * 0.95881, h * 0.66089);
-  path.cubicBezierTo(w * 0.95669, h * 0.65211, w * 0.95108, h * 0.63252, w * 0.94474, h * 0.61175);
-  path.cubicBezierTo(w * 0.94369, h * 0.60828, w * 0.93981, h * 0.59496, w * 0.93613, h * 0.58214);
-  path.cubicBezierTo(w * 0.92635, h * 0.54804, w * 0.91595, h * 0.51230, w * 0.91266, h * 0.50149);
-  path.cubicBezierTo(w * 0.91108, h * 0.49630, w * 0.90830, h * 0.48694, w * 0.90648, h * 0.48070);
-  path.cubicBezierTo(w * 0.89922, h * 0.45578, w * 0.85850, h * 0.33246, w * 0.85483, h * 0.32427);
-  path.cubicBezierTo(w * 0.85385, h * 0.32208, w * 0.85305, h * 0.31996, w * 0.85305, h * 0.31955);
-  path.cubicBezierTo(w * 0.85305, h * 0.31696, w * 0.83895, h * 0.28069, w * 0.82778, h * 0.25453);
-  path.cubicBezierTo(w * 0.82053, h * 0.23755, w * 0.81276, h * 0.21926, w * 0.81052, h * 0.21389);
-  path.cubicBezierTo(w * 0.80560, h * 0.20213, w * 0.78541, h * 0.15739, w * 0.78422, h * 0.15561);
-  path.cubicBezierTo(w * 0.78376, h * 0.15492, w * 0.77385, h * 0.13518, w * 0.76221, h * 0.11174);
-  path.cubicBezierTo(w * 0.74062, h * 0.06828, w * 0.72998, h * 0.04942, w * 0.72105, h * 0.03873);
-  path.cubicBezierTo(w * 0.71624, h * 0.03298, w * 0.70298, h * 0.02459, w * 0.69207, h * 0.02040);
-  path.cubicBezierTo(w * 0.68710, h * 0.01849, w * 0.65942, h * 0.01217, w * 0.64415, h * 0.00946);
+function drawRefRightSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0) {
+  const cx = w / 2;
+  function xAdj(xFrac: number, yFrac: number): number {
+    const x = w * xFrac;
+    if (hemWidth === 1.0) return x;
+    const t = Math.max(0, yFrac / 0.89712);
+    const adjusted = cx + (x - cx) * hemWidth;
+    return x + (adjusted - x) * t;
+  }
+  path.cubicBezierTo(xAdj(1.00065, 0.89219), h * 0.89219, xAdj(1.00063, 0.87357), h * 0.87357, xAdj(0.99809, 0.85304), h * 0.85304);
+  path.cubicBezierTo(xAdj(0.99667, 0.84161), h * 0.84161, xAdj(0.99527, 0.83140), h * 0.83140, xAdj(0.99497, 0.83036), h * 0.83036);
+  path.cubicBezierTo(xAdj(0.99468, 0.82932), h * 0.82932, xAdj(0.99306, 0.82025), h * 0.82025, xAdj(0.99138, 0.81020), h * 0.81020);
+  path.cubicBezierTo(xAdj(0.98969, 0.80015), h * 0.80015, xAdj(0.98716, 0.78513), h * 0.78513, xAdj(0.98576, 0.77681), h * 0.77681);
+  path.cubicBezierTo(xAdj(0.98436, 0.76849), h * 0.76849, xAdj(0.98016, 0.74893), h * 0.74893, xAdj(0.97644, 0.73334), h * 0.73334);
+  path.cubicBezierTo(xAdj(0.97272, 0.71775), h * 0.71775, xAdj(0.96882, 0.70130), h * 0.70130, xAdj(0.96777, 0.69680), h * 0.69680);
+  path.cubicBezierTo(xAdj(0.96672, 0.69229), h * 0.69229, xAdj(0.96482, 0.68464), h * 0.68464, xAdj(0.96356, 0.67979), h * 0.67979);
+  path.cubicBezierTo(xAdj(0.96229, 0.67494), h * 0.67494, xAdj(0.96015, 0.66643), h * 0.66643, xAdj(0.95881, 0.66089), h * 0.66089);
+  path.cubicBezierTo(xAdj(0.95669, 0.65211), h * 0.65211, xAdj(0.95108, 0.63252), h * 0.63252, xAdj(0.94474, 0.61175), h * 0.61175);
+  path.cubicBezierTo(xAdj(0.94369, 0.60828), h * 0.60828, xAdj(0.93981, 0.59496), h * 0.59496, xAdj(0.93613, 0.58214), h * 0.58214);
+  path.cubicBezierTo(xAdj(0.92635, 0.54804), h * 0.54804, xAdj(0.91595, 0.51230), h * 0.51230, xAdj(0.91266, 0.50149), h * 0.50149);
+  path.cubicBezierTo(xAdj(0.91108, 0.49630), h * 0.49630, xAdj(0.90830, 0.48694), h * 0.48694, xAdj(0.90648, 0.48070), h * 0.48070);
+  path.cubicBezierTo(xAdj(0.89922, 0.45578), h * 0.45578, xAdj(0.85850, 0.33246), h * 0.33246, xAdj(0.85483, 0.32427), h * 0.32427);
+  path.cubicBezierTo(xAdj(0.85385, 0.32208), h * 0.32208, xAdj(0.85305, 0.31996), h * 0.31996, xAdj(0.85305, 0.31955), h * 0.31955);
+  path.cubicBezierTo(xAdj(0.85305, 0.31696), h * 0.31696, xAdj(0.83895, 0.28069), h * 0.28069, xAdj(0.82778, 0.25453), h * 0.25453);
+  path.cubicBezierTo(xAdj(0.82053, 0.23755), h * 0.23755, xAdj(0.81276, 0.21926), h * 0.21926, xAdj(0.81052, 0.21389), h * 0.21389);
+  path.cubicBezierTo(xAdj(0.80560, 0.20213), h * 0.20213, xAdj(0.78541, 0.15739), h * 0.15739, xAdj(0.78422, 0.15561), h * 0.15561);
+  path.cubicBezierTo(xAdj(0.78376, 0.15492), h * 0.15492, xAdj(0.77385, 0.13518), h * 0.13518, xAdj(0.76221, 0.11174), h * 0.11174);
+  path.cubicBezierTo(xAdj(0.74062, 0.06828), h * 0.06828, xAdj(0.72998, 0.04942), h * 0.04942, xAdj(0.72105, 0.03873), h * 0.03873);
+  path.cubicBezierTo(xAdj(0.71624, 0.03298), h * 0.03298, xAdj(0.70298, 0.02459), h * 0.02459, xAdj(0.69207, 0.02040), h * 0.02040);
+  path.cubicBezierTo(xAdj(0.68710, 0.01849), h * 0.01849, xAdj(0.65942, 0.01217), h * 0.01217, xAdj(0.64415, 0.00946), h * 0.00946);
 }
 
 /**
@@ -184,176 +202,309 @@ function generateSwordSlit(
  * hemType: 'standard' | 'tattered' | 'scalloped' | 'fishtail' | 'asymmetric'
  */
 /**
- * Draw the standard bottom hem (no modifier) with independent length control.
- * Maps the reference bottom beziers from the side endpoints down to actual height h.
+ * Draw the standard bottom hem (no modifier) at actual cape height.
+ * Connects the bottom of the left side to the bottom of the right side
+ * with the reference curved hem shape, adjusted for hemWidth.
  */
-function drawRefStandardHem(path: SVGPath, w: number, refH: number, h: number) {
-  const sideEndY = refH * 0.89712;
-  const refBottom = refH * 0.99925;
-  // Map a reference Y fraction to actual Y, stretching only the bottom zone
-  function yMap(refFrac: number): number {
-    const refY = refH * refFrac;
-    if (refY <= sideEndY) return refY;
-    const t = (refY - sideEndY) / (refBottom - sideEndY);
-    return sideEndY + t * (h - sideEndY);
+function drawRefStandardHem(path: SVGPath, w: number, h: number, hemWidth: number) {
+  const cx = w / 2;
+  function xAdj(xFrac: number): number {
+    const x = w * xFrac;
+    return cx + (x - cx) * hemWidth;
   }
-  // Left bottom 4 beziers
-  path.cubicBezierTo(w * 0.00409, yMap(0.90125), w * 0.00828, yMap(0.90362), w * 0.03267, yMap(0.91449));
-  path.cubicBezierTo(w * 0.07094, yMap(0.93155), w * 0.12346, yMap(0.94865), w * 0.18105, yMap(0.96279));
-  path.cubicBezierTo(w * 0.22355, yMap(0.97322), w * 0.23299, yMap(0.97505), w * 0.29379, yMap(0.98465));
-  path.cubicBezierTo(w * 0.35859, yMap(0.99487), w * 0.37646, yMap(0.99729), w * 0.40180, yMap(0.99925));
+  // Left bottom 4 beziers (from side endpoint at ~0.897h down to ~0.999h)
+  path.cubicBezierTo(xAdj(0.00409), h * 0.90125, xAdj(0.00828), h * 0.90362, xAdj(0.03267), h * 0.91449);
+  path.cubicBezierTo(xAdj(0.07094), h * 0.93155, xAdj(0.12346), h * 0.94865, xAdj(0.18105), h * 0.96279);
+  path.cubicBezierTo(xAdj(0.22355), h * 0.97322, xAdj(0.23299), h * 0.97505, xAdj(0.29379), h * 0.98465);
+  path.cubicBezierTo(xAdj(0.35859), h * 0.99487, xAdj(0.37646), h * 0.99729, xAdj(0.40180), h * 0.99925);
   // Bridge
-  path.lineTo(w * 0.59820, yMap(0.99925));
+  path.lineTo(xAdj(0.59820), h * 0.99925);
   // Right bottom 4 beziers
-  path.cubicBezierTo(w * 0.62354, yMap(0.99729), w * 0.64141, yMap(0.99487), w * 0.70621, yMap(0.98465));
-  path.cubicBezierTo(w * 0.76701, yMap(0.97505), w * 0.77645, yMap(0.97322), w * 0.81895, yMap(0.96279));
-  path.cubicBezierTo(w * 0.87654, yMap(0.94865), w * 0.92906, yMap(0.93155), w * 0.96733, yMap(0.91449));
-  path.cubicBezierTo(w * 0.99172, yMap(0.90362), w * 0.99591, yMap(0.90125), w * 0.99807, yMap(0.89712));
+  path.cubicBezierTo(xAdj(0.62354), h * 0.99729, xAdj(0.64141), h * 0.99487, xAdj(0.70621), h * 0.98465);
+  path.cubicBezierTo(xAdj(0.76701), h * 0.97505, xAdj(0.77645), h * 0.97322, xAdj(0.81895), h * 0.96279);
+  path.cubicBezierTo(xAdj(0.87654), h * 0.94865, xAdj(0.92906), h * 0.93155, xAdj(0.96733), h * 0.91449);
+  path.cubicBezierTo(xAdj(0.99172), h * 0.90362, xAdj(0.99591), h * 0.90125, xAdj(0.99807), h * 0.89712);
+}
+
+/**
+ * Draw a rounded U-shaped hem from the left side bottom to the right side bottom.
+ * Uses two cubic beziers to approximate an elliptical arc.
+ * @param rounding  0-1: 0 = flat straight hem, 1 = full semicircular U
+ */
+function drawRoundedHem(path: SVGPath, w: number, h: number, hemWidth: number, rounding: number) {
+  const cx = w / 2;
+  function xAdj(xFrac: number): number {
+    const x = w * xFrac;
+    return cx + (x - cx) * hemWidth;
+  }
+  const leftX = xAdj(0.00193);
+  const rightX = xAdj(0.99807);
+  const sideY = h * 0.89712;
+  const halfW = (rightX - leftX) / 2;
+  // 0 = flat (zero depth), 1 = full semicircle
+  const maxDepth = halfW;
+  const depth = rounding * maxDepth;
+  if (depth < 0.01) {
+    // Flat: straight line across
+    path.lineTo(rightX, sideY);
+    return;
+  }
+  const bottomY = sideY + depth;
+  // Kappa for cubic bezier quarter-circle approximation
+  const k = 0.5522847498;
+  // Left quarter-arc: tangent at start is vertical, tangent at bottom is horizontal
+  path.cubicBezierTo(leftX, sideY + depth * k, cx - halfW * k, bottomY, cx, bottomY);
+  // Right quarter-arc: tangent at bottom is horizontal, tangent at end is vertical
+  path.cubicBezierTo(cx + halfW * k, bottomY, rightX, sideY + depth * k, rightX, sideY);
 }
 
 function drawModifiedOutline(
   path: SVGPath, w: number, h: number, params: TemplateParams
 ) {
   const refH = REF_H;
+  const hemW = (params.hemWidth as number) || 1.0;
   const tattered = params.tattered as boolean;
   const scalloped = params.scalloped as boolean;
   const fishtail = params.fishtail as boolean;
   const asymmetric = params.asymmetric as boolean;
+  const pointed = params.pointed as boolean;
+  const rounding = params.rounding as boolean;
+  const roundingAmt = (params.roundingAmount as number) || 0.5;
 
-  // If no hem modifier, draw sides at reference height and stretch bottom to h
-  if (!tattered && !scalloped && !fishtail && !asymmetric) {
-    drawRefLeftSide(path, w, refH);
-    drawRefStandardHem(path, w, refH, h);
-    drawRefRightSide(path, w, refH);
+  // If no hem modifier, draw full outline at actual length h with hemWidth taper
+  if (!tattered && !scalloped && !fishtail && !asymmetric && !pointed) {
+    drawRefLeftSide(path, w, h, hemW);
+    if (rounding) {
+      drawRoundedHem(path, w, h, hemW, roundingAmt);
+    } else {
+      drawRefStandardHem(path, w, h, hemW);
+    }
+    drawRefRightSide(path, w, h, hemW);
     return;
   }
 
-  // Draw the left side at reference height
-  drawRefLeftSide(path, w, refH);
-  // Side endpoints use refH so upper shape stays fixed
-  const leftX = w * 0.00193;
-  const leftY = refH * 0.89712;
-  const rightX = w * 0.99807;
+  // Draw the left side at actual length with hemWidth taper
+  drawRefLeftSide(path, w, h, hemW);
+  // Side endpoints at actual length
+  const cx = w / 2;
+  const leftX = cx + (w * 0.00193 - cx) * hemW;
+  const leftY = h * 0.89712;
+  const rightX = cx + (w * 0.99807 - cx) * hemW;
   const rightY = leftY;
+
+  const halfW = (rightX - leftX) / 2;
+  const hemDepth = h - leftY;
+  // When rounding is active the hem follows a deeper curved baseline
+  const effectiveDepth = rounding ? Math.max(hemDepth, roundingAmt * halfW) : hemDepth;
+  const hemSpan = rightX - leftX;
+
+  // Baseline Y at parameter t (0 = left edge, 1 = right edge).
+  // Smooth curve: leftY at edges, dipping to leftY + effectiveDepth at center.
+  function baseY(t: number): number {
+    return leftY + effectiveDepth * Math.sin(t * Math.PI);
+  }
+
+  // Outward normal of the baseline curve at parameter t.
+  // Perpendicular to the tangent, pointing away from the cape body.
+  function baseNormal(t: number): { nx: number; ny: number } {
+    const dydt = effectiveDepth * Math.PI * Math.cos(t * Math.PI);
+    const len = Math.sqrt(hemSpan * hemSpan + dydt * dydt);
+    return { nx: -dydt / len, ny: hemSpan / len };
+  }
+
+  // Offset along the baseline's local surface normal at the X position of px.
+  // When rounding is off, the baseline is nearly flat so normals point straight down.
+  function offsetPoint(px: number, py: number, offset: number): { x: number; y: number } {
+    if (!rounding) return { x: px, y: py + offset };
+    const t = Math.max(0, Math.min(1, (px - leftX) / hemSpan));
+    const n = baseNormal(t);
+    return { x: px + offset * n.nx, y: py + offset * n.ny };
+  }
 
   if (tattered) {
     const rng = new SeededRNG((params.seed as number) || 12345);
     const intensity = (params.tatteredIntensity as number) || 0.06;
     const jitterMax = w * intensity;
-    const segmentCount = Math.max(12, Math.floor(w / 2.5));
-    let prevY = leftY;
+    const hemSpan = rightX - leftX;
+    const segmentCount = Math.max(12, Math.floor(hemSpan / 2.5));
+    let prevOffset = 0;
     for (let i = 0; i <= segmentCount; i++) {
       const t = i / segmentCount;
-      const xPos = leftX + (rightX - leftX) * t;
-      const baseY = leftY + (h - leftY) * Math.sin(t * Math.PI);
-      const yJitter = rng.nextRange(-jitterMax * 0.2, jitterMax);
-      let targetY = baseY + yJitter;
-      targetY = Math.max(targetY, leftY);
+      const xPos = leftX + hemSpan * t;
+      const bY = baseY(t);
+      let offset = rng.nextRange(-jitterMax * 0.2, jitterMax);
+      offset = Math.max(offset, 0);
       const maxStep = jitterMax * 1.2;
-      if (Math.abs(targetY - prevY) > maxStep) {
-        targetY = prevY + Math.sign(targetY - prevY) * maxStep;
+      if (Math.abs(offset - prevOffset) > maxStep) {
+        offset = prevOffset + Math.sign(offset - prevOffset) * maxStep;
       }
-      prevY = targetY;
-      path.lineTo(xPos, targetY);
+      prevOffset = offset;
+      const pt = offsetPoint(xPos, bY, offset);
+      path.lineTo(pt.x, pt.y);
     }
   } else if (scalloped) {
     const count = (params.scallopCount as number) || 8;
     const depth = (params.scallopDepth as number) || 3;
     const inverted = params.scallopInverted as boolean;
-    const hemW = rightX - leftX;
-    const segW = hemW / count;
-    const droop = h - leftY;
+    const hemSpanW = rightX - leftX;
+    const segW = hemSpanW / count;
     for (let i = 0; i < count; i++) {
       const ex = leftX + segW * (i + 1);
-      const startY = leftY + droop * Math.sin((i / count) * Math.PI);
-      const endY = leftY + droop * Math.sin(((i + 1) / count) * Math.PI);
+      const endY = baseY((i + 1) / count);
       const midX = leftX + segW * (i + 0.5);
-      const midBaseY = (startY + endY) / 2;
-      const ctrlY = inverted ? midBaseY - depth : midBaseY + depth;
-      path.quadraticBezierTo(midX, ctrlY, ex, endY);
+      const midBY = baseY((i + 0.5) / count);
+      const d = inverted ? -depth : depth;
+      const ctrl = offsetPoint(midX, midBY, d);
+      path.quadraticBezierTo(ctrl.x, ctrl.y, ex, endY);
     }
   } else if (fishtail) {
     const depthFrac = (params.fishtailDepth as number) || 0.15;
     const notchCount = (params.fishtailNotches as number) || 3;
     const notchDepth = h * depthFrac;
-    const hemBottom = h;
-    // Curve from left side down to hem
-    const hemLeft = w * 0.12;
-    const hemRight = w * 0.88;
-    path.cubicBezierTo(leftX, leftY + (hemBottom - leftY) * 0.4, w * 0.06, hemBottom, hemLeft, hemBottom);
-    // Distribute V-notches evenly across the hem
-    const hemSpan = hemRight - hemLeft;
-    const notchW = Math.min(w * 0.06, hemSpan / (notchCount * 2));
+    const hemBottom = leftY + effectiveDepth;
+    const innerLeft = leftX + (rightX - leftX) * 0.06;
+    const innerRight = leftX + (rightX - leftX) * 0.94;
+    path.cubicBezierTo(leftX, leftY + (hemBottom - leftY) * 0.4, leftX + (innerLeft - leftX) * 0.5, hemBottom, innerLeft, hemBottom);
+    const innerSpan = innerRight - innerLeft;
+    const notchW = Math.min(w * 0.06, innerSpan / (notchCount * 2));
     for (let i = 0; i < notchCount; i++) {
-      const nc = hemLeft + hemSpan * (i + 1) / (notchCount + 1);
+      const nc = innerLeft + innerSpan * (i + 1) / (notchCount + 1);
       path.lineTo(nc - notchW, hemBottom);
-      path.lineTo(nc, hemBottom - notchDepth);
+      const tip = offsetPoint(nc, hemBottom, -notchDepth);
+      path.lineTo(tip.x, tip.y);
       path.lineTo(nc + notchW, hemBottom);
     }
-    path.lineTo(hemRight, hemBottom);
-    // Curve from hem up to right side
-    path.cubicBezierTo(w * 0.94, hemBottom, rightX, rightY + (hemBottom - rightY) * 0.4, rightX, rightY);
+    path.lineTo(innerRight, hemBottom);
+    path.cubicBezierTo(rightX - (rightX - innerRight) * 0.5, hemBottom, rightX, leftY + (hemBottom - leftY) * 0.4, rightX, leftY);
   } else if (asymmetric) {
-    const skew = (params.asymmetricSkew as number) || 0.15;
+    const skew = (params.asymmetricSkew as number) || 0.5;
     const side = (params.asymmetricSide as string) || 'left';
-    const hemBase = h;
-    const leftDrop = (side === 'left' || side === 'both') ? hemBase : leftY;
-    const rightDrop = (side === 'right' || side === 'both') ? hemBase : rightY;
-    const leftHem = (side === 'right') ? leftY + (hemBase - leftY) * (1 - skew) : leftDrop;
-    const rightHem = (side === 'left') ? rightY + (hemBase - rightY) * (1 - skew) : rightDrop;
-    const midHem = (leftHem + rightHem) / 2;
-    path.cubicBezierTo(leftX, leftY + (leftHem - leftY) * 0.4, w * 0.12, leftHem, w * 0.30, leftHem);
-    path.lineTo(w * 0.50, midHem);
-    path.lineTo(w * 0.70, rightHem);
-    path.cubicBezierTo(w * 0.88, rightHem, rightX, rightY + (rightHem - rightY) * 0.4, rightX, rightY);
+    const hemBase = leftY + effectiveDepth;
+    const hemRange = hemBase - leftY;
+    const leftHem = (side === 'left' || side === 'both')
+      ? hemBase
+      : leftY + hemRange * (1 - skew);
+    const rightHem = (side === 'right' || side === 'both')
+      ? hemBase
+      : leftY + hemRange * (1 - skew);
+    const hemSpanW = rightX - leftX;
+    const lcp1 = offsetPoint(leftX, leftY, (leftHem - leftY) * 0.3);
+    path.cubicBezierTo(lcp1.x, lcp1.y, leftX + hemSpanW * 0.05, leftHem, leftX + hemSpanW * 0.15, leftHem);
+    path.lineTo(leftX + hemSpanW * 0.5, (leftHem + rightHem) / 2);
+    path.lineTo(leftX + hemSpanW * 0.85, rightHem);
+    const rcp1 = offsetPoint(rightX, leftY, (rightHem - leftY) * 0.3);
+    path.cubicBezierTo(leftX + hemSpanW * 0.95, rightHem, rcp1.x, rcp1.y, rightX, leftY);
+  } else if (pointed) {
+    const depthFrac = (params.pointedDepth as number) || 0.3;
+    const pointDepth = (rightX - leftX) * depthFrac;
+    const tipDepth = Math.max(pointDepth, effectiveDepth);
+    const tipY = leftY + tipDepth;
+    const midX = (leftX + rightX) / 2;
+    const lcp = offsetPoint(leftX, leftY, tipDepth * 0.3);
+    path.cubicBezierTo(lcp.x, lcp.y, midX - (midX - leftX) * 0.4, tipY, midX, tipY);
+    const rcp = offsetPoint(rightX, leftY, tipDepth * 0.3);
+    path.cubicBezierTo(midX + (rightX - midX) * 0.4, tipY, rcp.x, rcp.y, rightX, leftY);
   }
 
-  // Draw the right side back up at reference height
-  drawRefRightSide(path, w, refH);
+  // Draw the right side back up at actual length with hemWidth taper
+  drawRefRightSide(path, w, h, hemW);
 }
 
 /**
- * Generate star-shaped battle damage holes as separate cut paths.
- * Deterministic positions from seed, placed in the body area of the cape.
+ * Generate irregular worn/torn hole shapes as separate cut paths.
+ * Produces organic blob shapes that avoid other cut features.
  */
-function generateStarHoles(
-  w: number, h: number, count: number, size: number, seed: number
+function generateWornHoles(
+  w: number, h: number, count: number, size: number, seed: number,
+  params: TemplateParams
 ): string[] {
   const rng = new SeededRNG(seed);
   const paths: string[] = [];
-  const placed: Array<{x: number; y: number}> = [];
+  const placed: Array<{x: number; y: number; r: number}> = [];
+  const refH = REF_H;
+
+  // Build exclusion zones: circles to avoid
+  const exclusions: Array<{x: number; y: number; r: number}> = [];
+  // Attachment holes
+  const holeCx = w / 2;
+  const holeOff = w * REF_HOLE_OFFSET;
+  const holeY = refH * REF_HOLE_Y;
+  const holeR = (params.holeRadius as number) || REF_HOLE_RADIUS;
+  exclusions.push({ x: holeCx - holeOff, y: holeY, r: holeR + size + 1 });
+  exclusions.push({ x: holeCx + holeOff, y: holeY, r: holeR + size + 1 });
+  // Neck/slit area
+  exclusions.push({ x: holeCx, y: refH * 0.15, r: w * 0.12 });
+  // Arm slits if enabled
+  if (params.armSlits) {
+    const armY = refH * ((params.armSlitY as number) || 0.35);
+    exclusions.push({ x: w * 0.22, y: armY, r: size + 4 });
+    exclusions.push({ x: w * 0.78, y: armY, r: size + 4 });
+  }
+  // Sword slit if enabled
+  if (params.swordSlit) {
+    const swordY = h * ((params.swordY as number) || 0.45);
+    const swordX = (params.swordSide === 'left') ? w * 0.35 : w * 0.65;
+    exclusions.push({ x: swordX, y: swordY, r: size + 5 });
+  }
+
+  // Safe placement zone: away from edges and the hem
+  const sideEndY = refH * 0.89712;
+  const safeMinX = w * 0.15;
+  const safeMaxX = w * 0.85;
+  const safeMinY = refH * 0.20;
+  const safeMaxY = sideEndY - size - 2;
 
   for (let i = 0; i < count; i++) {
-    // Try to avoid overlapping previous holes
-    let cx = 0, cy = 0;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      cx = w * (0.12 + rng.next() * 0.76);
-      cy = h * (0.22 + rng.next() * 0.55);
-      const tooClose = placed.some(p =>
-        Math.hypot(p.x - cx, p.y - cy) < size * 3
+    let cx = 0, cy = 0, placed_ok = false;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      cx = safeMinX + rng.next() * (safeMaxX - safeMinX);
+      cy = safeMinY + rng.next() * (safeMaxY - safeMinY);
+      // Check against exclusions
+      const blocked = exclusions.some(e =>
+        Math.hypot(e.x - cx, e.y - cy) < e.r
       );
-      if (!tooClose) break;
+      // Check against previously placed holes
+      const tooClose = placed.some(p =>
+        Math.hypot(p.x - cx, p.y - cy) < p.r + size * 2
+      );
+      if (!blocked && !tooClose) { placed_ok = true; break; }
     }
-    placed.push({ x: cx, y: cy });
+    if (!placed_ok) continue; // skip if can't place safely
 
-    // Vary per-hole: size ±40%, point count 4-7, rotation, inner ratio
-    const holeSize = size * (0.6 + rng.next() * 0.8);
-    const points = 4 + Math.floor(rng.next() * 4);
-    const rotation = rng.next() * Math.PI * 2;
-    const innerRatio = 0.3 + rng.next() * 0.25; // 0.3-0.55 inner radius
+    // Vary size per hole: 50%-160% of base
+    const holeSize = size * (0.5 + rng.next() * 1.1);
+    placed.push({ x: cx, y: cy, r: holeSize });
+
+    // Generate an irregular blob using random radii + smooth cubic curves
+    const vertCount = 5 + Math.floor(rng.next() * 5); // 5-9 vertices
+    const angles: number[] = [];
+    const radii: number[] = [];
+    const baseAngle = rng.next() * Math.PI * 2;
+    for (let v = 0; v < vertCount; v++) {
+      angles.push(baseAngle + (v / vertCount) * Math.PI * 2);
+      // Wildly varying radii for organic torn look
+      radii.push(holeSize * (0.3 + rng.next() * 1.0));
+    }
+
+    const pts = angles.map((a, idx) => ({
+      x: cx + radii[idx] * Math.cos(a),
+      y: cy + radii[idx] * Math.sin(a),
+    }));
 
     const path = new SVGPath();
-    const totalVerts = points * 2;
-    for (let p = 0; p <= totalVerts; p++) {
-      const angle = (p * Math.PI) / points + rotation;
-      const isOuter = p % 2 === 0;
-      const r = isOuter ? holeSize : holeSize * innerRatio;
-      // Add slight per-vertex wobble for organic feel
-      const wobble = 1 + (rng.next() - 0.5) * 0.3;
-      const x = cx + r * wobble * Math.cos(angle);
-      const y = cy + r * wobble * Math.sin(angle);
-      if (p === 0) path.moveTo(x, y);
-      else path.lineTo(x, y);
+    path.moveTo(pts[0].x, pts[0].y);
+    for (let v = 0; v < vertCount; v++) {
+      const curr = pts[v];
+      const next = pts[(v + 1) % vertCount];
+      // Random control point offsets for wobbly curves
+      const mx = (curr.x + next.x) / 2;
+      const my = (curr.y + next.y) / 2;
+      const cpOff = holeSize * 0.4;
+      const cp1x = curr.x + (mx - curr.x) * 0.5 + (rng.next() - 0.5) * cpOff;
+      const cp1y = curr.y + (my - curr.y) * 0.5 + (rng.next() - 0.5) * cpOff;
+      const cp2x = next.x + (mx - next.x) * 0.5 + (rng.next() - 0.5) * cpOff;
+      const cp2y = next.y + (my - next.y) * 0.5 + (rng.next() - 0.5) * cpOff;
+      path.cubicBezierTo(cp1x, cp1y, cp2x, cp2y, next.x, next.y);
     }
     path.closePath();
     paths.push(path.toString());
@@ -443,17 +594,53 @@ function closeRefNeckAndSlit(path: SVGPath, w: number, h: number, sw: number, cx
 }
 
 /**
- * Generate standard reference hole paths for a cape variant.
- * Uses reference positions but respects the user's chosen hole radius.
+ * Generate attachment hole paths for variable hole count.
+ * Holes are evenly distributed around center at the reference Y position.
  */
-function generateRefHoles(w: number, h: number, holeRadius: number): string[] {
+function generateRefHoles(w: number, h: number, holeRadius: number, holeCount: number = 2): string[] {
   const cx = w / 2;
-  const holeOffset = w * REF_HOLE_OFFSET;
   const holeY = h * REF_HOLE_Y;
-  return [
-    generateAttachmentHole(cx - holeOffset, holeY, holeRadius, 0, 0, false),
-    generateAttachmentHole(cx + holeOffset, holeY, holeRadius, 0, 0, false),
-  ];
+  if (holeCount === 1) {
+    return [generateAttachmentHole(cx, holeY, holeRadius, 0, 0, false)];
+  }
+  // Spread holes evenly across the same total span as the original 2-hole layout
+  const totalSpan = w * REF_HOLE_OFFSET * 2; // full width between outermost holes
+  const holes: string[] = [];
+  for (let i = 0; i < holeCount; i++) {
+    const x = cx - totalSpan / 2 + (totalSpan / (holeCount - 1)) * i;
+    holes.push(generateAttachmentHole(x, holeY, holeRadius, 0, 0, false));
+  }
+  return holes;
+}
+
+/**
+ * Generate extra slit cut paths for 3+ hole configurations.
+ * The center slit is already part of the main outline; this adds the additional ones.
+ * For N holes, there are N-1 slits total; 1 is built-in, so this generates N-2 extra.
+ */
+function generateExtraSlits(w: number, h: number, holeCount: number): string[] {
+  if (holeCount <= 2) return [];
+  const cx = w / 2;
+  const totalSpan = w * REF_HOLE_OFFSET * 2;
+  const sw = w * REF_SLIT_HW;
+  const slitTopY = h * 0.04778;
+  const holeCenterY = h * REF_SLIT_CENTER_Y;
+  const dy = Math.sqrt(REF_SLIT_R * REF_SLIT_R - sw * sw);
+  const arcJoinY = holeCenterY - dy;
+  const slits: string[] = [];
+  // All N-1 slit positions between consecutive holes
+  for (let i = 0; i < holeCount - 1; i++) {
+    const slitCx = cx - totalSpan / 2 + (totalSpan / (holeCount - 1)) * (i + 0.5);
+    // Skip the center slit (already in the outline) — it's at cx
+    if (Math.abs(slitCx - cx) < 0.1) continue;
+    const path = new SVGPath();
+    path.moveTo(slitCx - sw, slitTopY);
+    path.lineTo(slitCx - sw, arcJoinY);
+    path.arcTo(REF_SLIT_R, REF_SLIT_R, 0, 1, 1, slitCx + sw, arcJoinY);
+    path.lineTo(slitCx + sw, slitTopY);
+    slits.push(path.toString());
+  }
+  return slits;
 }
 
 /**
@@ -480,7 +667,11 @@ export class CapeStandard extends Template {
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length, holeRadius } = params;
     // Holes use REF_H so they stay in the same position regardless of length
-    const paths = [this.generateCutPath(params), ...generateRefHoles(width, REF_H, holeRadius)];
+    const paths = [this.generateCutPath(params), ...generateRefHoles(width, REF_H, holeRadius, (params.holeCount as number) || 2)];
+    const holeCount = (params.holeCount as number) || 2;
+    if (holeCount > 2) {
+      paths.push(...generateExtraSlits(width, REF_H, holeCount));
+    }
     if (params.swordSlit) {
       paths.push(generateSwordSlit(
         width, length,
@@ -490,11 +681,12 @@ export class CapeStandard extends Template {
       ));
     }
     if (params.starHoles) {
-      paths.push(...generateStarHoles(
+      paths.push(...generateWornHoles(
         width, length,
         (params.starHoleCount as number) || 5,
         (params.starHoleSize as number) || 1.5,
-        (params.seed as number) || 12345
+        (params.seed as number) || 12345,
+        params
       ));
     }
     if (params.armSlits) {
@@ -509,6 +701,38 @@ export class CapeStandard extends Template {
 
   generateScorePaths(params: TemplateParams): string[] { return []; }
   generateEngravePaths(params: TemplateParams): string[] { return []; }
+
+  export(
+    id: string,
+    name: string,
+    elementType: string,
+    variantName: string,
+    params: TemplateParams
+  ): PatternExport {
+    const result = super.export(id, name, elementType, variantName, params);
+    // Compute effective height when modifiers extend beyond params.length
+    const w = params.width;
+    const h = params.length;
+    const hemW = (params.hemWidth as number) || 1.0;
+    const cx = w / 2;
+    const leftX = cx + (w * 0.00193 - cx) * hemW;
+    const rightX = cx + (w * 0.99807 - cx) * hemW;
+    const sideY = h * 0.89712;
+    let maxY = h;
+    if (params.rounding) {
+      const halfW = (rightX - leftX) / 2;
+      const roundingAmt = (params.roundingAmount as number) || 0.5;
+      maxY = Math.max(maxY, sideY + roundingAmt * halfW);
+    }
+    if (params.pointed) {
+      const depthFrac = (params.pointedDepth as number) || 0.3;
+      maxY = Math.max(maxY, sideY + (rightX - leftX) * depthFrac);
+    }
+    if (maxY > result.boundingBox.height) {
+      result.boundingBox.height = maxY;
+    }
+    return result;
+  }
 }
 
 /**

@@ -8,7 +8,7 @@ import { useEditorStore } from '../store/editor';
 import { DEFAULT_SLIT_WIDTH, HOLE_STANDARDS, DEFAULT_HOLE_TYPE } from '../utils/constants';
 
 export default function ParameterPanel() {
-  const { parameters, setParameter, addDecoration, resetToDefaults } = useEditorStore();
+  const { parameters, setParameter, resetToDefaults } = useEditorStore();
 
   return (
     <div className="p-4 h-full overflow-y-auto">
@@ -44,6 +44,37 @@ export default function ParameterPanel() {
           </div>
         </section>
 
+        {/* Transformations Section */}
+        <section className="panel-section border-t pt-4">
+          <h3 className="panel-section-title">Transformations</h3>
+          <div className="space-y-3">
+            <ParameterSlider
+              label="Hem width"
+              name="hemWidth"
+              min={0.5}
+              max={1.5}
+              step={0.05}
+              value={parameters.hemWidth as number || 1.0}
+              onChange={(value) => setParameter('hemWidth', value)}
+            />
+            <div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={parameters.rounding as boolean}
+                  onChange={(e) => setParameter('rounding', e.target.checked)} className="w-4 h-4" />
+                <span>Rounding</span>
+              </label>
+              {parameters.rounding && (
+                <div className="ml-6 mt-1">
+                  <ParameterSlider label="Amount" name="roundingAmount"
+                    min={0.1} max={1.0} step={0.05}
+                    value={parameters.roundingAmount as number || 0.5}
+                    onChange={(v) => setParameter('roundingAmount', v)} />
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* Attachment Hole Section */}
         <section className="panel-section border-t pt-4">
           <h3 className="panel-section-title">Attachment Hole</h3>
@@ -72,6 +103,16 @@ export default function ParameterPanel() {
                 {HOLE_STANDARDS[parameters.holeType as keyof typeof HOLE_STANDARDS || 'minifigure']?.description}
               </p>
             </div>
+
+            <ParameterSlider
+              label="Pin holes"
+              name="holeCount"
+              min={1}
+              max={4}
+              step={1}
+              value={parameters.holeCount as number || 2}
+              onChange={(value) => setParameter('holeCount', value)}
+            />
 
 
           </div>
@@ -107,25 +148,41 @@ export default function ParameterPanel() {
             {/* Scalloped */}
             <div>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={parameters.scalloped as boolean}
-                  onChange={(e) => setParameter('scalloped', e.target.checked)} className="w-4 h-4" />
+                <input type="checkbox" checked={parameters.scalloped as boolean && !parameters.scallopInverted}
+                  onChange={(e) => { setParameter('scalloped', e.target.checked); setParameter('scallopInverted', false); }} className="w-4 h-4" />
                 <span>Scalloped</span>
               </label>
-              {parameters.scalloped && (
+              {parameters.scalloped && !parameters.scallopInverted && (
                 <div className="ml-6 mt-1">
                   <ParameterSlider label="Scallops" name="scallopCount"
                     min={4} max={16} step={1}
                     value={parameters.scallopCount as number || 8}
                     onChange={(v) => setParameter('scallopCount', v)} />
                   <ParameterSlider label="Depth (mm)" name="scallopDepth"
-                    min={1} max={8} step={0.5}
+                    min={1} max={20} step={0.5}
                     value={parameters.scallopDepth as number || 3}
                     onChange={(v) => setParameter('scallopDepth', v)} />
-                  <label className="flex items-center gap-2 text-sm mt-1">
-                    <input type="checkbox" checked={parameters.scallopInverted as boolean}
-                      onChange={(e) => setParameter('scallopInverted', e.target.checked)} className="w-4 h-4" />
-                    <span>Inverted</span>
-                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Arched (inverted scallop) */}
+            <div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={parameters.scalloped as boolean && parameters.scallopInverted as boolean}
+                  onChange={(e) => { setParameter('scalloped', e.target.checked); setParameter('scallopInverted', e.target.checked); }} className="w-4 h-4" />
+                <span>Arched</span>
+              </label>
+              {parameters.scalloped && parameters.scallopInverted && (
+                <div className="ml-6 mt-1">
+                  <ParameterSlider label="Arches" name="scallopCount"
+                    min={2} max={16} step={1}
+                    value={parameters.scallopCount as number || 8}
+                    onChange={(v) => setParameter('scallopCount', v)} />
+                  <ParameterSlider label="Depth (mm)" name="scallopDepth"
+                    min={1} max={20} step={0.5}
+                    value={parameters.scallopDepth as number || 3}
+                    onChange={(v) => setParameter('scallopDepth', v)} />
                 </div>
               )}
             </div>
@@ -135,7 +192,7 @@ export default function ParameterPanel() {
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={parameters.fishtail as boolean}
                   onChange={(e) => setParameter('fishtail', e.target.checked)} className="w-4 h-4" />
-                <span>Fishtail notch</span>
+                <span>Notched</span>
               </label>
               {parameters.fishtail && (
                 <div className="ml-6 mt-1">
@@ -144,36 +201,26 @@ export default function ParameterPanel() {
                     value={parameters.fishtailNotches as number || 3}
                     onChange={(v) => setParameter('fishtailNotches', v)} />
                   <ParameterSlider label="Depth (%)" name="fishtailDepth"
-                    min={0.05} max={0.35} step={0.05}
+                    min={0.05} max={0.65} step={0.05}
                     value={parameters.fishtailDepth as number || 0.15}
                     onChange={(v) => setParameter('fishtailDepth', v)} />
                 </div>
               )}
             </div>
 
-            {/* Asymmetric */}
+            {/* Pointed */}
             <div>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={parameters.asymmetric as boolean}
-                  onChange={(e) => setParameter('asymmetric', e.target.checked)} className="w-4 h-4" />
-                <span>Asymmetric</span>
+                <input type="checkbox" checked={parameters.pointed as boolean}
+                  onChange={(e) => setParameter('pointed', e.target.checked)} className="w-4 h-4" />
+                <span>Pointed</span>
               </label>
-              {parameters.asymmetric && (
+              {parameters.pointed && (
                 <div className="ml-6 mt-1">
-                  <label className="block text-xs text-gray-600 mb-1">Side</label>
-                  <select
-                    className="w-full rounded border border-gray-300 text-sm py-1 px-2 mb-2"
-                    value={parameters.asymmetricSide as string || 'left'}
-                    onChange={(e) => setParameter('asymmetricSide', e.target.value)}
-                  >
-                    <option value="left">Left longer</option>
-                    <option value="right">Right longer</option>
-                    <option value="both">Both sides</option>
-                  </select>
-                  <ParameterSlider label="Skew" name="asymmetricSkew"
-                    min={0.05} max={0.30} step={0.05}
-                    value={parameters.asymmetricSkew as number || 0.15}
-                    onChange={(v) => setParameter('asymmetricSkew', v)} />
+                  <ParameterSlider label="Depth" name="pointedDepth"
+                    min={0.1} max={0.6} step={0.05}
+                    value={parameters.pointedDepth as number || 0.3}
+                    onChange={(v) => setParameter('pointedDepth', v)} />
                 </div>
               )}
             </div>
@@ -240,12 +287,12 @@ export default function ParameterPanel() {
               )}
             </div>
 
-            {/* Decorative holes */}
+            {/* Worn holes */}
             <div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={parameters.starHoles as boolean}
                   onChange={(e) => setParameter('starHoles', e.target.checked)} className="w-4 h-4" />
-                <span>Decorative holes</span>
+                <span>Worn holes</span>
               </label>
               {parameters.starHoles && (
                 <div className="ml-6 mt-1">
@@ -261,74 +308,6 @@ export default function ParameterPanel() {
               )}
             </div>
 
-          </div>
-        </section>
-
-        {/* Decorations Section */}
-        <section className="panel-section border-t pt-4">
-          <h3 className="panel-section-title">Decorations</h3>
-          <div className="space-y-2">
-            <button
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.svg';
-                input.onchange = async (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (file) {
-                    const text = await file.text();
-                    addDecoration({
-                      name: file.name.replace('.svg', ''),
-                      type: 'svg',
-                      data: text,
-                      x: 20,
-                      y: 20,
-                      scale: 1,
-                      rotation: 0,
-                      clipToSilhouette: true,
-                      visible: true,
-                      locked: false,
-                    });
-                  }
-                };
-                input.click();
-              }}
-              className="btn btn-secondary w-full text-xs"
-            >
-              + Import SVG
-            </button>
-            <button
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.onchange = async (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                      addDecoration({
-                        name: file.name,
-                        type: 'image',
-                        data: ev.target?.result as string,
-                        x: 20,
-                        y: 20,
-                        scale: 1,
-                        rotation: 0,
-                        clipToSilhouette: false,
-                        visible: true,
-                        locked: false,
-                      });
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                };
-                input.click();
-              }}
-              className="btn btn-secondary w-full text-xs"
-            >
-              + Import Image
-            </button>
           </div>
         </section>
 
@@ -365,13 +344,23 @@ function ParameterSlider({
   value,
   onChange,
 }: ParameterSliderProps) {
+  const decimals = step < 1 ? 2 : 0;
   return (
     <div className="form-group">
-      <label className="form-label flex justify-between text-xs">
+      <label className="form-label flex justify-between items-center text-xs">
         <span>{label}</span>
-        <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">
-          {(value as number).toFixed(step < 1 ? 2 : 0)}
-        </span>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value.toFixed(decimals)}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (!isNaN(v)) onChange(Math.min(max, Math.max(min, v)));
+          }}
+          className="font-mono bg-gray-100 px-2 py-0.5 rounded w-16 text-right text-xs border border-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
       </label>
       <input
         type="range"
