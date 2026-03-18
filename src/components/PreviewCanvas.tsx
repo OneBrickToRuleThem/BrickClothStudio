@@ -8,6 +8,7 @@ import { useEditorStore } from '../store/editor';
 import { generatePattern } from '../services/patternGenerator';
 import { exportSinglePatternSVG } from '../export/svg';
 import { CANVAS_SCALE_MM_TO_PX, CANVAS_GRID_SPACING } from '../utils/constants';
+import minifigUrl from '/lego-man-silhouette.png';
 
 // Real LEGO minifigure dimensions in mm
 const MINIFIG_HEIGHT_MM = 40;
@@ -71,7 +72,7 @@ export default function PreviewCanvas() {
       width="${vbW.toFixed(2)}mm" height="${vbH.toFixed(2)}mm"
       style="position:absolute;top:0;left:0;pointer-events:none;">
       <g transform="translate(${pad}, ${pad})">
-        <image href="/lego-man-silhouette.png"
+        <image href="${minifigUrl}"
           x="${imgX.toFixed(2)}" y="${imgTopY.toFixed(2)}"
           width="${MINIFIG_WIDTH_MM}" height="${MINIFIG_HEIGHT_MM}"
           preserveAspectRatio="xMidYMid meet"
