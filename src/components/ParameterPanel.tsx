@@ -3,12 +3,43 @@
  * Controls pattern dimensions, hole settings, and decorations
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useEditorStore } from '../store/editor';
 import { DEFAULT_SLIT_WIDTH, HOLE_STANDARDS, DEFAULT_HOLE_TYPE } from '../utils/constants';
 
 export default function ParameterPanel() {
   const { parameters, setParameter, resetToDefaults } = useEditorStore();
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    transformations: false,
+    attachment: false,
+    hemStyle: false,
+    sideStyle: false,
+    cutsDetails: false,
+  });
+
+  function toggleSection(key: string) {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  // Summary labels for collapsed sections
+  const activeHem = parameters.tattered ? 'Tattered'
+    : parameters.scalloped && !parameters.scallopInverted ? 'Scalloped'
+    : parameters.scalloped && parameters.scallopInverted ? 'Arched'
+    : parameters.fishtail ? 'Notched'
+    : parameters.pointed ? 'Pointed'
+    : parameters.zigzag ? 'Zigzag'
+    : parameters.wavy ? 'Wavy'
+    : parameters.castellated ? 'Castellated'
+    : parameters.dovetail ? 'Dovetail'
+    : parameters.flame ? 'Flame'
+    : parameters.stepped ? 'Stepped'
+    : 'None';
+  const activeSide = (parameters.sideStyle as string || 'none') === 'none' ? 'None' : (parameters.sideStyle as string);
+  const activeCuts = [
+    parameters.swordSlit && 'Sword slit',
+    parameters.armSlits && 'Arm slits',
+    parameters.starHoles && 'Worn holes',
+  ].filter(Boolean).join(', ') || 'None';
 
   return (
     <div className="p-4 h-full overflow-y-auto">
@@ -46,8 +77,12 @@ export default function ParameterPanel() {
 
         {/* Transformations Section */}
         <section className="panel-section border-t pt-4">
-          <h3 className="panel-section-title">Transformations</h3>
-          <div className="space-y-3">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('transformations')}>
+            <h3 className="panel-section-title">Transformations</h3>
+            <span className="text-gray-400 text-xs">{openSections.transformations ? '▾' : '▸'}</span>
+          </button>
+          {openSections.transformations && (
+          <div className="space-y-3 mt-2">
             <ParameterSlider
               label="Hem width"
               name="hemWidth"
@@ -73,12 +108,17 @@ export default function ParameterPanel() {
               )}
             </div>
           </div>
+          )}
         </section>
 
         {/* Attachment Hole Section */}
         <section className="panel-section border-t pt-4">
-          <h3 className="panel-section-title">Attachment Hole</h3>
-          <div className="space-y-2">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('attachment')}>
+            <h3 className="panel-section-title">Attachment Hole</h3>
+            <span className="text-gray-400 text-xs">{openSections.attachment ? '▾' : '▸'}</span>
+          </button>
+          {openSections.attachment && (
+          <div className="space-y-2 mt-2">
             {/* Hole Type Selector */}
             <div className="form-group">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -105,11 +145,20 @@ export default function ParameterPanel() {
             </div>
 
           </div>
+          )}
         </section>
 
         {/* Hem Style Section — only one can be active */}
         <section className="panel-section border-t pt-4">
-          <h3 className="panel-section-title">Hem Style</h3>
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('hemStyle')}>
+            <h3 className="panel-section-title">Hem Style</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">{activeHem}</span>
+              <span className="text-gray-400 text-xs">{openSections.hemStyle ? '▾' : '▸'}</span>
+            </div>
+          </button>
+          {openSections.hemStyle && (
+          <div className="mt-2">
           <p className="text-xs text-gray-500 mb-2">Choose one hem modification</p>
           <div className="space-y-3">
 
@@ -135,6 +184,12 @@ export default function ParameterPanel() {
                     min={0.02} max={0.12} step={0.01}
                     value={parameters.tatteredIntensity as number || 0.06}
                     onChange={(v) => setParameter('tatteredIntensity', v)} />
+                  <label className="flex items-center gap-2 text-sm mt-1">
+                    <input type="checkbox" className="w-4 h-4"
+                      checked={parameters.tatteredSymmetric !== false}
+                      onChange={(e) => setParameter('tatteredSymmetric', e.target.checked)} />
+                    <span>Symmetric</span>
+                  </label>
                   <ParameterSlider label="Seed" name="seed"
                     min={1} max={99999} step={1}
                     value={parameters.seed as number}
@@ -360,11 +415,59 @@ export default function ParameterPanel() {
             </div>
 
           </div>
+          </div>
+          )}
+        </section>
+
+        {/* Side Style Section */}
+        <section className="panel-section border-t pt-4">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('sideStyle')}>
+            <h3 className="panel-section-title">Side Style</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 capitalize">{activeSide}</span>
+              <span className="text-gray-400 text-xs">{openSections.sideStyle ? '▾' : '▸'}</span>
+            </div>
+          </button>
+          {openSections.sideStyle && (
+          <div className="mt-2">
+          <p className="text-xs text-gray-500 mb-2">Modify the left and right edges</p>
+          <div className="space-y-2">
+            {(['none', 'tattered', 'scalloped', 'zigzag', 'wavy', 'castellated', 'serrated', 'fringed', 'thorned'] as const).map((style) => (
+              <label key={style} className="flex items-center gap-2 text-sm">
+                <input type="radio" name="sideStyle" className="w-4 h-4"
+                  checked={(parameters.sideStyle as string || 'none') === style}
+                  onChange={() => setParameter('sideStyle', style)} />
+                <span className="capitalize">{style}</span>
+              </label>
+            ))}
+            {(parameters.sideStyle as string || 'none') !== 'none' && (
+              <div className="ml-6 mt-1 space-y-1">
+                <ParameterSlider label="Depth (mm)" name="sideStyleDepth"
+                  min={0.5} max={8} step={0.5}
+                  value={parameters.sideStyleDepth as number || 3}
+                  onChange={(v) => setParameter('sideStyleDepth', v)} />
+                <ParameterSlider label="Count" name="sideStyleCount"
+                  min={3} max={20} step={1}
+                  value={parameters.sideStyleCount as number || 8}
+                  onChange={(v) => setParameter('sideStyleCount', v)} />
+              </div>
+            )}
+          </div>
+          </div>
+          )}
         </section>
 
         {/* Cuts & Details Section — can be combined freely */}
         <section className="panel-section border-t pt-4">
-          <h3 className="panel-section-title">Cuts &amp; Details</h3>
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('cutsDetails')}>
+            <h3 className="panel-section-title">Cuts &amp; Details</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">{activeCuts}</span>
+              <span className="text-gray-400 text-xs">{openSections.cutsDetails ? '▾' : '▸'}</span>
+            </div>
+          </button>
+          {openSections.cutsDetails && (
+          <div className="mt-2">
           <p className="text-xs text-gray-500 mb-2">These can be combined together</p>
           <div className="space-y-3">
 
@@ -443,9 +546,9 @@ export default function ParameterPanel() {
             </div>
 
           </div>
+          </div>
+          )}
         </section>
-
-        {/* Info Section */}
         <section className="panel-section border-t pt-4 text-xs text-gray-600">
           <p className="font-semibold mb-1">LEGO Standards:</p>
           <p>• Minifigure: {HOLE_STANDARDS.minifigure.diameter}mm hole</p>

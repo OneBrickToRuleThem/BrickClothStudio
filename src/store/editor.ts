@@ -59,6 +59,7 @@ const defaultParameters = {
   // Cape modifiers
   tattered: false,
   tatteredIntensity: 0.06,
+  tatteredSymmetric: true,
   scalloped: false,
   scallopCount: 8,
   scallopDepth: 3,
@@ -95,6 +96,10 @@ const defaultParameters = {
   armSlits: false,
   armSlitY: 0.35,
   armSlitLength: 6,
+  // Side styles
+  sideStyle: 'none' as string,
+  sideStyleDepth: 3,
+  sideStyleCount: 8,
 };
 
 const defaultPrintConfig: PrintSheetConfig = {

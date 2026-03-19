@@ -258,6 +258,151 @@ function drawRoundedHem(path: SVGPath, w: number, h: number, hemWidth: number, r
   path.cubicBezierTo(cx + halfW * k, bottomY, rightX, sideY + depth * k, rightX, sideY);
 }
 
+// Key sample points from the left side bezier chain: [yFrac, xFrac]
+// Extracted from the bezier endpoints to approximate the side profile.
+const LEFT_SIDE_SAMPLES: [number, number][] = [
+  [0.02040, 0.30793], [0.03873, 0.27895], [0.11174, 0.23779],
+  [0.15561, 0.21578], [0.21389, 0.18948], [0.25453, 0.17222],
+  [0.31955, 0.14695], [0.32427, 0.14517], [0.48070, 0.09352],
+  [0.50149, 0.08734], [0.58214, 0.06387], [0.61175, 0.05526],
+  [0.66089, 0.04119], [0.67979, 0.03644], [0.69680, 0.03223],
+  [0.73334, 0.02356], [0.77681, 0.01424], [0.81020, 0.00862],
+  [0.83036, 0.00503], [0.85304, 0.00191], [0.89712, 0.00193],
+];
+
+/**
+ * Get the reference left-side X fraction at a given Y fraction,
+ * by linearly interpolating the sample table.
+ */
+function leftSideXFrac(yFrac: number): number {
+  if (yFrac <= LEFT_SIDE_SAMPLES[0][0]) return LEFT_SIDE_SAMPLES[0][1];
+  if (yFrac >= LEFT_SIDE_SAMPLES[LEFT_SIDE_SAMPLES.length - 1][0]) return LEFT_SIDE_SAMPLES[LEFT_SIDE_SAMPLES.length - 1][1];
+  for (let i = 0; i < LEFT_SIDE_SAMPLES.length - 1; i++) {
+    const [y0, x0] = LEFT_SIDE_SAMPLES[i];
+    const [y1, x1] = LEFT_SIDE_SAMPLES[i + 1];
+    if (yFrac >= y0 && yFrac <= y1) {
+      const t = (yFrac - y0) / (y1 - y0);
+      return x0 + (x1 - x0) * t;
+    }
+  }
+  return LEFT_SIDE_SAMPLES[LEFT_SIDE_SAMPLES.length - 1][1];
+}
+
+/**
+ * Draw a styled left side. Samples the reference side profile and applies
+ * a style offset perpendicular to it (outward = toward x=0).
+ */
+function drawStyledLeftSide(
+  path: SVGPath, w: number, h: number, hemWidth: number,
+  style: string, depth: number, count: number, seed: number
+) {
+  const cx = w / 2;
+  const topYFrac = 0.02040;
+  const botYFrac = 0.89712;
+  const range = botYFrac - topYFrac;
+  const segments = Math.max(count * 4, 40);
+
+  for (let i = 1; i <= segments; i++) {
+    const t = i / segments;
+    const yFrac = topYFrac + range * t;
+    const refXFrac = leftSideXFrac(yFrac);
+    // Apply hemWidth taper
+    const rawX = w * refXFrac;
+    const taper = Math.max(0, yFrac / 0.89712);
+    const adjustedX = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
+    const y = h * yFrac;
+
+    // Compute outward offset (negative X = outward for left side)
+    let offset = 0;
+    const st = t; // 0..1 along the side
+
+    if (style === 'tattered') {
+      const rng = new SeededRNG(seed + i);
+      offset = -rng.nextRange(0, depth);
+    } else if (style === 'scalloped') {
+      const phase = (st * count) % 1;
+      offset = -depth * Math.sin(phase * Math.PI);
+    } else if (style === 'zigzag') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? -depth * (phase * 2) : -depth * (2 - phase * 2);
+    } else if (style === 'wavy') {
+      offset = -depth * Math.sin(st * count * Math.PI * 2);
+    } else if (style === 'castellated') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? -depth : 0;
+    } else if (style === 'serrated') {
+      const phase = (st * count) % 1;
+      offset = -depth * phase;
+    } else if (style === 'fringed') {
+      const phase = (st * count) % 1;
+      // Narrow spikes
+      offset = phase < 0.2 ? -depth * (phase / 0.2) : phase < 0.4 ? -depth * (1 - (phase - 0.2) / 0.2) : 0;
+    } else if (style === 'thorned') {
+      const phase = (st * count) % 1;
+      // Sharp triangular thorns
+      offset = phase < 0.15 ? -depth * (phase / 0.15) : phase < 0.3 ? -depth * (1 - (phase - 0.15) / 0.15) : 0;
+    }
+
+    path.lineTo(adjustedX + offset, y);
+  }
+}
+
+/**
+ * Draw a styled right side. Mirror of drawStyledLeftSide.
+ * Offset is positive X (outward for right side).
+ */
+function drawStyledRightSide(
+  path: SVGPath, w: number, h: number, hemWidth: number,
+  style: string, depth: number, count: number, seed: number
+) {
+  const cx = w / 2;
+  const topYFrac = 0.02040;
+  const botYFrac = 0.89712;
+  const range = botYFrac - topYFrac;
+  const segments = Math.max(count * 4, 40);
+
+  for (let i = 0; i <= segments; i++) {
+    // Right side goes from bottom to top
+    const t = 1 - (i / segments);
+    const yFrac = topYFrac + range * t;
+    const refXFrac = 1 - leftSideXFrac(yFrac); // Mirror
+    const rawX = w * refXFrac;
+    const taper = Math.max(0, yFrac / 0.89712);
+    const adjustedX = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
+    const y = h * yFrac;
+
+    let offset = 0;
+    const st = t;
+
+    if (style === 'tattered') {
+      const rng = new SeededRNG(seed + (segments - i));
+      offset = rng.nextRange(0, depth);
+    } else if (style === 'scalloped') {
+      const phase = (st * count) % 1;
+      offset = depth * Math.sin(phase * Math.PI);
+    } else if (style === 'zigzag') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? depth * (phase * 2) : depth * (2 - phase * 2);
+    } else if (style === 'wavy') {
+      offset = depth * Math.sin(st * count * Math.PI * 2);
+    } else if (style === 'castellated') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? depth : 0;
+    } else if (style === 'serrated') {
+      const phase = (st * count) % 1;
+      offset = depth * phase;
+    } else if (style === 'fringed') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.2 ? depth * (phase / 0.2) : phase < 0.4 ? depth * (1 - (phase - 0.2) / 0.2) : 0;
+    } else if (style === 'thorned') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.15 ? depth * (phase / 0.15) : phase < 0.3 ? depth * (1 - (phase - 0.15) / 0.15) : 0;
+    }
+
+    path.lineTo(adjustedX + offset, y);
+  }
+}
+
 function drawModifiedOutline(
   path: SVGPath, w: number, h: number, params: TemplateParams
 ) {
@@ -279,20 +424,34 @@ function drawModifiedOutline(
 
   const hasHemStyle = tattered || scalloped || fishtail || asymmetric || pointed || zigzag || wavy || castellated || dovetail || flame || stepped;
 
+  const sideStyle = (params.sideStyle as string) || 'none';
+  const sideDepth = (params.sideStyleDepth as number) || 3;
+  const sideCount = (params.sideStyleCount as number) || 8;
+  const sideSeed = (params.seed as number) || 12345;
+
+  function drawLeft() {
+    if (sideStyle !== 'none') drawStyledLeftSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed);
+    else drawRefLeftSide(path, w, h, hemW);
+  }
+  function drawRight() {
+    if (sideStyle !== 'none') drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed);
+    else drawRefRightSide(path, w, h, hemW);
+  }
+
   // If no hem modifier, draw full outline at actual length h with hemWidth taper
   if (!hasHemStyle) {
-    drawRefLeftSide(path, w, h, hemW);
+    drawLeft();
     if (rounding) {
       drawRoundedHem(path, w, h, hemW, roundingAmt);
     } else {
       drawRefStandardHem(path, w, h, hemW);
     }
-    drawRefRightSide(path, w, h, hemW);
+    drawRight();
     return;
   }
 
   // Draw the left side at actual length with hemWidth taper
-  drawRefLeftSide(path, w, h, hemW);
+  drawLeft();
   // Side endpoints at actual length
   const cx = w / 2;
   const leftX = cx + (w * 0.00193 - cx) * hemW;
@@ -332,23 +491,49 @@ function drawModifiedOutline(
   if (tattered) {
     const rng = new SeededRNG((params.seed as number) || 12345);
     const intensity = (params.tatteredIntensity as number) || 0.06;
+    const symmetric = params.tatteredSymmetric !== false;
     const jitterMax = w * intensity;
     const hemSpan = rightX - leftX;
     const segmentCount = Math.max(12, Math.floor(hemSpan / 2.5));
-    let prevOffset = 0;
-    for (let i = 0; i <= segmentCount; i++) {
-      const t = i / segmentCount;
-      const xPos = leftX + hemSpan * t;
-      const bY = baseY(t);
-      let offset = rng.nextRange(-jitterMax * 0.2, jitterMax);
-      offset = Math.max(offset, 0);
-      const maxStep = jitterMax * 1.2;
-      if (Math.abs(offset - prevOffset) > maxStep) {
-        offset = prevOffset + Math.sign(offset - prevOffset) * maxStep;
+    if (symmetric) {
+      // Pre-compute offsets for first half, then mirror
+      const halfCount = Math.ceil(segmentCount / 2);
+      const halfOffsets: number[] = [];
+      let prevOff = 0;
+      for (let i = 0; i <= halfCount; i++) {
+        let off = rng.nextRange(-jitterMax * 0.2, jitterMax);
+        off = Math.max(off, 0);
+        const maxStep = jitterMax * 1.2;
+        if (Math.abs(off - prevOff) > maxStep) {
+          off = prevOff + Math.sign(off - prevOff) * maxStep;
+        }
+        prevOff = off;
+        halfOffsets.push(off);
       }
-      prevOffset = offset;
-      const pt = offsetPoint(xPos, bY, offset);
-      path.lineTo(pt.x, pt.y);
+      for (let i = 0; i <= segmentCount; i++) {
+        const t = i / segmentCount;
+        const xPos = leftX + hemSpan * t;
+        const bY = baseY(t);
+        const mi = i <= halfCount ? i : segmentCount - i;
+        const pt = offsetPoint(xPos, bY, halfOffsets[mi]);
+        path.lineTo(pt.x, pt.y);
+      }
+    } else {
+      let prevOffset = 0;
+      for (let i = 0; i <= segmentCount; i++) {
+        const t = i / segmentCount;
+        const xPos = leftX + hemSpan * t;
+        const bY = baseY(t);
+        let offset = rng.nextRange(-jitterMax * 0.2, jitterMax);
+        offset = Math.max(offset, 0);
+        const maxStep = jitterMax * 1.2;
+        if (Math.abs(offset - prevOffset) > maxStep) {
+          offset = prevOffset + Math.sign(offset - prevOffset) * maxStep;
+        }
+        prevOffset = offset;
+        const pt = offsetPoint(xPos, bY, offset);
+        path.lineTo(pt.x, pt.y);
+      }
     }
   } else if (scalloped) {
     const count = (params.scallopCount as number) || 8;
@@ -437,7 +622,8 @@ function drawModifiedOutline(
       const midX = leftX + segW * (i + 0.5);
       const endX = leftX + segW * (i + 1);
       const midBY = baseY(tMid);
-      const d = (i % 2 === 0) ? depth : -depth;
+      const mirrorI = i < count / 2 ? i : count - 1 - i;
+      const d = (mirrorI % 2 === 0) ? depth : -depth;
       const ctrl = offsetPoint(midX, midBY, d);
       path.quadraticBezierTo(ctrl.x, ctrl.y, endX, baseY(tEnd));
     }
@@ -445,14 +631,17 @@ function drawModifiedOutline(
     const count = (params.castellatedCount as number) || 8;
     const depth = (params.castellatedDepth as number) || 3;
     const segW = hemSpan / count;
+    // Determine merlon/crenel by distance from center for perfect symmetry
     for (let i = 0; i < count; i++) {
-      const tStart = i / count;
-      const tEnd = (i + 1) / count;
       const startX = leftX + segW * i;
       const endX = leftX + segW * (i + 1);
-      const bYS = baseY(tStart);
-      const bYE = baseY(tEnd);
-      if (i % 2 === 0) {
+      const tS = (startX - leftX) / hemSpan;
+      const tE = (endX - leftX) / hemSpan;
+      const bYS = baseY(tS);
+      const bYE = baseY(tE);
+      const segCenter = (i + 0.5) - count / 2;
+      const isMerlon = Math.floor(Math.abs(segCenter)) % 2 === 0;
+      if (isMerlon) {
         // Merlon (raised) — offset outward
         const topL = offsetPoint(startX, bYS, depth);
         const topR = offsetPoint(endX, bYE, depth);
@@ -496,12 +685,16 @@ function drawModifiedOutline(
       const bYTip = baseY(t1);
       const bYEnd = baseY(t2);
       const tip = offsetPoint(tipX, bYTip, depth);
-      // Asymmetric curves: lean the flame slightly
-      const cp1 = offsetPoint(startX + segW * 0.15, baseY(t0 + 0.15 / count), depth * 0.6);
+      // Mirror flame lean about cape center for symmetry
+      const isRightHalf = (i + 0.5) / count > 0.5;
+      const isCenter = count % 2 === 1 && i === Math.floor(count / 2);
+      const leanStart = isCenter ? 0.45 : isRightHalf ? 0.3 : 0.6;
+      const leanEnd = isCenter ? 0.45 : isRightHalf ? 0.6 : 0.3;
+      const cp1 = offsetPoint(startX + segW * 0.15, baseY(t0 + 0.15 / count), depth * leanStart);
       const cp2 = offsetPoint(tipX - segW * 0.1, bYTip, depth * 0.9);
       path.cubicBezierTo(cp1.x, cp1.y, cp2.x, cp2.y, tip.x, tip.y);
       const cp3 = offsetPoint(tipX + segW * 0.1, bYTip, depth * 0.9);
-      const cp4 = offsetPoint(endX - segW * 0.15, baseY(t2 - 0.15 / count), depth * 0.3);
+      const cp4 = offsetPoint(endX - segW * 0.15, baseY(t2 - 0.15 / count), depth * leanEnd);
       path.cubicBezierTo(cp3.x, cp3.y, cp4.x, cp4.y, endX, bYEnd);
     }
   } else if (stepped) {
@@ -531,7 +724,7 @@ function drawModifiedOutline(
   }
 
   // Draw the right side back up at actual length with hemWidth taper
-  drawRefRightSide(path, w, h, hemW);
+  drawRight();
 }
 
 /**
