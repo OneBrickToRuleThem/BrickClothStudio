@@ -405,7 +405,9 @@ if (elementType === 'mynew') {
 
 ## License
 
-This project is provided as-is for personal and educational use.
+**Non-Commercial Use Only** — See [LICENSE](LICENSE) for full terms.
+
+This software is free for individuals to use for personal, hobby, and educational purposes. Commercial use by companies or businesses for profit is strictly prohibited without prior written permission.
 
 **Important**: Do not embed copyrighted images or designs without permission. This tool is designed for:
 - Creating original fabric designs
