@@ -268,11 +268,19 @@ function drawModifiedOutline(
   const fishtail = params.fishtail as boolean;
   const asymmetric = params.asymmetric as boolean;
   const pointed = params.pointed as boolean;
+  const zigzag = params.zigzag as boolean;
+  const wavy = params.wavy as boolean;
+  const castellated = params.castellated as boolean;
+  const dovetail = params.dovetail as boolean;
+  const flame = params.flame as boolean;
+  const stepped = params.stepped as boolean;
   const rounding = params.rounding as boolean;
   const roundingAmt = (params.roundingAmount as number) || 0.5;
 
+  const hasHemStyle = tattered || scalloped || fishtail || asymmetric || pointed || zigzag || wavy || castellated || dovetail || flame || stepped;
+
   // If no hem modifier, draw full outline at actual length h with hemWidth taper
-  if (!tattered && !scalloped && !fishtail && !asymmetric && !pointed) {
+  if (!hasHemStyle) {
     drawRefLeftSide(path, w, h, hemW);
     if (rounding) {
       drawRoundedHem(path, w, h, hemW, roundingAmt);
@@ -404,6 +412,122 @@ function drawModifiedOutline(
     path.cubicBezierTo(lcp.x, lcp.y, midX - (midX - leftX) * 0.4, tipY, midX, tipY);
     const rcp = offsetPoint(rightX, leftY, tipDepth * 0.3);
     path.cubicBezierTo(midX + (rightX - midX) * 0.4, tipY, rcp.x, rcp.y, rightX, leftY);
+  } else if (zigzag) {
+    const count = (params.zigzagCount as number) || 10;
+    const depth = (params.zigzagDepth as number) || 4;
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const t0 = i / count;
+      const t1 = (i + 0.5) / count;
+      const t2 = (i + 1) / count;
+      const peakX = leftX + hemSpan * (t0 + 0.5 / count);
+      const peakBY = baseY(t1);
+      const peak = offsetPoint(peakX, peakBY, depth);
+      path.lineTo(peak.x, peak.y);
+      const valleyX = leftX + segW * (i + 1);
+      path.lineTo(valleyX, baseY(t2));
+    }
+  } else if (wavy) {
+    const count = (params.wavyCount as number) || 6;
+    const depth = (params.wavyDepth as number) || 3;
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const tMid = (i + 0.5) / count;
+      const tEnd = (i + 1) / count;
+      const midX = leftX + segW * (i + 0.5);
+      const endX = leftX + segW * (i + 1);
+      const midBY = baseY(tMid);
+      const d = (i % 2 === 0) ? depth : -depth;
+      const ctrl = offsetPoint(midX, midBY, d);
+      path.quadraticBezierTo(ctrl.x, ctrl.y, endX, baseY(tEnd));
+    }
+  } else if (castellated) {
+    const count = (params.castellatedCount as number) || 8;
+    const depth = (params.castellatedDepth as number) || 3;
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const tStart = i / count;
+      const tEnd = (i + 1) / count;
+      const startX = leftX + segW * i;
+      const endX = leftX + segW * (i + 1);
+      const bYS = baseY(tStart);
+      const bYE = baseY(tEnd);
+      if (i % 2 === 0) {
+        // Merlon (raised) — offset outward
+        const topL = offsetPoint(startX, bYS, depth);
+        const topR = offsetPoint(endX, bYE, depth);
+        path.lineTo(topL.x, topL.y);
+        path.lineTo(topR.x, topR.y);
+        path.lineTo(endX, bYE);
+      } else {
+        // Crenel (gap) — stay on baseline
+        path.lineTo(endX, bYE);
+      }
+    }
+  } else if (dovetail) {
+    const depthFrac = (params.dovetailDepth as number) || 0.25;
+    const widthFrac = (params.dovetailWidth as number) || 0.3;
+    const notchDepth = hemSpan * depthFrac;
+    const notchHalfW = hemSpan * widthFrac * 0.5;
+    const midX = (leftX + rightX) / 2;
+    const taperW = notchHalfW * 0.7; // narrower at the top of the notch
+    // Left side down to baseline center
+    path.lineTo(midX - notchHalfW, baseY(0.5 - widthFrac * 0.5));
+    // Notch: inward taper
+    const notchBY = baseY(0.5);
+    const notchBottom = offsetPoint(midX, notchBY, notchDepth);
+    path.lineTo(notchBottom.x - taperW, notchBottom.y);
+    path.lineTo(notchBottom.x + taperW, notchBottom.y);
+    // Back up
+    path.lineTo(midX + notchHalfW, baseY(0.5 + widthFrac * 0.5));
+    path.lineTo(rightX, baseY(1));
+  } else if (flame) {
+    const count = (params.flameCount as number) || 5;
+    const depth = (params.flameDepth as number) || 6;
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const t0 = i / count;
+      const t1 = (i + 0.5) / count;
+      const t2 = (i + 1) / count;
+      const startX = leftX + segW * i;
+      const tipX = leftX + segW * (i + 0.5);
+      const endX = leftX + segW * (i + 1);
+      const bYStart = baseY(t0);
+      const bYTip = baseY(t1);
+      const bYEnd = baseY(t2);
+      const tip = offsetPoint(tipX, bYTip, depth);
+      // Asymmetric curves: lean the flame slightly
+      const cp1 = offsetPoint(startX + segW * 0.15, baseY(t0 + 0.15 / count), depth * 0.6);
+      const cp2 = offsetPoint(tipX - segW * 0.1, bYTip, depth * 0.9);
+      path.cubicBezierTo(cp1.x, cp1.y, cp2.x, cp2.y, tip.x, tip.y);
+      const cp3 = offsetPoint(tipX + segW * 0.1, bYTip, depth * 0.9);
+      const cp4 = offsetPoint(endX - segW * 0.15, baseY(t2 - 0.15 / count), depth * 0.3);
+      path.cubicBezierTo(cp3.x, cp3.y, cp4.x, cp4.y, endX, bYEnd);
+    }
+  } else if (stepped) {
+    const count = (params.steppedCount as number) || 5;
+    const depth = (params.steppedDepth as number) || 4;
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const t = (i + 0.5) / count;
+      // Each step offset varies by position — deeper at center
+      const stepDepth = depth * Math.sin(((i + 0.5) / count) * Math.PI);
+      const startX = leftX + segW * i;
+      const endX = leftX + segW * (i + 1);
+      const bY = baseY(t);
+      const stepPt = offsetPoint((startX + endX) / 2, bY, stepDepth);
+      path.lineTo(startX, stepPt.y);
+      path.lineTo(endX, stepPt.y);
+      // Vertical connector to next step
+      if (i < count - 1) {
+        const nextT = (i + 1.5) / count;
+        const nextDepth = depth * Math.sin(((i + 1.5) / count) * Math.PI);
+        const nextBY = baseY(nextT);
+        const nextPt = offsetPoint((endX + leftX + segW * (i + 2)) / 2, nextBY, nextDepth);
+        path.lineTo(endX, nextPt.y);
+      }
+    }
+    path.lineTo(rightX, leftY);
   }
 
   // Draw the right side back up at actual length with hemWidth taper
@@ -667,11 +791,7 @@ export class CapeStandard extends Template {
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length, holeRadius } = params;
     // Holes use REF_H so they stay in the same position regardless of length
-    const paths = [this.generateCutPath(params), ...generateRefHoles(width, REF_H, holeRadius, (params.holeCount as number) || 2)];
-    const holeCount = (params.holeCount as number) || 2;
-    if (holeCount > 2) {
-      paths.push(...generateExtraSlits(width, REF_H, holeCount));
-    }
+    const paths = [this.generateCutPath(params), ...generateRefHoles(width, REF_H, holeRadius, 2)];
     if (params.swordSlit) {
       paths.push(generateSwordSlit(
         width, length,
@@ -719,14 +839,33 @@ export class CapeStandard extends Template {
     const rightX = cx + (w * 0.99807 - cx) * hemW;
     const sideY = h * 0.89712;
     let maxY = h;
+    const halfW = (rightX - leftX) / 2;
     if (params.rounding) {
-      const halfW = (rightX - leftX) / 2;
       const roundingAmt = (params.roundingAmount as number) || 0.5;
       maxY = Math.max(maxY, sideY + roundingAmt * halfW);
     }
     if (params.pointed) {
       const depthFrac = (params.pointedDepth as number) || 0.3;
       maxY = Math.max(maxY, sideY + (rightX - leftX) * depthFrac);
+    }
+    if (params.zigzag) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.zigzagDepth as number) || 4));
+    }
+    if (params.wavy) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.wavyDepth as number) || 3));
+    }
+    if (params.castellated) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.castellatedDepth as number) || 3));
+    }
+    if (params.dovetail) {
+      const dDepth = ((params.dovetailDepth as number) || 0.25) * (rightX - leftX);
+      maxY = Math.max(maxY, sideY + (h - sideY) + dDepth);
+    }
+    if (params.flame) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.flameDepth as number) || 6));
+    }
+    if (params.stepped) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.steppedDepth as number) || 4));
     }
     if (maxY > result.boundingBox.height) {
       result.boundingBox.height = maxY;
