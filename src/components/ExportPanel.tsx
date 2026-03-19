@@ -6,9 +6,8 @@
 import React, { useMemo } from 'react';
 import { useEditorStore } from '../store/editor';
 import { generatePattern } from '../services/patternGenerator';
-import { exportSinglePatternSVG, downloadSVG } from '../export/svg';
-import { downloadZip } from '../export/zip';
-import { generateStandardLEGOCalibration } from '../templates/calibration';
+import { exportSinglePatternSVG, exportPrintSheetSVG, downloadSVG } from '../export/svg';
+import { generateStandardCalibration } from '../templates/calibration';
 
 export default function ExportPanel() {
   const {
@@ -18,6 +17,7 @@ export default function ExportPanel() {
     printConfig,
     setPrintConfig,
     exportOptions,
+    setExportOptions,
   } = useEditorStore();
 
   const pattern = useMemo(() => {
@@ -31,30 +31,19 @@ export default function ExportPanel() {
   };
 
   const handleExportCalibration = () => {
-    const calibPattern = generateStandardLEGOCalibration();
+    const calibPattern = generateStandardCalibration();
     const svg = exportSinglePatternSVG(calibPattern, exportOptions);
     downloadSVG(svg, 'calibration-test.svg');
   };
 
-  const handleExportMultiple = async () => {
+  const handleExportMultiple = () => {
     if (!pattern) return;
-
-    const { copies } = printConfig;
-    const svgFiles = [];
-
-    for (let i = 1; i <= copies; i++) {
-      const svg = exportSinglePatternSVG(pattern, exportOptions);
-      svgFiles.push({
-        filename: `${pattern.name}-copy-${i}.svg`,
-        content: svg,
-      });
-    }
-
-    if (svgFiles.length === 1) {
-      downloadSVG(svgFiles[0].content, svgFiles[0].filename);
-    } else {
-      await downloadZip(svgFiles, `${pattern.name}-copies.zip`);
-    }
+    const { copies, paperSize, orientation, autoRotate } = printConfig;
+    const margin = printConfig.marginTop;
+    const gutter = printConfig.gutterX;
+    const patterns = Array.from({ length: copies }, () => pattern);
+    const svg = exportPrintSheetSVG(patterns, paperSize, orientation, margin, gutter, autoRotate, exportOptions);
+    downloadSVG(svg, `${pattern.name}-x${copies}.svg`);
   };
 
   if (!pattern) {
@@ -87,33 +76,9 @@ export default function ExportPanel() {
         </p>
       </section>
 
-      {/* Multiple Copies */}
+      {/* Multiple Copies / Sheet Layout */}
       <section className="panel-section border-t pt-4">
-        <h3 className="panel-section-title">Multiple Copies</h3>
-        <label className="form-label text-xs">
-          Number of copies:
-          <input
-            type="number"
-            min="1"
-            max="20"
-            value={printConfig.copies}
-            onChange={(e) =>
-              setPrintConfig({ copies: parseInt(e.target.value) || 1 })
-            }
-            className="param-input mt-1 text-sm"
-          />
-        </label>
-        <button onClick={handleExportMultiple} className="btn btn-primary w-full text-sm mt-2 mb-2">
-          ↓ Export as ZIP
-        </button>
-        <p className="text-xs text-gray-500">
-          Downloads {printConfig.copies} copy(ies) in a ZIP archive
-        </p>
-      </section>
-
-      {/* Print Sheet */}
-      <section className="panel-section border-t pt-4">
-        <h3 className="panel-section-title">Print Sheet</h3>
+        <h3 className="panel-section-title">Sheet Export</h3>
         <label className="form-label text-xs">
           Paper size:
           <select
@@ -140,18 +105,25 @@ export default function ExportPanel() {
             <option value="landscape">Landscape</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 text-xs mt-2">
+        <label className="form-label text-xs mt-2">
+          Number of copies:
           <input
-            type="checkbox"
-            checked={printConfig.showLabels}
-            onChange={(e) => setPrintConfig({ showLabels: e.target.checked })}
-            className="w-4 h-4"
+            type="number"
+            min="1"
+            max="20"
+            value={printConfig.copies}
+            onChange={(e) =>
+              setPrintConfig({ copies: parseInt(e.target.value) || 1 })
+            }
+            className="param-input mt-1 text-sm"
           />
-          Show labels
         </label>
-        <button className="btn btn-secondary w-full text-sm mt-2" disabled>
-          (Print sheet - coming soon)
+        <button onClick={handleExportMultiple} className="btn btn-primary w-full text-sm mt-3 mb-2">
+          ↓ Export Sheet SVG
         </button>
+        <p className="text-xs text-gray-500">
+          Lays out {printConfig.copies} copy(ies) on a single {printConfig.paperSize} {printConfig.orientation} sheet
+        </p>
       </section>
 
       {/* Calibration Test */}
@@ -176,17 +148,36 @@ export default function ExportPanel() {
           <input
             type="number"
             min="0.01"
-            max="0.5"
+            max="1.0"
             step="0.01"
             value={exportOptions.strokeWidth}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v) && v >= 0.01 && v <= 1.0)
+                setExportOptions({ strokeWidth: v });
+            }}
             className="param-input mt-1 text-sm"
-            disabled
           />
         </label>
-        <div className="text-xs text-gray-500 mt-2">
-          <p>• Cut lines: {exportOptions.lineColors.cut}</p>
-          <p>• Score lines: {exportOptions.lineColors.score}</p>
-          <p>• Engrave lines: {exportOptions.lineColors.engrave}</p>
+        <div className="space-y-2 mt-3">
+          <label className="flex items-center gap-2 text-xs">
+            <input type="color" value={exportOptions.lineColors.cut}
+              onChange={(e) => setExportOptions({ lineColors: { ...exportOptions.lineColors, cut: e.target.value } })}
+              className="w-6 h-6 rounded border border-gray-300 cursor-pointer" />
+            Cut line color
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input type="color" value={exportOptions.lineColors.score}
+              onChange={(e) => setExportOptions({ lineColors: { ...exportOptions.lineColors, score: e.target.value } })}
+              className="w-6 h-6 rounded border border-gray-300 cursor-pointer" />
+            Score line color
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input type="color" value={exportOptions.lineColors.engrave}
+              onChange={(e) => setExportOptions({ lineColors: { ...exportOptions.lineColors, engrave: e.target.value } })}
+              className="w-6 h-6 rounded border border-gray-300 cursor-pointer" />
+            Engrave line color
+          </label>
         </div>
       </section>
 

@@ -6,19 +6,41 @@ import React from 'react';
 import { useEditorStore } from '../store/editor';
 import { ElementType } from '../utils/types';
 
-const ELEMENTS: Array<{ type: ElementType; label: string; icon: string }> = [
-  { type: 'cape', label: 'Cape', icon: '🧥' },
-  { type: 'cloak', label: 'Cloak', icon: '🧙' },
+const ELEMENTS: Array<{ type: ElementType; label: string; icon: string; wip?: boolean }> = [
+  // Developed element types first
+  { type: 'cape', label: 'Cape', icon: '🦸' },
   { type: 'flag', label: 'Flag', icon: '🚩' },
-  { type: 'banner', label: 'Banner', icon: '🏳️' },
-  { type: 'wings', label: 'Wings', icon: '🦅' },
-  { type: 'kama', label: 'Kama/Skirt', icon: '👗' },
-  { type: 'pauldron', label: 'Pauldron', icon: '⚔️' },
-  { type: 'custom', label: 'Custom', icon: '✏️' },
+  { type: 'sail', label: 'Sail', icon: '⛵' },
+  // In development
+  { type: 'kama', label: 'Kama/Skirt', icon: '👗', wip: true },
+  { type: 'banner', label: 'Banner', icon: '⚔️', wip: true },
+  { type: 'wings', label: 'Wings', icon: '🪽', wip: true },
+  { type: 'pauldron', label: 'Pauldron', icon: '🛡️', wip: true },
+  { type: 'cloak', label: 'Cloak', icon: '🧙', wip: true },
 ];
 
 export default function ElementSelector() {
-  const { elementType, setElementType, setTemplateVariant } = useEditorStore();
+  const { elementType, setElementType, setTemplateVariant, setParameter } = useEditorStore();
+
+  // Default dimensions per element type / variant
+  const ELEMENT_DEFAULTS: Record<string, { width: number; length: number }> = {
+    'cape': { width: 40, length: 39 },
+    'flag:small-flag': { width: 22, length: 60 },
+    'flag:large-flag': { width: 40, length: 64 },
+    'cloak': { width: 40, length: 60 },
+    'banner': { width: 40, length: 50 },
+    'wings': { width: 60, length: 50 },
+    'kama': { width: 40, length: 20 },
+    'pauldron': { width: 40, length: 30 },
+    'sail': { width: 60, length: 60 },
+  };
+
+  function applyDefaults(type: string, variant: string) {
+    const key = `${type}:${variant}`;
+    const dims = ELEMENT_DEFAULTS[key] || ELEMENT_DEFAULTS[type] || { width: 40, length: 40 };
+    setParameter('width', dims.width);
+    setParameter('length', dims.length);
+  }
 
   const handleElementChange = (type: ElementType) => {
     setElementType(type);
@@ -27,14 +49,16 @@ export default function ElementSelector() {
     const variants: Record<ElementType, string> = {
       cape: 'standard',
       cloak: 'hooded',
-      flag: 'standard',
+      flag: 'small-flag',
       banner: 'swallowtail',
       wings: 'small-wings',
       kama: 'wrap-skirt',
       pauldron: 'shoulder-armor',
-      custom: 'standard',
+      sail: 'square-sail',
     };
-    setTemplateVariant(variants[type] as any);
+    const variant = variants[type];
+    setTemplateVariant(variant as any);
+    applyDefaults(type, variant);
   };
 
   return (
@@ -48,11 +72,16 @@ export default function ElementSelector() {
             className={`w-full p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${
               elementType === elem.type
                 ? 'bg-blue-100 border-2 border-blue-500 text-blue-900'
-                : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                : elem.wip
+                  ? 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 opacity-60'
+                  : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
             }`}
           >
             <span className="text-2xl">{elem.icon}</span>
-            <span className="font-medium text-sm">{elem.label}</span>
+            <div className="flex flex-col">
+              <span className="font-medium text-sm">{elem.label}</span>
+              {elem.wip && <span className="text-[10px] text-amber-600 font-semibold leading-tight">IN DEVELOPMENT</span>}
+            </div>
           </button>
         ))}
       </div>
@@ -66,19 +95,24 @@ export default function ElementSelector() {
 }
 
 function ElementVariantSelector() {
-  const { elementType, templateVariant, setTemplateVariant } = useEditorStore();
+  const { elementType, templateVariant, setTemplateVariant, setParameter } = useEditorStore();
+
+  const VARIANT_DEFAULTS: Record<string, { width: number; length: number }> = {
+    'small-flag': { width: 22, length: 60 },
+    'large-flag': { width: 40, length: 64 },
+  };
 
   const variants: Record<ElementType, Array<{ value: string; label: string }>> = {
     cape: [
       { value: 'standard', label: 'Standard' },
-      { value: 'reference-test', label: 'Reference Test' },
     ],
     cloak: [
       { value: 'hooded', label: 'Hooded' },
       { value: 'standard', label: 'Simple' },
     ],
     flag: [
-      { value: 'standard', label: 'Standard' },
+      { value: 'small-flag', label: 'Small Flag' },
+      { value: 'large-flag', label: 'Large Flag' },
     ],
     banner: [
       { value: 'swallowtail', label: 'Swallowtail' },
@@ -94,8 +128,9 @@ function ElementVariantSelector() {
     pauldron: [
       { value: 'shoulder-armor', label: 'Shoulder Armor' },
     ],
-    custom: [
-      { value: 'standard', label: 'Blank' },
+    sail: [
+      { value: 'square-sail', label: 'Square Sail' },
+      { value: 'triangular-sail', label: 'Triangular Sail' },
     ],
   };
 
@@ -106,7 +141,14 @@ function ElementVariantSelector() {
       {currentVariants.map((variant) => (
         <button
           key={variant.value}
-          onClick={() => setTemplateVariant(variant.value as any)}
+          onClick={() => {
+            setTemplateVariant(variant.value as any);
+            const dims = VARIANT_DEFAULTS[variant.value];
+            if (dims) {
+              setParameter('width', dims.width);
+              setParameter('length', dims.length);
+            }
+          }}
           className={`w-full p-2 rounded text-sm transition-colors ${
             templateVariant === variant.value
               ? 'bg-blue-500 text-white'

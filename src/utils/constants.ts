@@ -33,6 +33,36 @@ export const HOLE_STANDARDS = {
 
 export const DEFAULT_HOLE_TYPE = 'minifigure' as const;
 
+// Sail-specific grommet/hole standards
+export const SAIL_HOLE_STANDARDS = {
+  grommet: {
+    radius: 1.5, // mm, standard fabric grommet
+    diameter: 3.0,
+    label: 'Grommet (3mm)',
+    description: 'Standard small grommet for lacing',
+  },
+  dring: {
+    radius: 2.0, // mm, D-ring reinforced hole
+    diameter: 4.0,
+    label: 'D-Ring (4mm)',
+    description: 'Larger reinforced hole for D-ring attachment',
+  },
+  lacing: {
+    radius: 0.75, // mm, small lacing holes in a row
+    diameter: 1.5,
+    label: 'Lacing (1.5mm)',
+    description: 'Small holes for thread/lace attachment',
+  },
+  pin: {
+    radius: 1.0, // mm, pin-sized hole
+    diameter: 2.0,
+    label: 'Pin hole (2mm)',
+    description: 'Small pin-sized attachment hole',
+  },
+} as const;
+
+export type SailHoleType = keyof typeof SAIL_HOLE_STANDARDS;
+
 // Paper sizes (mm)
 export const PAPER_SIZES = {
   A4: { width: 210, height: 297, label: 'A4 (210×297 mm)' },

@@ -75,6 +75,7 @@ const defaultParameters = {
   asymmetricSide: 'left',
   pointed: false,
   pointedDepth: 0.3,
+  pointedRoundness: 0.4,
   zigzag: false,
   zigzagCount: 10,
   zigzagDepth: 4,
@@ -100,7 +101,46 @@ const defaultParameters = {
   sideStyle: 'none' as string,
   sideStyleDepth: 3,
   sideStyleCount: 8,
+  // Sail parameters
+  sailHoleType: 'grommet' as string,
+  sailTopStyle: 'none' as string,
+  sailBottomStyle: 'none' as string,
+  sailLeftStyle: 'none' as string,
+  sailRightStyle: 'none' as string,
+  sailEdgeDepth: 3,
+  sailEdgeCount: 6,
+  // Sail options
+  sailSymmetry: false as boolean,
+  sailLockCorners: false as boolean,
+  sailGrommetMargin: 3,
+  // Sail grommet positions (inset from corners in mm)
+  sailGrommetTLx: 4,
+  sailGrommetTLy: 4,
+  sailGrommetTRx: 4,
+  sailGrommetTRy: 4,
+  sailGrommetBLx: 4,
+  sailGrommetBLy: 4,
+  sailGrommetBRx: 4,
+  sailGrommetBRy: 4,
 };
+
+// Default dimensions per element type / variant
+const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number }> = {
+  'cape': { width: 40, length: 39 },
+  'flag:small-flag': { width: 22, length: 60 },
+  'flag:large-flag': { width: 40, length: 64 },
+  'cloak': { width: 40, length: 60 },
+  'banner': { width: 40, length: 50 },
+  'wings': { width: 60, length: 50 },
+  'kama': { width: 40, length: 20 },
+  'pauldron': { width: 40, length: 30 },
+  'sail': { width: 60, length: 60 },
+};
+
+function getDimensionDefaults(elementType: string, templateVariant: string) {
+  const key = `${elementType}:${templateVariant}`;
+  return ELEMENT_DIMENSION_DEFAULTS[key] || ELEMENT_DIMENSION_DEFAULTS[elementType] || { width: 40, length: 40 };
+}
 
 const defaultPrintConfig: PrintSheetConfig = {
   paperSize: 'A4',
@@ -109,8 +149,8 @@ const defaultPrintConfig: PrintSheetConfig = {
   marginBottom: 10,
   marginLeft: 10,
   marginRight: 10,
-  gutterX: 5,
-  gutterY: 5,
+  gutterX: 2,
+  gutterY: 2,
   copies: 1,
   autoRotate: true,
   showLabels: true,
@@ -240,15 +280,14 @@ export const useEditorStore = create<EditorStore>((set) => ({
     })),
 
   resetToDefaults: () =>
-    set(() => ({
-      elementType: 'cape',
-      templateVariant: 'standard',
-      parameters: { ...defaultParameters },
-      decorations: [],
-      selectedDecorationId: null,
-      printConfig: { ...defaultPrintConfig },
-      exportOptions: { ...defaultExportOptions },
-    })),
+    set((state) => {
+      const dims = getDimensionDefaults(state.elementType, state.templateVariant);
+      return {
+        parameters: { ...defaultParameters, width: dims.width, length: dims.length },
+        decorations: [],
+        selectedDecorationId: null,
+      };
+    }),
 
   loadPreset: (preset) =>
     set(() => ({

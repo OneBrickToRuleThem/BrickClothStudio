@@ -12,6 +12,7 @@ import {
   SVG_REFERENCE_COLOR,
   PAPER_SIZES,
 } from '../utils/constants';
+import { packItemsOnPage, LayoutItem } from './packer';
 
 /**
  * Export a single pattern as SVG
@@ -106,62 +107,78 @@ export function exportSinglePatternSVG(
 }
 
 /**
- * Export multiple patterns on a print sheet
+ * Export multiple patterns on a print sheet (single SVG)
  */
 export function exportPrintSheetSVG(
   patterns: PatternExport[],
   paperSize: 'A4' | 'LETTER',
   orientation: 'portrait' | 'landscape',
+  margin: number,
+  gutter: number,
+  autoRotate: boolean,
   options: Partial<SVGExportOptions> = {}
 ): string {
+  const {
+    strokeWidth = SVG_STROKE_WIDTH,
+    lineColors = {
+      cut: SVG_CUT_COLOR,
+      score: SVG_SCORE_COLOR,
+      engrave: SVG_ENGRAVE_COLOR,
+      reference: SVG_REFERENCE_COLOR,
+    },
+  } = options;
+
   const paper = PAPER_SIZES[paperSize];
   const [width, height] =
     orientation === 'landscape' ? [paper.height, paper.width] : [paper.width, paper.height];
 
+  // Build layout items from patterns (add small padding around each)
+  const PAD = 2; // mm padding per side around each pattern
+  const layoutItems: LayoutItem[] = patterns.map((p, i) => ({
+    id: `${i}`,
+    width: p.boundingBox.width + PAD * 2,
+    height: p.boundingBox.height + PAD * 2,
+    data: p,
+  }));
+
+  const layout = packItemsOnPage(layoutItems, width, height, margin, gutter, autoRotate);
+
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" 
-     viewBox="0 0 ${width.toFixed(2)} ${height.toFixed(2)}" 
-     width="${width.toFixed(2)}mm" 
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 ${width.toFixed(2)} ${height.toFixed(2)}"
+     width="${width.toFixed(2)}mm"
      height="${height.toFixed(2)}mm">
   <defs>
     <style>
       .page-outline { stroke: #999999; fill: none; stroke-width: 0.2mm; stroke-dasharray: 1,1; }
-      .cut-line { stroke: #ff0000; fill: none; stroke-width: 0.1mm; }
-      .score-line { stroke: #0000ff; fill: none; stroke-width: 0.1mm; }
-      .reference-text { font-size: 3mm; font-family: Arial; fill: #cccccc; }
+      .cut-line { stroke: ${lineColors.cut}; fill: none; stroke-width: ${strokeWidth}mm; stroke-linecap: round; stroke-linejoin: round; }
+      .score-line { stroke: ${lineColors.score}; fill: none; stroke-width: ${strokeWidth}mm; stroke-linecap: round; stroke-linejoin: round; }
+      .engrave-line { stroke: ${lineColors.engrave}; fill: none; stroke-width: ${strokeWidth}mm; stroke-linecap: round; stroke-linejoin: round; }
     </style>
   </defs>
 
-  <!-- Page outline (not for cutting) -->
-  <rect class="page-outline" x="5" y="5" width="${(width - 10).toFixed(2)}" height="${(height - 10).toFixed(
-    2
-  )}" />
-
-  <!-- Patterns will be added here -->
+  <!-- Page outline -->
+  <rect class="page-outline" x="${margin}" y="${margin}" width="${(width - margin * 2).toFixed(2)}" height="${(height - margin * 2).toFixed(2)}" />
 `;
 
-  // Add patterns to sheet
-  let yOffset = 15;
-  for (const pattern of patterns) {
-    const bb = pattern.boundingBox;
-    const patternHeight = bb.height + 2; // slight margin
+  for (const placed of layout.items) {
+    const p = placed.data as PatternExport;
+    const rot = placed.rotated ? ` rotate(90 ${(placed.width / 2).toFixed(2)} ${(placed.height / 2).toFixed(2)})` : '';
+    svg += `\n  <!-- ${escapeXML(p.name)} -->\n`;
+    svg += `  <g transform="translate(${placed.x.toFixed(2)}, ${placed.y.toFixed(2)})${rot}">\n`;
+    svg += `    <g transform="translate(${PAD}, ${PAD})">\n`;
 
-    if (yOffset + patternHeight > height - 10) {
-      // New page needed
-      yOffset = 15;
-      // In real implementation, would create multiple SVG files or multi-page structure
+    if (p.cutPaths.length > 0) {
+      for (const d of p.cutPaths) svg += `      <path d="${d}" class="cut-line" />\n`;
+    }
+    if (p.scorePaths.length > 0) {
+      for (const d of p.scorePaths) svg += `      <path d="${d}" class="score-line" />\n`;
+    }
+    if (p.engravePaths.length > 0) {
+      for (const d of p.engravePaths) svg += `      <path d="${d}" class="engrave-line" />\n`;
     }
 
-    svg += `  <g id="pattern-${pattern.id}" transform="translate(10, ${yOffset.toFixed(2)})">
-`;
-    for (const path of pattern.cutPaths) {
-      svg += `    <path d="${path}" class="cut-line" />\n`;
-    }
-    svg += `    <text class="reference-text" y="-2">${escapeXML(pattern.name)}</text>
-  </g>
-`;
-
-    yOffset += patternHeight + 5;
+    svg += `    </g>\n  </g>\n`;
   }
 
   svg += `</svg>`;

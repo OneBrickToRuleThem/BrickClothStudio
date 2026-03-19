@@ -85,7 +85,7 @@ export function generateCalibrationTest(
     referencePaths: refPaths,
     boundingBox: bbox,
     metadata: {
-      elementType: 'custom',
+      elementType: 'cape',
       templateVariant: 'calibration-test',
       parameters: {
         quantityPerSize: params.quantityPerSize,
@@ -100,14 +100,14 @@ export function generateCalibrationTest(
 }
 
 /**
- * Default calibration test for LEGO stud fitting
+ * Default calibration test for stud fitting
  * Tests hole sizes: 4.8, 4.9, 5.0, 5.1, 5.2 mm
  */
-export function generateStandardLEGOCalibration(): PatternExport {
+export function generateStandardCalibration(): PatternExport {
   return generateCalibrationTest({
     holeSizes: [4.8, 4.9, 5.0, 5.1, 5.2],
     quantityPerSize: 3,
-    labelText: 'LEGO Stud Hole Calibration Test',
+    labelText: 'Stud Hole Calibration Test',
     spacing: 5,
   });
 }

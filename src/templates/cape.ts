@@ -589,14 +589,17 @@ function drawModifiedOutline(
     path.cubicBezierTo(leftX + hemSpanW * 0.95, rightHem, rcp1.x, rcp1.y, rightX, leftY);
   } else if (pointed) {
     const depthFrac = (params.pointedDepth as number) || 0.3;
+    const roundness = (params.pointedRoundness as number) ?? 0.4;
     const pointDepth = (rightX - leftX) * depthFrac;
     const tipDepth = Math.max(pointDepth, effectiveDepth);
     const tipY = leftY + tipDepth;
     const midX = (leftX + rightX) / 2;
     const lcp = offsetPoint(leftX, leftY, tipDepth * 0.3);
-    path.cubicBezierTo(lcp.x, lcp.y, midX - (midX - leftX) * 0.4, tipY, midX, tipY);
+    // roundness 0 = straight lines, 1 = maximum curve
+    const curveSpread = (midX - leftX) * roundness;
+    path.cubicBezierTo(lcp.x, lcp.y, midX - curveSpread, tipY, midX, tipY);
     const rcp = offsetPoint(rightX, leftY, tipDepth * 0.3);
-    path.cubicBezierTo(midX + (rightX - midX) * 0.4, tipY, rcp.x, rcp.y, rightX, leftY);
+    path.cubicBezierTo(midX + curveSpread, tipY, rcp.x, rcp.y, rightX, leftY);
   } else if (zigzag) {
     const count = (params.zigzagCount as number) || 10;
     const depth = (params.zigzagDepth as number) || 4;
@@ -729,7 +732,8 @@ function drawModifiedOutline(
 
 /**
  * Generate irregular worn/torn hole shapes as separate cut paths.
- * Produces organic blob shapes that avoid other cut features.
+ * Produces varied organic hole shapes using seeded RNG for reproducibility.
+ * Each seed produces a unique arrangement of tear/wear patterns.
  */
 function generateWornHoles(
   w: number, h: number, count: number, size: number, seed: number,
@@ -740,88 +744,173 @@ function generateWornHoles(
   const placed: Array<{x: number; y: number; r: number}> = [];
   const refH = REF_H;
 
-  // Build exclusion zones: circles to avoid
+  // Build exclusion zones
   const exclusions: Array<{x: number; y: number; r: number}> = [];
-  // Attachment holes
   const holeCx = w / 2;
   const holeOff = w * REF_HOLE_OFFSET;
   const holeY = refH * REF_HOLE_Y;
   const holeR = (params.holeRadius as number) || REF_HOLE_RADIUS;
   exclusions.push({ x: holeCx - holeOff, y: holeY, r: holeR + size + 1 });
   exclusions.push({ x: holeCx + holeOff, y: holeY, r: holeR + size + 1 });
-  // Neck/slit area
   exclusions.push({ x: holeCx, y: refH * 0.15, r: w * 0.12 });
-  // Arm slits if enabled
   if (params.armSlits) {
     const armY = refH * ((params.armSlitY as number) || 0.35);
     exclusions.push({ x: w * 0.22, y: armY, r: size + 4 });
     exclusions.push({ x: w * 0.78, y: armY, r: size + 4 });
   }
-  // Sword slit if enabled
   if (params.swordSlit) {
     const swordY = h * ((params.swordY as number) || 0.45);
     const swordX = (params.swordSide === 'left') ? w * 0.35 : w * 0.65;
     exclusions.push({ x: swordX, y: swordY, r: size + 5 });
   }
 
-  // Safe placement zone: away from edges and the hem
   const sideEndY = refH * 0.89712;
   const safeMinX = w * 0.15;
   const safeMaxX = w * 0.85;
   const safeMinY = refH * 0.20;
   const safeMaxY = sideEndY - size - 2;
 
+  // Hole shape types for variety
+  const shapeTypes = ['tear', 'crescent', 'ragged', 'elongated', 'moth'] as const;
+
   for (let i = 0; i < count; i++) {
     let cx = 0, cy = 0, placed_ok = false;
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (let attempt = 0; attempt < 40; attempt++) {
       cx = safeMinX + rng.next() * (safeMaxX - safeMinX);
       cy = safeMinY + rng.next() * (safeMaxY - safeMinY);
-      // Check against exclusions
-      const blocked = exclusions.some(e =>
-        Math.hypot(e.x - cx, e.y - cy) < e.r
-      );
-      // Check against previously placed holes
-      const tooClose = placed.some(p =>
-        Math.hypot(p.x - cx, p.y - cy) < p.r + size * 2
-      );
+      const blocked = exclusions.some(e => Math.hypot(e.x - cx, e.y - cy) < e.r);
+      const tooClose = placed.some(p => Math.hypot(p.x - cx, p.y - cy) < p.r + size * 1.8);
       if (!blocked && !tooClose) { placed_ok = true; break; }
     }
-    if (!placed_ok) continue; // skip if can't place safely
+    if (!placed_ok) continue;
 
-    // Vary size per hole: 50%-160% of base
-    const holeSize = size * (0.5 + rng.next() * 1.1);
+    // Per-hole variation: 40%-180% of base size
+    const holeSize = size * (0.4 + rng.next() * 1.4);
     placed.push({ x: cx, y: cy, r: holeSize });
 
-    // Generate an irregular blob using random radii + smooth cubic curves
-    const vertCount = 5 + Math.floor(rng.next() * 5); // 5-9 vertices
-    const angles: number[] = [];
-    const radii: number[] = [];
-    const baseAngle = rng.next() * Math.PI * 2;
-    for (let v = 0; v < vertCount; v++) {
-      angles.push(baseAngle + (v / vertCount) * Math.PI * 2);
-      // Wildly varying radii for organic torn look
-      radii.push(holeSize * (0.3 + rng.next() * 1.0));
-    }
-
-    const pts = angles.map((a, idx) => ({
-      x: cx + radii[idx] * Math.cos(a),
-      y: cy + radii[idx] * Math.sin(a),
-    }));
-
+    // Pick shape type based on seed+index for variety
+    const shapeType = shapeTypes[Math.floor(rng.next() * shapeTypes.length)];
+    const rotation = rng.next() * Math.PI * 2;
     const path = new SVGPath();
-    path.moveTo(pts[0].x, pts[0].y);
-    for (let v = 0; v < vertCount; v++) {
-      const curr = pts[v];
-      const next = pts[(v + 1) % vertCount];
-      // Random control point offsets for wobbly curves
-      const mx = (curr.x + next.x) / 2;
-      const my = (curr.y + next.y) / 2;
-      const cpOff = holeSize * 0.4;
-      const cp1x = curr.x + (mx - curr.x) * 0.5 + (rng.next() - 0.5) * cpOff;
-      const cp1y = curr.y + (my - curr.y) * 0.5 + (rng.next() - 0.5) * cpOff;
-      const cp2x = next.x + (mx - next.x) * 0.5 + (rng.next() - 0.5) * cpOff;
-      const cp2y = next.y + (my - next.y) * 0.5 + (rng.next() - 0.5) * cpOff;
-      path.cubicBezierTo(cp1x, cp1y, cp2x, cp2y, next.x, next.y);
+
+    if (shapeType === 'tear') {
+      // Teardrop/water-drop torn shape
+      const vertCount = 6 + Math.floor(rng.next() * 4);
+      const pts: Array<{x: number; y: number}> = [];
+      for (let v = 0; v < vertCount; v++) {
+        const a = rotation + (v / vertCount) * Math.PI * 2;
+        const stretch = 1.0 + Math.sin(a - rotation) * 0.5;
+        const r = holeSize * (0.3 + rng.next() * 0.8) * stretch;
+        pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+      }
+      path.moveTo(pts[0].x, pts[0].y);
+      for (let v = 0; v < vertCount; v++) {
+        const curr = pts[v], next = pts[(v + 1) % vertCount];
+        const cpOff = holeSize * (0.2 + rng.next() * 0.4);
+        const mx = (curr.x + next.x) / 2, my = (curr.y + next.y) / 2;
+        const nx = -(next.y - curr.y), ny = (next.x - curr.x);
+        const nl = Math.hypot(nx, ny) || 1;
+        const bulge = (rng.next() - 0.4) * cpOff;
+        path.quadraticBezierTo(mx + nx / nl * bulge, my + ny / nl * bulge, next.x, next.y);
+      }
+    } else if (shapeType === 'crescent') {
+      // Crescent/bite shape (partial arc subtraction)
+      const arcRadius = holeSize * (0.8 + rng.next() * 0.6);
+      const arcAngle = Math.PI * (0.5 + rng.next() * 0.7);
+      const steps = 8 + Math.floor(rng.next() * 4);
+      const pts: Array<{x: number; y: number}> = [];
+      // Outer arc
+      for (let s = 0; s <= steps; s++) {
+        const a = rotation - arcAngle / 2 + (s / steps) * arcAngle;
+        const r = arcRadius * (0.85 + rng.next() * 0.3);
+        pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+      }
+      // Inner arc (narrower, back)
+      const innerR = arcRadius * (0.3 + rng.next() * 0.3);
+      for (let s = steps; s >= 0; s--) {
+        const a = rotation - arcAngle / 2 + (s / steps) * arcAngle;
+        const r = innerR * (0.7 + rng.next() * 0.6);
+        pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+      }
+      path.moveTo(pts[0].x, pts[0].y);
+      for (let p = 1; p < pts.length; p++) {
+        const prev = pts[p - 1], curr = pts[p];
+        const cpOff = holeSize * 0.15;
+        path.quadraticBezierTo(
+          (prev.x + curr.x) / 2 + (rng.next() - 0.5) * cpOff,
+          (prev.y + curr.y) / 2 + (rng.next() - 0.5) * cpOff,
+          curr.x, curr.y
+        );
+      }
+    } else if (shapeType === 'ragged') {
+      // Ragged/spiky torn hole
+      const vertCount = 8 + Math.floor(rng.next() * 6);
+      const pts: Array<{x: number; y: number}> = [];
+      for (let v = 0; v < vertCount; v++) {
+        const a = rotation + (v / vertCount) * Math.PI * 2;
+        const spike = (v % 2 === 0) ? (0.6 + rng.next() * 0.6) : (0.15 + rng.next() * 0.35);
+        const r = holeSize * spike;
+        pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+      }
+      path.moveTo(pts[0].x, pts[0].y);
+      for (let v = 0; v < vertCount; v++) {
+        const next = pts[(v + 1) % vertCount];
+        path.lineTo(next.x, next.y);
+      }
+    } else if (shapeType === 'elongated') {
+      // Elongated tear/rip (stretched in one direction)
+      const vertCount = 7 + Math.floor(rng.next() * 3);
+      const stretchX = 0.4 + rng.next() * 0.4;
+      const stretchY = 1.5 + rng.next() * 1.0;
+      const pts: Array<{x: number; y: number}> = [];
+      for (let v = 0; v < vertCount; v++) {
+        const a = (v / vertCount) * Math.PI * 2;
+        const r = holeSize * (0.4 + rng.next() * 0.6);
+        const dx = r * Math.cos(a) * stretchX;
+        const dy = r * Math.sin(a) * stretchY;
+        const rx = dx * Math.cos(rotation) - dy * Math.sin(rotation);
+        const ry = dx * Math.sin(rotation) + dy * Math.cos(rotation);
+        pts.push({ x: cx + rx, y: cy + ry });
+      }
+      path.moveTo(pts[0].x, pts[0].y);
+      for (let v = 0; v < vertCount; v++) {
+        const curr = pts[v], next = pts[(v + 1) % vertCount];
+        const cpOff = holeSize * 0.3;
+        const mx = (curr.x + next.x) / 2, my = (curr.y + next.y) / 2;
+        path.quadraticBezierTo(mx + (rng.next() - 0.5) * cpOff, my + (rng.next() - 0.5) * cpOff, next.x, next.y);
+      }
+    } else {
+      // Moth-eaten: cluster of small overlapping irregular circles
+      const clusterCount = 2 + Math.floor(rng.next() * 3);
+      for (let c = 0; c < clusterCount; c++) {
+        const offA = rng.next() * Math.PI * 2;
+        const offR = rng.next() * holeSize * 0.6;
+        const subCx = cx + offR * Math.cos(offA);
+        const subCy = cy + offR * Math.sin(offA);
+        const subR = holeSize * (0.25 + rng.next() * 0.4);
+        const subVerts = 5 + Math.floor(rng.next() * 3);
+        const subPts: Array<{x: number; y: number}> = [];
+        for (let v = 0; v < subVerts; v++) {
+          const a = (v / subVerts) * Math.PI * 2;
+          const r = subR * (0.6 + rng.next() * 0.8);
+          subPts.push({ x: subCx + r * Math.cos(a), y: subCy + r * Math.sin(a) });
+        }
+        if (c > 0) path.moveTo(subPts[0].x, subPts[0].y);
+        else path.moveTo(subPts[0].x, subPts[0].y);
+        for (let v = 0; v < subVerts; v++) {
+          const next = subPts[(v + 1) % subVerts];
+          const curr = subPts[v];
+          const cpOff = subR * 0.5;
+          path.quadraticBezierTo(
+            (curr.x + next.x) / 2 + (rng.next() - 0.5) * cpOff,
+            (curr.y + next.y) / 2 + (rng.next() - 0.5) * cpOff,
+            next.x, next.y
+          );
+        }
+        path.closePath();
+      }
+      paths.push(path.toString());
+      continue; // moth has its own closePath logic
     }
     path.closePath();
     paths.push(path.toString());

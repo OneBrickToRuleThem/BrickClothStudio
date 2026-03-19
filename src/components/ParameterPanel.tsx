@@ -5,10 +5,10 @@
 
 import React, { useState } from 'react';
 import { useEditorStore } from '../store/editor';
-import { DEFAULT_SLIT_WIDTH, HOLE_STANDARDS, DEFAULT_HOLE_TYPE } from '../utils/constants';
+import { HOLE_STANDARDS, DEFAULT_HOLE_TYPE, SAIL_HOLE_STANDARDS } from '../utils/constants';
 
 export default function ParameterPanel() {
-  const { parameters, setParameter, resetToDefaults } = useEditorStore();
+  const { parameters, setParameter, resetToDefaults, elementType } = useEditorStore();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     transformations: false,
     attachment: false,
@@ -57,24 +57,34 @@ export default function ParameterPanel() {
           </div>
           <div className="space-y-2">
             <ParameterSlider
-              label="Length (mm)"
+              label={elementType === 'flag' ? 'Height (mm)' : 'Length (mm)'}
               name="length"
-              min={20}
-              max={200}
+              min={elementType === 'flag' ? 15 : 20}
+              max={elementType === 'flag' ? 80 : 200}
               value={parameters.length as number}
               onChange={(value) => setParameter('length', value)}
             />
             <ParameterSlider
               label="Width (mm)"
               name="width"
-              min={20}
-              max={150}
+              min={elementType === 'flag' ? 10 : 20}
+              max={elementType === 'flag' ? 60 : 150}
               value={parameters.width as number}
               onChange={(value) => setParameter('width', value)}
             />
           </div>
         </section>
 
+        {elementType === 'flag' && (
+          <FlagParameterPanel parameters={parameters} setParameter={setParameter} />
+        )}
+
+        {elementType === 'sail' && (
+          <SailParameterPanel parameters={parameters} setParameter={setParameter} />
+        )}
+
+        {elementType === 'cape' && (
+        <>
         {/* Transformations Section */}
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('transformations')}>
@@ -278,6 +288,10 @@ export default function ParameterPanel() {
                     min={0.1} max={0.6} step={0.05}
                     value={parameters.pointedDepth as number || 0.3}
                     onChange={(v) => setParameter('pointedDepth', v)} />
+                  <ParameterSlider label="Roundness" name="pointedRoundness"
+                    min={0} max={1} step={0.05}
+                    value={parameters.pointedRoundness as number ?? 0.4}
+                    onChange={(v) => setParameter('pointedRoundness', v)} />
                 </div>
               )}
             </div>
@@ -431,27 +445,29 @@ export default function ParameterPanel() {
           {openSections.sideStyle && (
           <div className="mt-2">
           <p className="text-xs text-gray-500 mb-2">Modify the left and right edges</p>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {(['none', 'tattered', 'scalloped', 'zigzag', 'wavy', 'castellated', 'serrated', 'fringed', 'thorned'] as const).map((style) => (
-              <label key={style} className="flex items-center gap-2 text-sm">
-                <input type="radio" name="sideStyle" className="w-4 h-4"
-                  checked={(parameters.sideStyle as string || 'none') === style}
-                  onChange={() => setParameter('sideStyle', style)} />
-                <span className="capitalize">{style}</span>
-              </label>
-            ))}
-            {(parameters.sideStyle as string || 'none') !== 'none' && (
-              <div className="ml-6 mt-1 space-y-1">
-                <ParameterSlider label="Depth (mm)" name="sideStyleDepth"
-                  min={0.5} max={8} step={0.5}
-                  value={parameters.sideStyleDepth as number || 3}
-                  onChange={(v) => setParameter('sideStyleDepth', v)} />
-                <ParameterSlider label="Count" name="sideStyleCount"
-                  min={3} max={20} step={1}
-                  value={parameters.sideStyleCount as number || 8}
-                  onChange={(v) => setParameter('sideStyleCount', v)} />
+              <div key={style}>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="sideStyle" className="w-4 h-4"
+                    checked={(parameters.sideStyle as string || 'none') === style}
+                    onChange={() => setParameter('sideStyle', style)} />
+                  <span className="capitalize">{style}</span>
+                </label>
+                {(parameters.sideStyle as string || 'none') === style && style !== 'none' && (
+                  <div className="ml-6 mt-1">
+                    <ParameterSlider label="Depth (mm)" name="sideStyleDepth"
+                      min={0.5} max={8} step={0.5}
+                      value={parameters.sideStyleDepth as number || 3}
+                      onChange={(v) => setParameter('sideStyleDepth', v)} />
+                    <ParameterSlider label="Count" name="sideStyleCount"
+                      min={3} max={20} step={1}
+                      value={parameters.sideStyleCount as number || 8}
+                      onChange={(v) => setParameter('sideStyleCount', v)} />
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
           </div>
           )}
@@ -541,6 +557,16 @@ export default function ParameterPanel() {
                     min={0.5} max={4} step={0.5}
                     value={parameters.starHoleSize as number || 1.5}
                     onChange={(v) => setParameter('starHoleSize', v)} />
+                  <div className="flex items-center gap-2 mt-1">
+                    <label className="text-xs text-gray-600 flex-shrink-0">Seed</label>
+                    <input type="number" className="w-20 text-xs border rounded px-1 py-0.5"
+                      value={parameters.seed as number || 12345}
+                      onChange={(e) => setParameter('seed', parseInt(e.target.value) || 0)} />
+                    <button type="button" className="text-xs bg-gray-200 hover:bg-gray-300 rounded px-2 py-0.5"
+                      onClick={() => setParameter('seed', Math.floor(Math.random() * 99999))}>
+                      🎲 Randomize
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -549,16 +575,319 @@ export default function ParameterPanel() {
           </div>
           )}
         </section>
+        </>
+        )}
+
         <section className="panel-section border-t pt-4 text-xs text-gray-600">
-          <p className="font-semibold mb-1">LEGO Standards:</p>
+          <p className="font-semibold mb-1">Hole Standards:</p>
           <p>• Minifigure: {HOLE_STANDARDS.minifigure.diameter}mm hole</p>
           <p>• Minidoll: {HOLE_STANDARDS.minidoll.diameter}mm hole</p>
           <p className="font-semibold mb-1 mt-2">Scale Reference:</p>
-          <p>• LEGO stud: 4.8 mm diameter</p>
-          <p>• Slit: {DEFAULT_SLIT_WIDTH} mm wide</p>
+          <p>• Stud: 4.8 mm diameter</p>
         </section>
       </div>
     </div>
+  );
+}
+
+/**
+ * Sail-specific parameter panel.
+ * Edge styles, grommet hole type, grommet positions.
+ */
+function SailParameterPanel({ parameters, setParameter }: {
+  parameters: Record<string, number | string | boolean>;
+  setParameter: (key: string, value: number | string | boolean) => void;
+}) {
+  const { templateVariant } = useEditorStore();
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    edgeStyles: true,
+    grommets: false,
+  });
+
+  function toggleSection(key: string) {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const isSquare = templateVariant === 'square-sail';
+  const holeType = (parameters.sailHoleType as string) || 'grommet';
+  const edgeStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated'] as const;
+
+  return (
+    <>
+      {/* Sail Options — IN PROGRESS */}
+      <section className="panel-section border-t pt-4">
+        <h3 className="panel-section-title">Sail Options <span className="text-xs text-amber-500 font-normal">(in progress)</span></h3>
+        <div className="mt-2 space-y-2">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="w-4 h-4"
+              checked={!!parameters.sailSymmetry}
+              onChange={(e) => setParameter('sailSymmetry', e.target.checked)} />
+            <span>Bilateral symmetry</span>
+          </label>
+          <p className="text-[10px] text-gray-500 ml-6">Mirror all grommet positions when dragging any corner</p>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="w-4 h-4"
+              checked={!!parameters.sailLockCorners}
+              onChange={(e) => setParameter('sailLockCorners', e.target.checked)} />
+            <span>Lock corners to grommets</span>
+          </label>
+          <p className="text-[10px] text-gray-500 ml-6">Sail outline follows grommet positions (gap preserved)</p>
+          <label className="block text-sm mt-2">
+            Grommet margin: {((parameters.sailGrommetMargin as number) ?? 3).toFixed(1)}mm
+          </label>
+          <input type="range" className="w-full" min={1} max={8} step={0.5}
+            value={(parameters.sailGrommetMargin as number) ?? 3}
+            onChange={(e) => setParameter('sailGrommetMargin', parseFloat(e.target.value))} />
+          <p className="text-[10px] text-gray-500">Distance between grommet hole and sail outline (prevents tearing)</p>
+        </div>
+      </section>
+
+      {/* Grommet Hole Type */}
+      <section className="panel-section border-t pt-4">
+        <h3 className="panel-section-title">Grommet Type</h3>
+        <div className="mt-2 space-y-1.5">
+          {(Object.keys(SAIL_HOLE_STANDARDS) as Array<keyof typeof SAIL_HOLE_STANDARDS>).map((key) => {
+            const std = SAIL_HOLE_STANDARDS[key];
+            return (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <input type="radio" name="sailHoleType" className="w-4 h-4"
+                  checked={holeType === key}
+                  onChange={() => setParameter('sailHoleType', key)} />
+                <div className="flex flex-col">
+                  <span>{std.label}</span>
+                  <span className="text-[10px] text-gray-500">{std.description}</span>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Edge Styles */}
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('edgeStyles')}>
+          <h3 className="panel-section-title">Edge Styles</h3>
+          <span className="text-gray-400 text-xs">{openSections.edgeStyles ? '▾' : '▸'}</span>
+        </button>
+        {openSections.edgeStyles && (
+          <div className="mt-2 space-y-3">
+            <p className="text-xs text-gray-500">Apply decorative styles to each edge. Drag grommets in the preview to reshape the sail.</p>
+
+            {/* Top edge */}
+            {isSquare && (
+              <div>
+                <label className="text-xs font-medium text-gray-700">Top Edge</label>
+                <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                  value={(parameters.sailTopStyle as string) || 'none'}
+                  onChange={(e) => setParameter('sailTopStyle', e.target.value)}>
+                  {edgeStyles.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Bottom edge */}
+            <div>
+              <label className="text-xs font-medium text-gray-700">Bottom Edge</label>
+              <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                value={(parameters.sailBottomStyle as string) || 'none'}
+                onChange={(e) => setParameter('sailBottomStyle', e.target.value)}>
+                {edgeStyles.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+              </select>
+            </div>
+
+            {/* Left edge */}
+            <div>
+              <label className="text-xs font-medium text-gray-700">Left Edge</label>
+              <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                value={(parameters.sailLeftStyle as string) || 'none'}
+                onChange={(e) => setParameter('sailLeftStyle', e.target.value)}>
+                {edgeStyles.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+              </select>
+            </div>
+
+            {/* Right edge (square only) */}
+            {isSquare && (
+              <div>
+                <label className="text-xs font-medium text-gray-700">Right Edge</label>
+                <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                  value={(parameters.sailRightStyle as string) || 'none'}
+                  onChange={(e) => setParameter('sailRightStyle', e.target.value)}>
+                  {edgeStyles.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Common depth / count for all edge styles */}
+            <ParameterSlider label="Edge depth (mm)" name="sailEdgeDepth"
+              min={1} max={8} step={0.5}
+              value={parameters.sailEdgeDepth as number || 3}
+              onChange={(v) => setParameter('sailEdgeDepth', v)} />
+            <ParameterSlider label="Edge count" name="sailEdgeCount"
+              min={3} max={16} step={1}
+              value={parameters.sailEdgeCount as number || 6}
+              onChange={(v) => setParameter('sailEdgeCount', v)} />
+          </div>
+        )}
+      </section>
+
+      {/* Grommet Positions */}
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('grommets')}>
+          <h3 className="panel-section-title">Grommet Positions</h3>
+          <span className="text-gray-400 text-xs">{openSections.grommets ? '▾' : '▸'}</span>
+        </button>
+        {openSections.grommets && (
+          <div className="mt-2 space-y-2">
+            <p className="text-xs text-gray-500 mb-2">Inset from bounding box corners (mm). Drag grommets in the preview to reposition and reshape the sail.</p>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+              <div>
+                <label className="text-gray-600">TL inset X</label>
+                <input type="number" min={2} max={20} step={0.5} className="w-full border rounded px-1 py-0.5 text-xs"
+                  value={parameters.sailGrommetTLx as number || 4}
+                  onChange={(e) => setParameter('sailGrommetTLx', parseFloat(e.target.value) || 4)} />
+              </div>
+              <div>
+                <label className="text-gray-600">TL inset Y</label>
+                <input type="number" min={2} max={20} step={0.5} className="w-full border rounded px-1 py-0.5 text-xs"
+                  value={parameters.sailGrommetTLy as number || 4}
+                  onChange={(e) => setParameter('sailGrommetTLy', parseFloat(e.target.value) || 4)} />
+              </div>
+              {isSquare && <>
+                <div>
+                  <label className="text-gray-600">TR inset X</label>
+                  <input type="number" min={2} max={20} step={0.5} className="w-full border rounded px-1 py-0.5 text-xs"
+                    value={parameters.sailGrommetTRx as number || 4}
+                    onChange={(e) => setParameter('sailGrommetTRx', parseFloat(e.target.value) || 4)} />
+                </div>
+                <div>
+                  <label className="text-gray-600">TR inset Y</label>
+                  <input type="number" min={2} max={20} step={0.5} className="w-full border rounded px-1 py-0.5 text-xs"
+                    value={parameters.sailGrommetTRy as number || 4}
+                    onChange={(e) => setParameter('sailGrommetTRy', parseFloat(e.target.value) || 4)} />
+                </div>
+              </>}
+              <div>
+                <label className="text-gray-600">BL inset X</label>
+                <input type="number" min={2} max={20} step={0.5} className="w-full border rounded px-1 py-0.5 text-xs"
+                  value={parameters.sailGrommetBLx as number || 4}
+                  onChange={(e) => setParameter('sailGrommetBLx', parseFloat(e.target.value) || 4)} />
+              </div>
+              <div>
+                <label className="text-gray-600">BL inset Y</label>
+                <input type="number" min={2} max={20} step={0.5} className="w-full border rounded px-1 py-0.5 text-xs"
+                  value={parameters.sailGrommetBLy as number || 4}
+                  onChange={(e) => setParameter('sailGrommetBLy', parseFloat(e.target.value) || 4)} />
+              </div>
+              <div>
+                <label className="text-gray-600">BR inset X</label>
+                <input type="number" min={2} max={20} step={0.5} className="w-full border rounded px-1 py-0.5 text-xs"
+                  value={parameters.sailGrommetBRx as number || 4}
+                  onChange={(e) => setParameter('sailGrommetBRx', parseFloat(e.target.value) || 4)} />
+              </div>
+              <div>
+                <label className="text-gray-600">BR inset Y</label>
+                <input type="number" min={2} max={20} step={0.5} className="w-full border rounded px-1 py-0.5 text-xs"
+                  value={parameters.sailGrommetBRy as number || 4}
+                  onChange={(e) => setParameter('sailGrommetBRy', parseFloat(e.target.value) || 4)} />
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Sail Info */}
+      <section className="panel-section border-t pt-4 text-xs text-gray-600">
+        <p className="font-semibold mb-1">Sail Info:</p>
+        <p>• Grommet: {SAIL_HOLE_STANDARDS[holeType as keyof typeof SAIL_HOLE_STANDARDS]?.label || 'Grommet (3mm)'}</p>
+        <p>• Drag grommets in the preview to reposition</p>
+        <p>• Blue crosshairs mark grommet centers</p>
+        {!!parameters.sailLockCorners && <p>• Corner shape follows grommets with {((parameters.sailGrommetMargin as number) ?? 3).toFixed(1)}mm gap</p>}
+        {!!parameters.sailSymmetry && <p>• All corners mirror when any is dragged</p>}
+      </section>
+    </>
+  );
+}
+
+/**
+ * Flag-specific parameter panel.
+ * Flags use the banner template — different dimensions, no cape options.
+ */
+function FlagParameterPanel({ parameters, setParameter }: {
+  parameters: Record<string, number | string | boolean>;
+  setParameter: (key: string, value: number | string | boolean) => void;
+}) {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    flagBottom: false,
+  });
+
+  function toggleSection(key: string) {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const bottomStyle = (parameters.flagBottomStyle as string) || 'none';
+
+  return (
+    <>
+      {/* Flag Bottom Edge */}
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('flagBottom')}>
+          <h3 className="panel-section-title">Bottom Edge</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 capitalize">{bottomStyle}</span>
+            <span className="text-gray-400 text-xs">{openSections.flagBottom ? '▾' : '▸'}</span>
+          </div>
+        </button>
+        {openSections.flagBottom && (
+          <div className="mt-2 space-y-2">
+            <p className="text-xs text-gray-500 mb-2">Style of the bottom edge</p>
+            {(['none', 'flames', 'pointed', 'swallowtail', 'straight', 'scalloped', 'zigzag', 'wavy'] as const).map((style) => (
+              <label key={style} className="flex items-center gap-2 text-sm">
+                <input type="radio" name="flagBottomStyle" className="w-4 h-4"
+                  checked={bottomStyle === style}
+                  onChange={() => setParameter('flagBottomStyle', style)} />
+                <span className="capitalize">{style}</span>
+              </label>
+            ))}
+            {(bottomStyle === 'scalloped' || bottomStyle === 'zigzag' || bottomStyle === 'wavy') && (
+              <div className="ml-6 mt-1">
+                <ParameterSlider label="Count" name="flagBottomCount"
+                  min={2} max={12} step={1}
+                  value={parameters.flagBottomCount as number || 5}
+                  onChange={(v) => setParameter('flagBottomCount', v)} />
+                <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
+                  min={1} max={10} step={0.5}
+                  value={parameters.flagBottomDepth as number || 3}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+              </div>
+            )}
+            {bottomStyle === 'swallowtail' && (
+              <div className="ml-6 mt-1">
+                <ParameterSlider label="Depth" name="flagBottomDepth"
+                  min={0.1} max={0.5} step={0.05}
+                  value={parameters.flagBottomDepth as number || 0.3}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+              </div>
+            )}
+            {bottomStyle === 'pointed' && (
+              <div className="ml-6 mt-1">
+                <ParameterSlider label="Depth" name="flagBottomDepth"
+                  min={0.1} max={0.5} step={0.05}
+                  value={parameters.flagBottomDepth as number || 0.25}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Flag Info */}
+      <section className="panel-section border-t pt-4 text-xs text-gray-600">
+        <p className="font-semibold mb-1">Flag Template:</p>
+        <p>• Based on cloth banner shape</p>
+        <p>• Two clip holes for bar attachment</p>
+        <p>• Bottom edge from bannertemplates.svg</p>
+      </section>
+    </>
   );
 }
 

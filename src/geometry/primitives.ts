@@ -147,6 +147,24 @@ export function roundedRectPath(
 }
 
 /**
+ * Create a stadium/pill-shaped path (horizontal rounded rectangle)
+ * cx, cy = center of the shape
+ * halfWidth = half of the flat section width (total width = 2*halfWidth + 2*radius)
+ * radius = radius of the semicircular ends (total height = 2*radius)
+ */
+export function stadiumPath(cx: number, cy: number, halfWidth: number, radius: number): string {
+  const path = new SVGPath();
+  // Start at left-center, draw top semicircle right, flat top, right semicircle, flat bottom, close
+  path.moveTo(cx - halfWidth, cy - radius);
+  path.lineTo(cx + halfWidth, cy - radius);
+  path.arcTo(radius, radius, 0, 0, 1, cx + halfWidth, cy + radius);
+  path.lineTo(cx - halfWidth, cy + radius);
+  path.arcTo(radius, radius, 0, 0, 1, cx - halfWidth, cy - radius);
+  path.closePath();
+  return path.toString();
+}
+
+/**
  * Create a circle path
  * cx, cy = center
  * radius = radius

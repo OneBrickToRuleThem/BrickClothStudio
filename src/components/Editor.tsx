@@ -3,8 +3,7 @@
  * Three-panel layout: left (element selector), center (preview), right (parameters)
  */
 
-import React, { useState, useMemo } from 'react';
-import { useEditorStore } from '../store/editor';
+import React, { useState } from 'react';
 import ParameterPanel from './ParameterPanel';
 import PreviewCanvas from './PreviewCanvas';
 import ExportPanel from './ExportPanel';
@@ -17,8 +16,8 @@ export default function Editor() {
     <div className="flex h-screen flex-col bg-gray-100">
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-4 shadow-lg">
-        <h1 className="text-3xl font-bold">Brick Cloth Studio</h1>
-        <p className="text-blue-100 text-sm">LEGO-scale fabric pattern generator</p>
+        <h1 className="text-3xl font-semibold tracking-tight" style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>Brick Cloth Studio</h1>
+        <p className="text-blue-100 text-sm" style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>Minifig-scale fabric pattern generator</p>
       </header>
 
       {/* Main content area */}

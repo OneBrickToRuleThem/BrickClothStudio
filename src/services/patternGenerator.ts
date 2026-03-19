@@ -11,15 +11,17 @@ import {
   CapeShort,
   CapeLong,
   CapeTattered,
-  CapeReferenceTest,
 } from '../templates/cape';
 import {
-  Flag,
+  FlagSmall,
+  FlagLarge,
   Banner,
   Wings,
   Kama,
   Pauldron,
   Cloak,
+  SailSquare,
+  SailTriangular,
 } from '../templates/other';
 
 /**
@@ -59,10 +61,6 @@ export function generatePattern(
         template = new CapeTattered();
         name = 'Tattered Cape';
         break;
-      case 'reference-test':
-        template = new CapeReferenceTest();
-        name = 'Reference Test Cape';
-        break;
       default:
         template = new CapeStandard();
         name = 'Standard Cape';
@@ -71,8 +69,15 @@ export function generatePattern(
     template = new Cloak();
     name = 'Cloak';
   } else if (elementType === 'flag') {
-    template = new Flag();
-    name = 'Flag';
+    switch (templateVariant) {
+      case 'large-flag':
+        template = new FlagLarge();
+        name = 'Large Flag';
+        break;
+      default:
+        template = new FlagSmall();
+        name = 'Small Flag';
+    }
   } else if (elementType === 'banner') {
     template = new Banner();
     name = 'Banner';
@@ -85,10 +90,20 @@ export function generatePattern(
   } else if (elementType === 'pauldron') {
     template = new Pauldron();
     name = 'Pauldron';
+  } else if (elementType === 'sail') {
+    switch (templateVariant) {
+      case 'triangular-sail':
+        template = new SailTriangular();
+        name = 'Triangular Sail';
+        break;
+      default:
+        template = new SailSquare();
+        name = 'Square Sail';
+    }
   } else {
-    // Custom/default
+    // Default fallback
     template = new CapeStandard();
-    name = 'Custom Pattern';
+    name = 'Pattern';
   }
 
   // Generate pattern export
