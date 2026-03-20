@@ -1199,6 +1199,19 @@ export class CapeShort extends Template {
 
   generateScorePaths(params: TemplateParams): string[] { return []; }
   generateEngravePaths(params: TemplateParams): string[] { return []; }
+
+  export(
+    id: string,
+    name: string,
+    elementType: string,
+    variantName: string,
+    params: TemplateParams
+  ): PatternExport {
+    const result = super.export(id, name, elementType, variantName, params);
+    // CapeShort draws at 60% of params.length
+    result.boundingBox.height = params.length * 0.6;
+    return result;
+  }
 }
 
 /**
@@ -1283,6 +1296,19 @@ export class CapeLong extends Template {
 
   generateScorePaths(params: TemplateParams): string[] { return []; }
   generateEngravePaths(params: TemplateParams): string[] { return []; }
+
+  export(
+    id: string,
+    name: string,
+    elementType: string,
+    variantName: string,
+    params: TemplateParams
+  ): PatternExport {
+    const result = super.export(id, name, elementType, variantName, params);
+    // CapeLong draws at 140% of params.length
+    result.boundingBox.height = params.length * 1.4;
+    return result;
+  }
 }
 
 /**
@@ -1342,6 +1368,22 @@ export class CapeTattered extends Template {
 
   generateScorePaths(params: TemplateParams): string[] { return []; }
   generateEngravePaths(params: TemplateParams): string[] { return []; }
+
+  export(
+    id: string,
+    name: string,
+    elementType: string,
+    variantName: string,
+    params: TemplateParams
+  ): PatternExport {
+    const result = super.export(id, name, elementType, variantName, params);
+    // Tattered hem jitter can extend up to 6% of width beyond the base hem
+    const jitterMax = params.width * 0.06;
+    const hemY = params.length * 0.89712;
+    const hemDepth = params.length - hemY;
+    result.boundingBox.height = hemY + hemDepth + jitterMax;
+    return result;
+  }
 }
 
 /**

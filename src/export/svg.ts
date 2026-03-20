@@ -174,12 +174,17 @@ export function exportPrintSheetSVG(
 
   // Build layout items from patterns (add small padding around each)
   const PAD = 2; // mm padding per side around each pattern
-  const layoutItems: LayoutItem[] = patterns.map((p, i) => ({
-    id: `${i}`,
-    width: p.boundingBox.width + PAD * 2,
-    height: p.boundingBox.height + PAD * 2,
-    data: p,
-  }));
+  const layoutItems: LayoutItem[] = patterns.map((p, i) => {
+    // Account for negative bounding box offsets (e.g. side styles extending into -X)
+    const shiftX = Math.max(0, -p.boundingBox.x);
+    const shiftY = Math.max(0, -p.boundingBox.y);
+    return {
+      id: `${i}`,
+      width: shiftX + p.boundingBox.width + PAD * 2,
+      height: shiftY + p.boundingBox.height + PAD * 2,
+      data: p,
+    };
+  });
 
   const layout = packItemsOnPage(layoutItems, width, height, margin, gutter, autoRotate);
 
@@ -203,10 +208,12 @@ export function exportPrintSheetSVG(
 
   for (const placed of layout.items) {
     const p = placed.data as PatternExport;
+    const shiftX = Math.max(0, -p.boundingBox.x);
+    const shiftY = Math.max(0, -p.boundingBox.y);
     const rot = placed.rotated ? ` rotate(90 ${(placed.width / 2).toFixed(2)} ${(placed.height / 2).toFixed(2)})` : '';
     svg += `\n  <!-- ${escapeXML(p.name)} -->\n`;
     svg += `  <g transform="translate(${placed.x.toFixed(2)}, ${placed.y.toFixed(2)})${rot}">\n`;
-    svg += `    <g transform="translate(${PAD}, ${PAD})">\n`;
+    svg += `    <g transform="translate(${(PAD + shiftX).toFixed(2)}, ${(PAD + shiftY).toFixed(2)})">\n`;
 
     if (p.cutPaths.length > 0) {
       for (const d of p.cutPaths) svg += `      <path d="${d}" class="cut-line" />\n`;
