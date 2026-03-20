@@ -1152,6 +1152,14 @@ export class CapeStandard extends Template {
     if (maxY > result.boundingBox.height) {
       result.boundingBox.height = maxY;
     }
+    // When side styles are active, the left side extends into negative X.
+    // Set bb.x to the negative offset so the SVG export can translate accordingly.
+    const sideStyle = (params.sideStyle as string) || 'none';
+    if (sideStyle !== 'none') {
+      const sideDepth = (params.sideStyleDepth as number) || 3;
+      result.boundingBox.x = -sideDepth;
+      result.boundingBox.width = w + sideDepth * 2;
+    }
     return result;
   }
 }

@@ -18,6 +18,7 @@ export default function ExportPanel() {
     setPrintConfig,
     exportOptions,
     setExportOptions,
+    decorations,
   } = useEditorStore();
 
   const pattern = useMemo(() => {
@@ -26,7 +27,7 @@ export default function ExportPanel() {
 
   const handleExportSingle = () => {
     if (!pattern) return;
-    const svg = exportSinglePatternSVG(pattern, exportOptions);
+    const svg = exportSinglePatternSVG(pattern, exportOptions, decorations);
     downloadSVG(svg, `${pattern.name}.svg`);
   };
 

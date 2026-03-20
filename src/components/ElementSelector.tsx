@@ -131,6 +131,7 @@ function ElementVariantSelector() {
     sail: [
       { value: 'square-sail', label: 'Square Sail' },
       { value: 'triangular-sail', label: 'Triangular Sail' },
+      { value: 'polygon-sail', label: 'Polygon Sail' },
     ],
   };
 

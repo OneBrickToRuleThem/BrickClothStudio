@@ -18,6 +18,7 @@ export type TemplateVariant =
   | 'shoulder-armor'
   | 'square-sail'
   | 'triangular-sail'
+  | 'polygon-sail'
   | 'calibration-test';
 
 export interface Point {
@@ -63,15 +64,22 @@ export interface PatternMetadata {
 /**
  * Decoration/import layer
  */
+export type DecorationType = 'engraving' | 'rastering' | 'decoration';
+
 export interface DecorationLayer {
   id: string;
   name: string;
   type: 'svg' | 'image' | 'text';
-  data: string; // SVG path data, image URL, or text content
+  decorationType: DecorationType; // how this decoration is processed
+  data: string; // SVG path data, image data URL, or text content
   x: number; // position in mm
   y: number;
+  width: number; // width in mm
+  height: number; // height in mm
   scale: number; // scale factor
   rotation: number; // degrees
+  fontSize?: number; // for text decorations (mm)
+  fontFamily?: string; // for text decorations
   clipToSilhouette: boolean;
   visible: boolean;
   locked: boolean;

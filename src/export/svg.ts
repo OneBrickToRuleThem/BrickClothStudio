@@ -3,7 +3,7 @@
  * Handles conversion of patterns to production-ready SVG
  */
 
-import { PatternExport, BoundingBox, SVGExportOptions } from '../utils/types';
+import { PatternExport, BoundingBox, SVGExportOptions, DecorationLayer } from '../utils/types';
 import {
   SVG_STROKE_WIDTH,
   SVG_CUT_COLOR,
@@ -19,7 +19,8 @@ import { packItemsOnPage, LayoutItem } from './packer';
  */
 export function exportSinglePatternSVG(
   pattern: PatternExport,
-  options: Partial<SVGExportOptions> = {}
+  options: Partial<SVGExportOptions> = {},
+  decorations: DecorationLayer[] = []
 ): string {
   const {
     strokeWidth = SVG_STROKE_WIDTH,
@@ -43,8 +44,11 @@ export function exportSinglePatternSVG(
   // Add padding (10mm) on all sides for visibility
   const paddingX = 10;
   const paddingY = 10;
-  const width = bb.x + bb.width + paddingX * 2;
-  const height = bb.y + bb.height + paddingY * 2;
+  // When bb.x is negative (e.g. side styles extend left), shift content right to keep everything visible
+  const shiftX = Math.max(0, -bb.x);
+  const shiftY = Math.max(0, -bb.y);
+  const width = shiftX + bb.width + paddingX * 2;
+  const height = shiftY + bb.height + paddingY * 2;
 
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" 
@@ -61,7 +65,7 @@ export function exportSinglePatternSVG(
   </defs>
 
   <!-- Pattern: ${escapeXML(pattern.name)} | ${pattern.metadata.elementType} / ${pattern.metadata.templateVariant} -->
-  <g transform="translate(${paddingX}, ${paddingY})">
+  <g transform="translate(${paddingX + shiftX}, ${paddingY + shiftY})">
 `;
 
   // Cut layer (always included)
@@ -98,6 +102,42 @@ export function exportSinglePatternSVG(
       svg += `    ${path}\n`;
     }
     svg += `  </g>\n`;
+  }
+
+  // Decoration layers
+  const visibleDecos = decorations.filter(d => d.visible);
+  if (visibleDecos.length > 0) {
+    // Group by decoration type
+    const engraveDecos = visibleDecos.filter(d => d.decorationType === 'engraving');
+    const rasterDecos = visibleDecos.filter(d => d.decorationType === 'rastering');
+    const decoDecos = visibleDecos.filter(d => d.decorationType === 'decoration');
+
+    const renderDecoGroup = (decos: DecorationLayer[], id: string, color: string) => {
+      if (decos.length === 0) return;
+      svg += `  <g id="${id}" class="${id}-layer">\n`;
+      for (const deco of decos) {
+        const tx = deco.x;
+        const ty = deco.y;
+        const w = deco.width * deco.scale;
+        const h = deco.height * deco.scale;
+        const rot = deco.rotation ? ` rotate(${deco.rotation} ${tx + w / 2} ${ty + h / 2})` : '';
+        svg += `    <g transform="translate(${tx.toFixed(2)}, ${ty.toFixed(2)})${rot}">\n`;
+        if (deco.type === 'image') {
+          svg += `      <image href="${escapeXML(deco.data)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" />\n`;
+        } else if (deco.type === 'text') {
+          const fontSize = deco.fontSize || 4;
+          const fontFamily = deco.fontFamily || 'sans-serif';
+          svg += `      <text x="${(w / 2).toFixed(2)}" y="${(h / 2 + fontSize * 0.35).toFixed(2)}" ` +
+            `text-anchor="middle" font-size="${fontSize}" font-family="${fontFamily}" fill="${color}">${escapeXML(deco.data)}</text>\n`;
+        }
+        svg += `    </g>\n`;
+      }
+      svg += `  </g>\n`;
+    };
+
+    if (includeLayers.engrave) renderDecoGroup(engraveDecos, 'engrave-decorations', lineColors.engrave);
+    renderDecoGroup(rasterDecos, 'raster-decorations', '#000000');
+    renderDecoGroup(decoDecos, 'decoration-decorations', '#333333');
   }
 
   svg += `  </g>\n`;

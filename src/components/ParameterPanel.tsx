@@ -3,12 +3,13 @@
  * Controls pattern dimensions, hole settings, and decorations
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useEditorStore } from '../store/editor';
-import { HOLE_STANDARDS, DEFAULT_HOLE_TYPE, SAIL_HOLE_STANDARDS } from '../utils/constants';
+import { HOLE_STANDARDS, DEFAULT_HOLE_TYPE, SAIL_HOLE_STANDARDS, LEGO_GRID_SIZE } from '../utils/constants';
+import type { DecorationType } from '../utils/types';
 
 export default function ParameterPanel() {
-  const { parameters, setParameter, resetToDefaults, elementType } = useEditorStore();
+  const { parameters, setParameter, resetToDefaults, elementType, decorations, addDecoration, updateDecoration, removeDecoration, selectDecoration, selectedDecorationId } = useEditorStore();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     transformations: false,
     attachment: false,
@@ -578,6 +579,16 @@ export default function ParameterPanel() {
         </>
         )}
 
+        {/* Decorations Section */}
+        <DecorationPanel
+          decorations={decorations}
+          selectedDecorationId={selectedDecorationId}
+          addDecoration={addDecoration}
+          updateDecoration={updateDecoration}
+          removeDecoration={removeDecoration}
+          selectDecoration={selectDecoration}
+        />
+
         <section className="panel-section border-t pt-4 text-xs text-gray-600">
           <p className="font-semibold mb-1">Hole Standards:</p>
           <p>• Minifigure: {HOLE_STANDARDS.minifigure.diameter}mm hole</p>
@@ -587,6 +598,227 @@ export default function ParameterPanel() {
         </section>
       </div>
     </div>
+  );
+}
+
+/**
+ * Decoration panel — add/edit image & text decorations with type selection.
+ */
+function DecorationPanel({
+  decorations,
+  selectedDecorationId,
+  addDecoration,
+  updateDecoration,
+  removeDecoration,
+  selectDecoration,
+}: {
+  decorations: import('../utils/types').DecorationLayer[];
+  selectedDecorationId: string | null;
+  addDecoration: (decoration: Omit<import('../utils/types').DecorationLayer, 'id'>) => void;
+  updateDecoration: (id: string, updates: Partial<import('../utils/types').DecorationLayer>) => void;
+  removeDecoration: (id: string) => void;
+  selectDecoration: (id: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleAddImage() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        // Default size: fit within 20mm keeping aspect ratio
+        const aspect = img.width / img.height;
+        const w = aspect >= 1 ? 20 : 20 * aspect;
+        const h = aspect >= 1 ? 20 / aspect : 20;
+        addDecoration({
+          name: file.name.replace(/\.[^.]+$/, ''),
+          type: 'image',
+          decorationType: 'engraving',
+          data: dataUrl,
+          x: 5,
+          y: 5,
+          width: w,
+          height: h,
+          scale: 1,
+          rotation: 0,
+          clipToSilhouette: true,
+          visible: true,
+          locked: false,
+        });
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
+  }
+
+  function handleAddText() {
+    addDecoration({
+      name: 'Text',
+      type: 'text',
+      decorationType: 'engraving',
+      data: 'Text',
+      x: 5,
+      y: 10,
+      width: 20,
+      height: 5,
+      scale: 1,
+      rotation: 0,
+      fontSize: 4,
+      fontFamily: 'sans-serif',
+      clipToSilhouette: true,
+      visible: true,
+      locked: false,
+    });
+  }
+
+  const sel = decorations.find(d => d.id === selectedDecorationId) ?? null;
+
+  return (
+    <section className="panel-section border-t pt-4">
+      <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => setOpen(!open)}>
+        <h3 className="panel-section-title">Decorations</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">{decorations.length || 'None'}</span>
+          <span className="text-gray-400 text-xs">{open ? '▾' : '▸'}</span>
+        </div>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-3">
+          {/* Add buttons */}
+          <div className="flex gap-2">
+            <button type="button"
+              className="flex-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded px-2 py-1.5"
+              onClick={handleAddImage}>
+              + Image
+            </button>
+            <button type="button"
+              className="flex-1 text-xs bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded px-2 py-1.5"
+              onClick={handleAddText}>
+              + Text
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          </div>
+
+          {/* Decoration list */}
+          {decorations.length === 0 && (
+            <p className="text-xs text-gray-400 italic">No decorations added yet</p>
+          )}
+          {decorations.map((deco) => (
+            <div key={deco.id}
+              className={`border rounded p-2 text-xs cursor-pointer ${
+                selectedDecorationId === deco.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+              }`}
+              onClick={() => selectDecoration(selectedDecorationId === deco.id ? null : deco.id)}>
+              <div className="flex items-center justify-between">
+                <span className="font-medium truncate flex-1">
+                  {deco.type === 'image' ? '🖼 ' : '📝 '}{deco.name}
+                </span>
+                <div className="flex items-center gap-1 ml-2">
+                  <button type="button"
+                    className="text-gray-400 hover:text-gray-600"
+                    onClick={(e) => { e.stopPropagation(); updateDecoration(deco.id, { visible: !deco.visible }); }}
+                    title={deco.visible ? 'Hide' : 'Show'}>
+                    {deco.visible ? '👁' : '👁‍🗨'}
+                  </button>
+                  <button type="button"
+                    className="text-gray-400 hover:text-red-500"
+                    onClick={(e) => { e.stopPropagation(); removeDecoration(deco.id); }}
+                    title="Remove">
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Expanded controls when selected */}
+              {selectedDecorationId === deco.id && (
+                <div className="mt-2 space-y-2 border-t pt-2">
+                  {/* Decoration type */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">Operation Type</label>
+                    <div className="space-y-1">
+                      {(['engraving', 'rastering', 'decoration'] as const).map((dt) => (
+                        <label key={dt} className="flex items-center gap-2">
+                          <input type="radio" name={`decoType-${deco.id}`} className="w-3 h-3"
+                            checked={deco.decorationType === dt}
+                            onChange={() => updateDecoration(deco.id, { decorationType: dt })} />
+                          <span className="capitalize">{dt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Text content */}
+                  {deco.type === 'text' && (
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">Text</label>
+                      <input type="text" className="w-full border rounded px-2 py-1 text-xs"
+                        value={deco.data}
+                        onChange={(e) => updateDecoration(deco.id, { data: e.target.value })} />
+                    </div>
+                  )}
+
+                  {/* Text font size */}
+                  {deco.type === 'text' && (
+                    <ParameterSlider label="Font size (mm)" name={`fontSize-${deco.id}`}
+                      min={1} max={20} step={0.5}
+                      value={deco.fontSize || 4}
+                      onChange={(v) => updateDecoration(deco.id, { fontSize: v })} />
+                  )}
+
+                  {/* Position */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-500">X (mm)</label>
+                      <input type="number" className="w-full border rounded px-1 py-0.5 text-xs"
+                        value={Math.round(deco.x * 10) / 10} step={0.5}
+                        onChange={(e) => updateDecoration(deco.id, { x: parseFloat(e.target.value) || 0 })} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Y (mm)</label>
+                      <input type="number" className="w-full border rounded px-1 py-0.5 text-xs"
+                        value={Math.round(deco.y * 10) / 10} step={0.5}
+                        onChange={(e) => updateDecoration(deco.id, { y: parseFloat(e.target.value) || 0 })} />
+                    </div>
+                  </div>
+
+                  {/* Size */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-500">Width (mm)</label>
+                      <input type="number" className="w-full border rounded px-1 py-0.5 text-xs"
+                        value={Math.round(deco.width * 10) / 10} step={0.5} min={1}
+                        onChange={(e) => updateDecoration(deco.id, { width: parseFloat(e.target.value) || 1 })} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Height (mm)</label>
+                      <input type="number" className="w-full border rounded px-1 py-0.5 text-xs"
+                        value={Math.round(deco.height * 10) / 10} step={0.5} min={1}
+                        onChange={(e) => updateDecoration(deco.id, { height: parseFloat(e.target.value) || 1 })} />
+                    </div>
+                  </div>
+
+                  {/* Rotation */}
+                  <ParameterSlider label="Rotation (°)" name={`rotation-${deco.id}`}
+                    min={0} max={360} step={5}
+                    value={deco.rotation}
+                    onChange={(v) => updateDecoration(deco.id, { rotation: v })} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -609,11 +841,54 @@ function SailParameterPanel({ parameters, setParameter }: {
   }
 
   const isSquare = templateVariant === 'square-sail';
+  const isPolygon = templateVariant === 'polygon-sail';
   const holeType = (parameters.sailHoleType as string) || 'grommet';
   const edgeStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated'] as const;
 
   return (
     <>
+      {/* LEGO Stud Sizing */}
+      <section className="panel-section border-t pt-4">
+        <h3 className="panel-section-title">Stud Sizing</h3>
+        <p className="text-[10px] text-gray-500 mb-2">Set dimensions by LEGO stud count ({LEGO_GRID_SIZE}mm per stud)</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-1 text-xs">
+          <div>
+            <label className="text-gray-600">Width (studs)</label>
+            <input type="number" min={1} max={32} step={1}
+              className="w-full border rounded px-2 py-1 text-xs"
+              value={Math.round((parameters.width as number) / LEGO_GRID_SIZE)}
+              onChange={(e) => {
+                const studs = Math.max(1, parseInt(e.target.value) || 1);
+                setParameter('width', studs * LEGO_GRID_SIZE);
+              }} />
+          </div>
+          <div>
+            <label className="text-gray-600">Length (studs)</label>
+            <input type="number" min={1} max={32} step={1}
+              className="w-full border rounded px-2 py-1 text-xs"
+              value={Math.round((parameters.length as number) / LEGO_GRID_SIZE)}
+              onChange={(e) => {
+                const studs = Math.max(1, parseInt(e.target.value) || 1);
+                setParameter('length', studs * LEGO_GRID_SIZE);
+              }} />
+          </div>
+        </div>
+        <p className="text-[10px] text-gray-400 mt-1">{(parameters.width as number)}×{(parameters.length as number)}mm</p>
+      </section>
+
+      {/* Polygon Sides (polygon variant only) */}
+      {isPolygon && (
+        <section className="panel-section border-t pt-4">
+          <h3 className="panel-section-title">Polygon Sides</h3>
+          <div className="mt-1">
+            <ParameterSlider label="Number of sides" name="sailSides"
+              min={5} max={12} step={1}
+              value={(parameters.sailSides as number) || 6}
+              onChange={(v) => setParameter('sailSides', v)} />
+          </div>
+        </section>
+      )}
+
       {/* Sail Options — IN PROGRESS */}
       <section className="panel-section border-t pt-4">
         <h3 className="panel-section-title">Sail Options <span className="text-xs text-amber-500 font-normal">(in progress)</span></h3>
@@ -818,6 +1093,7 @@ function FlagParameterPanel({ parameters, setParameter }: {
 }) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     flagBottom: false,
+    flagSides: false,
   });
 
   function toggleSection(key: string) {
@@ -825,6 +1101,9 @@ function FlagParameterPanel({ parameters, setParameter }: {
   }
 
   const bottomStyle = (parameters.flagBottomStyle as string) || 'none';
+  const leftStyle = (parameters.flagLeftStyle as string) || 'none';
+  const rightStyle = (parameters.flagRightStyle as string) || 'none';
+  const sideStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated'] as const;
 
   return (
     <>
@@ -841,39 +1120,97 @@ function FlagParameterPanel({ parameters, setParameter }: {
           <div className="mt-2 space-y-2">
             <p className="text-xs text-gray-500 mb-2">Style of the bottom edge</p>
             {(['none', 'flames', 'pointed', 'swallowtail', 'straight', 'scalloped', 'zigzag', 'wavy'] as const).map((style) => (
-              <label key={style} className="flex items-center gap-2 text-sm">
-                <input type="radio" name="flagBottomStyle" className="w-4 h-4"
-                  checked={bottomStyle === style}
-                  onChange={() => setParameter('flagBottomStyle', style)} />
-                <span className="capitalize">{style}</span>
-              </label>
+              <div key={style}>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="flagBottomStyle" className="w-4 h-4"
+                    checked={bottomStyle === style}
+                    onChange={() => setParameter('flagBottomStyle', style)} />
+                  <span className="capitalize">{style}</span>
+                </label>
+                {/* Inline sub-options for this style */}
+                {bottomStyle === style && (style === 'scalloped' || style === 'zigzag' || style === 'wavy') && (
+                  <div className="ml-6 mt-1">
+                    <ParameterSlider label="Count" name="flagBottomCount"
+                      min={2} max={12} step={1}
+                      value={parameters.flagBottomCount as number || 5}
+                      onChange={(v) => setParameter('flagBottomCount', v)} />
+                    <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
+                      min={1} max={10} step={0.5}
+                      value={parameters.flagBottomDepth as number || 3}
+                      onChange={(v) => setParameter('flagBottomDepth', v)} />
+                  </div>
+                )}
+                {bottomStyle === style && style === 'swallowtail' && (
+                  <div className="ml-6 mt-1">
+                    <ParameterSlider label="Depth" name="flagBottomDepth"
+                      min={0.1} max={0.5} step={0.05}
+                      value={parameters.flagBottomDepth as number || 0.3}
+                      onChange={(v) => setParameter('flagBottomDepth', v)} />
+                  </div>
+                )}
+                {bottomStyle === style && style === 'pointed' && (
+                  <div className="ml-6 mt-1">
+                    <ParameterSlider label="Depth" name="flagBottomDepth"
+                      min={0.1} max={0.5} step={0.05}
+                      value={parameters.flagBottomDepth as number || 0.25}
+                      onChange={(v) => setParameter('flagBottomDepth', v)} />
+                  </div>
+                )}
+                {bottomStyle === style && style === 'flames' && (
+                  <div className="ml-6 mt-1">
+                    <ParameterSlider label="Count" name="flagBottomCount"
+                      min={2} max={12} step={1}
+                      value={parameters.flagBottomCount as number || 5}
+                      onChange={(v) => setParameter('flagBottomCount', v)} />
+                    <ParameterSlider label="Depth" name="flagBottomDepth"
+                      min={0.05} max={0.4} step={0.05}
+                      value={parameters.flagBottomDepth as number || 0.15}
+                      onChange={(v) => setParameter('flagBottomDepth', v)} />
+                  </div>
+                )}
+              </div>
             ))}
-            {(bottomStyle === 'scalloped' || bottomStyle === 'zigzag' || bottomStyle === 'wavy') && (
-              <div className="ml-6 mt-1">
-                <ParameterSlider label="Count" name="flagBottomCount"
-                  min={2} max={12} step={1}
-                  value={parameters.flagBottomCount as number || 5}
-                  onChange={(v) => setParameter('flagBottomCount', v)} />
-                <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
-                  min={1} max={10} step={0.5}
-                  value={parameters.flagBottomDepth as number || 3}
-                  onChange={(v) => setParameter('flagBottomDepth', v)} />
-              </div>
-            )}
-            {bottomStyle === 'swallowtail' && (
-              <div className="ml-6 mt-1">
-                <ParameterSlider label="Depth" name="flagBottomDepth"
-                  min={0.1} max={0.5} step={0.05}
-                  value={parameters.flagBottomDepth as number || 0.3}
-                  onChange={(v) => setParameter('flagBottomDepth', v)} />
-              </div>
-            )}
-            {bottomStyle === 'pointed' && (
-              <div className="ml-6 mt-1">
-                <ParameterSlider label="Depth" name="flagBottomDepth"
-                  min={0.1} max={0.5} step={0.05}
-                  value={parameters.flagBottomDepth as number || 0.25}
-                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+          </div>
+        )}
+      </section>
+
+      {/* Flag Side Styles */}
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('flagSides')}>
+          <h3 className="panel-section-title">Side Edges</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 capitalize">{leftStyle === 'none' && rightStyle === 'none' ? 'none' : `L:${leftStyle} R:${rightStyle}`}</span>
+            <span className="text-gray-400 text-xs">{openSections.flagSides ? '▾' : '▸'}</span>
+          </div>
+        </button>
+        {openSections.flagSides && (
+          <div className="mt-2 space-y-3">
+            <div>
+              <label className="text-xs font-medium text-gray-700">Left Edge</label>
+              <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                value={leftStyle}
+                onChange={(e) => setParameter('flagLeftStyle', e.target.value)}>
+                {sideStyles.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-700">Right Edge</label>
+              <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                value={rightStyle}
+                onChange={(e) => setParameter('flagRightStyle', e.target.value)}>
+                {sideStyles.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+              </select>
+            </div>
+            {(leftStyle !== 'none' || rightStyle !== 'none') && (
+              <div>
+                <ParameterSlider label="Side count" name="flagSideCount"
+                  min={3} max={12} step={1}
+                  value={parameters.flagSideCount as number || 5}
+                  onChange={(v) => setParameter('flagSideCount', v)} />
+                <ParameterSlider label="Side depth (mm)" name="flagSideDepth"
+                  min={1} max={8} step={0.5}
+                  value={parameters.flagSideDepth as number || 3}
+                  onChange={(v) => setParameter('flagSideDepth', v)} />
               </div>
             )}
           </div>

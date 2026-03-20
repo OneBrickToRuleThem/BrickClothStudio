@@ -131,3 +131,19 @@ body {
 .reference-layer.hidden {
   display: none;
 }
+
+/* Mobile-friendly touch targets */
+@media (max-width: 767px) {
+  .panel-section-title {
+    font-size: 0.875rem;
+  }
+  .btn {
+    min-height: 44px;
+  }
+  input[type=\"range\"] {
+    height: 32px;
+  }
+  select {
+    min-height: 36px;
+  }
+}

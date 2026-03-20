@@ -22,6 +22,7 @@ import {
   Cloak,
   SailSquare,
   SailTriangular,
+  SailPolygon,
 } from '../templates/other';
 
 /**
@@ -95,6 +96,10 @@ export function generatePattern(
       case 'triangular-sail':
         template = new SailTriangular();
         name = 'Triangular Sail';
+        break;
+      case 'polygon-sail':
+        template = new SailPolygon();
+        name = 'Polygon Sail';
         break;
       default:
         template = new SailSquare();

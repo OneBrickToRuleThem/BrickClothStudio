@@ -113,6 +113,9 @@ const defaultParameters = {
   sailSymmetry: false as boolean,
   sailLockCorners: false as boolean,
   sailGrommetMargin: 3,
+  sailSides: 6,  // polygon sail: number of sides (5-12)
+  sailStudWidth: 0,  // LEGO stud-based sizing (0 = manual mm)
+  sailStudLength: 0,
   // Sail grommet positions (inset from corners in mm)
   sailGrommetTLx: 4,
   sailGrommetTLy: 4,
@@ -135,6 +138,7 @@ const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number
   'kama': { width: 40, length: 20 },
   'pauldron': { width: 40, length: 30 },
   'sail': { width: 60, length: 60 },
+  'sail:polygon-sail': { width: 60, length: 60 },
 };
 
 function getDimensionDefaults(elementType: string, templateVariant: string) {

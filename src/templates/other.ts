@@ -127,10 +127,12 @@ class BannerFlag extends Template {
 
   generateCutPath(params: TemplateParams): string {
     const bottomStyle = (params.flagBottomStyle as string) || 'none';
+    const leftStyle = (params.flagLeftStyle as string) || 'none';
+    const rightStyle = (params.flagRightStyle as string) || 'none';
     
-    // If a bottom edge style is set, use a rectangular body with styled bottom
-    if (bottomStyle !== 'none') {
-      return this.generateStyledFlagPath(params, bottomStyle);
+    // If any edge style is set, use a rectangular body with styled edges
+    if (bottomStyle !== 'none' || leftStyle !== 'none' || rightStyle !== 'none') {
+      return this.generateStyledFlagPath(params);
     }
     
     // Default: use the reference SVG flame-tongue paths
@@ -158,112 +160,202 @@ class BannerFlag extends Template {
   }
 
   /**
-   * Generate a rectangular flag body with a styled bottom edge.
+   * Generate a rectangular flag body with styled left/right/bottom edges.
    */
-  private generateStyledFlagPath(params: TemplateParams, bottomStyle: string): string {
+  private generateStyledFlagPath(params: TemplateParams): string {
     const w = params.width;
     const h = params.length;
+    const bottomStyle = (params.flagBottomStyle as string) || 'none';
+    const leftStyle = (params.flagLeftStyle as string) || 'none';
+    const rightStyle = (params.flagRightStyle as string) || 'none';
     const depth = (params.flagBottomDepth as number) || 0.25;
     const count = (params.flagBottomCount as number) || 5;
+    const sideDepth = (params.flagSideDepth as number) || 3;
+    const sideCount = (params.flagSideCount as number) || 5;
     const path = new SVGPath();
-    const margin = 1; // slight inset for softer corners
-    const r = 1.5; // corner radius
+    const margin = 1;
+    const r = 1.5;
+
+    // Calculate how much the bottom style extends below the body baseline
+    // so we can inset the body to keep decorations within the bounding box
+    const bottomExt = this.getBottomExtension(bottomStyle, depth, count, h, margin);
+    const bodyBottom = h - margin - bottomExt;
 
     // Start top-left, go clockwise
     path.moveTo(margin + r, margin);
     path.lineTo(w - margin - r, margin);
     path.arcTo(r, r, 0, 0, 1, w - margin, margin + r);
 
-    // Right edge
-    path.lineTo(w - margin, h - margin);
+    // Right edge (top to bottom) — ends at bodyBottom
+    this.drawStyledSideEdge(path, w - margin, margin + r, w - margin, bodyBottom, rightStyle, sideDepth, sideCount, 1);
 
-    // Bottom edge - styled
-    this.drawStyledBottomEdge(path, w, h, margin, bottomStyle, depth, count);
+    // Bottom edge — decorations extend from bodyBottom down to h-margin (within bounds)
+    this.drawStyledBottomEdge(path, w, h, margin, bottomStyle, depth, count, bottomExt);
 
-    // Left edge up
-    path.lineTo(margin, margin + r);
+    // Left edge (bottom to top) — starts from bodyBottom
+    this.drawStyledSideEdge(path, margin, bodyBottom, margin, margin + r, leftStyle, sideDepth, sideCount, -1);
     path.arcTo(r, r, 0, 0, 1, margin + r, margin);
     path.closePath();
     return path.toString();
   }
 
+  /** Calculate how far a bottom edge style extends below the body baseline */
+  private getBottomExtension(style: string, depthParam: number, count: number, h: number, _margin: number): number {
+    switch (style) {
+      case 'pointed': return h * depthParam;
+      case 'flames': return h * Math.min(depthParam || 0.15, 0.4);
+      case 'scalloped': return depthParam || 3;
+      case 'zigzag': return depthParam || 3;
+      case 'wavy': return depthParam || 3;
+      default: return 0; // 'none', 'straight', 'swallowtail' stay within bounds
+    }
+  }
+
+  /**
+   * Draw a styled vertical side edge (left or right).
+   * direction: 1 = top-to-bottom, -1 = bottom-to-top
+   */
+  private drawStyledSideEdge(
+    path: SVGPath, x: number, y1: number, _x2: number, y2: number,
+    style: string, depthMm: number, count: number, direction: number
+  ): void {
+    const len = Math.abs(y2 - y1);
+    if (style === 'none' || style === 'straight') {
+      path.lineTo(x, y2);
+      return;
+    }
+    const segCount = count || 5;
+    const segH = len / segCount;
+    const sign = direction; // positive = going down
+    const outward = (direction === 1) ? 1 : -1; // right edge bumps right, left edge bumps left
+
+    switch (style) {
+      case 'scalloped': {
+        for (let i = 0; i < segCount; i++) {
+          const sy = y1 + sign * (i + 1) * segH;
+          const cy = y1 + sign * (i + 0.5) * segH;
+          path.quadraticBezierTo(x + depthMm * outward, cy, x, sy);
+        }
+        break;
+      }
+      case 'zigzag': {
+        for (let i = 0; i < segCount; i++) {
+          const midY = y1 + sign * (i + 0.5) * segH;
+          const endY = y1 + sign * (i + 1) * segH;
+          const bump = (i % 2 === 0) ? depthMm : -depthMm;
+          path.lineTo(x + bump * outward, midY);
+          path.lineTo(x, endY);
+        }
+        break;
+      }
+      case 'wavy': {
+        for (let i = 0; i < segCount; i++) {
+          const sy = y1 + sign * (i + 1) * segH;
+          const cy = y1 + sign * (i + 0.5) * segH;
+          const dir = (i % 2 === 0) ? 1 : -1;
+          path.quadraticBezierTo(x + depthMm * dir * outward, cy, x, sy);
+        }
+        break;
+      }
+      case 'castellated': {
+        const segW = depthMm;
+        for (let i = 0; i < segCount; i++) {
+          const segStart = y1 + sign * i * segH;
+          const segMid = y1 + sign * (i + 0.5) * segH;
+          if (i % 2 === 0) {
+            path.lineTo(x + segW * outward, segStart);
+            path.lineTo(x + segW * outward, segMid);
+            path.lineTo(x, segMid);
+          }
+          path.lineTo(x, y1 + sign * (i + 1) * segH);
+        }
+        break;
+      }
+      default:
+        path.lineTo(x, y2);
+    }
+  }
+
   private drawStyledBottomEdge(
     path: SVGPath, w: number, h: number, margin: number,
-    style: string, depthParam: number, count: number
+    style: string, depthParam: number, count: number, bottomExt: number
   ): void {
-    const bottomY = h - margin;
+    const bottomY = h - margin;           // absolute bottom edge of bounding box
+    const bodyBottom = bottomY - bottomExt; // raised baseline where the body ends
     const leftX = margin;
     const rightX = w - margin;
     const usableW = rightX - leftX;
 
     switch (style) {
       case 'swallowtail': {
+        // V-notch goes inward (upward), no overflow — ext=0, bodyBottom=bottomY
         const depth = h * depthParam;
         const cx = (leftX + rightX) / 2;
-        path.lineTo(cx, bottomY - depth);
-        path.lineTo(leftX, bottomY);
+        path.lineTo(cx, bodyBottom - depth);
+        path.lineTo(leftX, bodyBottom);
         break;
       }
       case 'pointed': {
-        const depth = h * depthParam;
+        // Triangle tip at bottomY (within bounds), body corners at bodyBottom
         const cx = (leftX + rightX) / 2;
-        path.lineTo(cx, bottomY + depth);
-        path.lineTo(leftX, bottomY);
+        path.lineTo(cx, bottomY);
+        path.lineTo(leftX, bodyBottom);
         break;
       }
       case 'flames': {
+        // Shifted up so flame tips reach bottomY but don't exceed it
         const flameCount = count || 5;
         const segW = usableW / flameCount;
-        const flameH = h * Math.min(depthParam || 0.15, 0.4);
+        const flameH = bottomExt; // = h * Math.min(depthParam || 0.15, 0.4)
         for (let i = 0; i < flameCount; i++) {
           const x0 = rightX - i * segW;
           const x1 = rightX - (i + 1) * segW;
           const cx1 = x0 - segW * 0.3;
           const cx2 = x0 - segW * 0.7;
-          path.cubicBezierTo(cx1, bottomY + flameH, cx2, bottomY - flameH * 0.5, x1, bottomY);
+          path.cubicBezierTo(cx1, bottomY, cx2, bodyBottom - flameH * 0.5, x1, bodyBottom);
         }
         break;
       }
       case 'scalloped': {
+        // Scallops curve from bodyBottom down to bottomY, staying within bounds
         const scCount = count || 5;
         const segW = usableW / scCount;
-        const scDepth = depthParam || 3;
         for (let i = 0; i < scCount; i++) {
           const x0 = rightX - i * segW;
           const x1 = rightX - (i + 1) * segW;
           const cx = (x0 + x1) / 2;
-          path.quadraticBezierTo(cx, bottomY + scDepth, x1, bottomY);
+          path.quadraticBezierTo(cx, bottomY, x1, bodyBottom);
         }
         break;
       }
       case 'zigzag': {
+        // Teeth alternate between bottomY and bodyBottom
         const zzCount = count || 8;
         const segW = usableW / zzCount;
-        const zzDepth = depthParam || 3;
         for (let i = 0; i < zzCount; i++) {
           const x = rightX - (i + 0.5) * segW;
-          const y = (i % 2 === 0) ? bottomY + zzDepth : bottomY - zzDepth;
+          const y = (i % 2 === 0) ? bottomY : bodyBottom;
           path.lineTo(x, y);
         }
-        path.lineTo(leftX, bottomY);
+        path.lineTo(leftX, bodyBottom);
         break;
       }
       case 'wavy': {
+        // Wave control points alternate between bottomY and bodyBottom
         const wvCount = count || 5;
         const segW = usableW / wvCount;
-        const wvDepth = depthParam || 3;
         for (let i = 0; i < wvCount; i++) {
           const x0 = rightX - i * segW;
           const x1 = rightX - (i + 1) * segW;
-          const dir = (i % 2 === 0) ? 1 : -1;
           const cx = (x0 + x1) / 2;
-          path.quadraticBezierTo(cx, bottomY + wvDepth * dir, x1, bottomY);
+          const cpY = (i % 2 === 0) ? bottomY : bodyBottom - bottomExt;
+          path.quadraticBezierTo(cx, cpY, x1, bodyBottom);
         }
         break;
       }
       case 'straight':
       default:
-        path.lineTo(leftX, bottomY);
+        path.lineTo(leftX, bodyBottom);
         break;
     }
   }
@@ -368,18 +460,19 @@ export class Banner extends Template {
     path.lineTo(w - r, 0);
     path.arcTo(r, r, 0, 0, 1, w, r);
 
-    // Right edge straight down
-    path.lineTo(w, h);
-
-    // Bottom edge: swallowtail cut by default
+    // Right edge straight down (shortened to make room for tail)
     const tailDepth = h * 0.15;
+    const bodyBottom = h - tailDepth;
+    path.lineTo(w, bodyBottom);
+
+    // Bottom edge: swallowtail cut within bounds
     const cx = w / 2;
-    path.lineTo(cx + 2, h);
-    path.lineTo(cx, h + tailDepth);
-    path.lineTo(cx - 2, h);
+    path.lineTo(cx + 2, bodyBottom);
+    path.lineTo(cx, h);  // tip at bounding box bottom
+    path.lineTo(cx - 2, bodyBottom);
 
     // Left edge up
-    path.lineTo(0, h);
+    path.lineTo(0, bodyBottom);
     path.lineTo(0, r);
     path.arcTo(r, r, 0, 0, 1, r, 0);
     path.closePath();
@@ -1160,6 +1253,73 @@ export class SailTriangular extends Template {
     scores.push(inner.toString());
 
     // Crosshairs at each grommet center
+    scores.push(...buildGrommetCrosshairs(grommets, holeR));
+    return scores;
+  }
+
+  generateEngravePaths(_params: TemplateParams): string[] {
+    return [];
+  }
+}
+
+/**
+ * Polygon Sail: regular polygon with N sides (5-12), one grommet at each vertex.
+ * Grommets are placed at regular polygon vertices inset from the bounding box.
+ * Outline is the Minkowski offset of the grommet polygon by holeR + gap.
+ */
+export class SailPolygon extends Template {
+  private getGrommets(params: TemplateParams) {
+    const w = params.width;
+    const h = params.length;
+    const sides = Math.max(5, Math.min(12, (params.sailSides as number) || 6));
+    const inset = 4; // mm inset from bounding box
+    const cx = w / 2;
+    const cy = h / 2;
+    const rx = w / 2 - inset;
+    const ry = h / 2 - inset;
+    const grommets: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < sides; i++) {
+      const angle = -Math.PI / 2 + (2 * Math.PI * i) / sides;
+      grommets.push({
+        x: cx + rx * Math.cos(angle),
+        y: cy + ry * Math.sin(angle),
+      });
+    }
+    return grommets;
+  }
+
+  generateCutPath(params: TemplateParams): string {
+    const holeR = getSailHoleRadius(params);
+    const gap = (params.sailGrommetMargin as number) ?? 3;
+    const grommets = this.getGrommets(params);
+    const margin = holeR + gap;
+    const sides = grommets.length;
+    const edgeStyles: string[] = new Array(sides).fill('none');
+    const depth = (params.sailEdgeDepth as number) || 3;
+    const count = (params.sailEdgeCount as number) || 6;
+    return buildSailCutPath(grommets, margin, edgeStyles, depth, count, 2);
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const r = getSailHoleRadius(params);
+    const paths = [this.generateCutPath(params)];
+    for (const g of this.getGrommets(params)) paths.push(circlePath(g.x, g.y, r));
+    return paths;
+  }
+
+  generateScorePaths(params: TemplateParams): string[] {
+    const holeR = getSailHoleRadius(params);
+    const grommets = this.getGrommets(params);
+    const scores: string[] = [];
+
+    const inner = new SVGPath();
+    inner.moveTo(grommets[0].x, grommets[0].y);
+    for (let i = 1; i < grommets.length; i++) {
+      inner.lineTo(grommets[i].x, grommets[i].y);
+    }
+    inner.closePath();
+    scores.push(inner.toString());
+
     scores.push(...buildGrommetCrosshairs(grommets, holeR));
     return scores;
   }

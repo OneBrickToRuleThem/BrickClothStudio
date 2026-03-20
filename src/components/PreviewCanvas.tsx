@@ -27,11 +27,10 @@ export default function PreviewCanvas() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showMinifig, setShowMinifig] = useState(true);
-  const [minifigOnCape, setMinifigOnCape] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [centered, setCentered] = useState(false);
   const [draggingGrommet, setDraggingGrommet] = useState<string | null>(null);
-  const { elementType, templateVariant, parameters, setParameter } = useEditorStore();
+  const { elementType, templateVariant, parameters, setParameter, decorations, selectedDecorationId, updateDecoration, selectDecoration } = useEditorStore();
 
   // Generate pattern based on current parameters
   const pattern = useMemo(() => {
@@ -49,43 +48,34 @@ export default function PreviewCanvas() {
     return exportSinglePatternSVG(pattern);
   }, [pattern]);
 
-  // Compute minifigure SVG overlay — two positions: on cape or to the side
+  // Compute minifigure SVG overlay — locked in the lower-left (-X, +Y) quadrant
   const minifigSvgOverlay = useMemo(() => {
     if (!pattern) return '';
-    const bb = pattern.boundingBox;
     const pad = 10;
-    const capeW = bb.width;
-    const neckY = 39 * 0.156;
-    const imgTopY = neckY - MINIFIG_HEIGHT_MM * MINIFIG_NECK_FROM_TOP;
 
-    // On-cape: centered on cape
-    const onCapeX = capeW / 2 - MINIFIG_WIDTH_MM / 2;
-    // Side: to the right of the cape with a small gap
-    const sideGap = 5;
-    const sideX = capeW + sideGap;
-    // Align vertically: neck of minifig at same Y as cape holes
-    const imgX = minifigOnCape ? onCapeX : sideX;
-    const opacity = minifigOnCape ? 0.18 : 0.5;
+    // Fixed position in the -X, +Y quadrant — does not depend on pattern dimensions
+    const imgX = -MINIFIG_WIDTH_MM - 5; // left of the Y axis
+    const imgY = 8; // just below the X axis
+    const opacity = 0.35;
 
-    // Expand viewBox to fit the side position
-    const totalW = sideX + MINIFIG_WIDTH_MM + pad;
-    const vbW = Math.max(bb.x + bb.width + pad * 2, totalW + pad);
-    const vbH = bb.y + bb.height + pad * 2;
+    // ViewBox matches the pattern SVG (0 0 ...) so coordinates align with axes origin at (10,10)
+    const vbW = 200;
+    const vbH = 200;
 
     return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-      viewBox="0 0 ${vbW.toFixed(2)} ${vbH.toFixed(2)}"
-      width="${vbW.toFixed(2)}mm" height="${vbH.toFixed(2)}mm"
-      style="position:absolute;top:0;left:0;pointer-events:none;">
+      viewBox="0 0 ${vbW} ${vbH}"
+      width="${vbW}mm" height="${vbH}mm"
+      style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible;">
       <g transform="translate(${pad}, ${pad})">
         <image href="${minifigUrl}"
-          x="${imgX.toFixed(2)}" y="${imgTopY.toFixed(2)}"
+          x="${imgX.toFixed(2)}" y="${imgY.toFixed(2)}"
           width="${MINIFIG_WIDTH_MM}" height="${MINIFIG_HEIGHT_MM}"
           preserveAspectRatio="xMidYMid meet"
           opacity="${opacity}"
-          style="cursor:pointer;pointer-events:all;" />
+          style="pointer-events:none;" />
       </g>
     </svg>`;
-  }, [pattern, minifigOnCape]);
+  }, [pattern]);
 
   // Center the pattern in the canvas on first render and when element type changes
   const prevElementRef = useRef<string>('');
@@ -105,9 +95,12 @@ export default function PreviewCanvas() {
       rect.height * 0.9 / patternH,
       CANVAS_SCALE_MM_TO_PX * 2
     );
+    // Position so the pattern origin (0,0) sits in the upper-left area of the canvas
+    // with some margin for the axis labels, placing the pattern in the +X/+Y quadrant
+    const axisMargin = 60; // px margin for axis labels on left/top
     setPanOffset({
-      x: (rect.width - patternW * initScale) / 2,
-      y: (rect.height - patternH * initScale) / 2,
+      x: axisMargin,
+      y: axisMargin,
     });
     setScale(initScale);
     setCentered(true);
@@ -116,9 +109,10 @@ export default function PreviewCanvas() {
   // --- Sail grommet dragging ---
   const isSail = elementType === 'sail';
   const isSquareSail = templateVariant === 'square-sail';
+  const isPolygonSail = templateVariant === 'polygon-sail';
 
   const sailGrommets = useMemo(() => {
-    if (!isSail || !pattern) return [];
+    if (!isSail || !pattern || isPolygonSail) return []; // polygon grommets are auto-computed
     const w = (parameters.width as number) || 60;
     const h = (parameters.length as number) || 60;
     const grommets: Array<{ id: string; x: number; y: number; paramX: string; paramY: string; corner: string }> = [];
@@ -150,7 +144,7 @@ export default function PreviewCanvas() {
       paramX: 'sailGrommetBRx', paramY: 'sailGrommetBRy',
     });
     return grommets;
-  }, [isSail, isSquareSail, pattern, parameters]);
+  }, [isSail, isSquareSail, isPolygonSail, pattern, parameters]);
 
   const screenToMM = useCallback((clientX: number, clientY: number): { x: number; y: number } => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -176,79 +170,58 @@ export default function PreviewCanvas() {
     const mm = screenToMM(e.clientX, e.clientY);
     let w = (parameters.width as number) || 60;
     let h = (parameters.length as number) || 60;
-    const minEdge = 2; // minimum gap from grommet center to sail edge
     const symmetry = !!parameters.sailSymmetry;
+    const minInset = 2;
+    const edgePad = 4; // expand when cursor gets this close to edge
 
-    // Expand sail when grommet is dragged past right/bottom edges
-    if (mm.x > w - minEdge) {
-      w = Math.ceil((mm.x + minEdge) * 2) / 2;
+    // Expand sail when cursor approaches any edge
+    if (mm.x > w - edgePad) {
+      w = Math.round((mm.x + edgePad) * 2) / 2;
       setParameter('width', w);
     }
-    if (mm.y > h - minEdge) {
-      h = Math.ceil((mm.y + minEdge) * 2) / 2;
+    if (mm.y > h - edgePad) {
+      h = Math.round((mm.y + edgePad) * 2) / 2;
       setParameter('length', h);
     }
 
-    // Expand sail to the left: grow width, shift left-side insets (except the one being dragged)
-    if (mm.x < minEdge) {
-      const shift = minEdge - mm.x;
-      w += shift;
-      setParameter('width', w);
-      if (draggingGrommet !== 'TL') setParameter('sailGrommetTLx', ((parameters.sailGrommetTLx as number) || 4) + shift);
-      if (draggingGrommet !== 'BL') setParameter('sailGrommetBLx', ((parameters.sailGrommetBLx as number) || 4) + shift);
-    }
-
-    // Expand sail to the top: grow height, shift top-side insets (except the one being dragged)
-    if (mm.y < minEdge) {
-      const shift = minEdge - mm.y;
-      h += shift;
-      setParameter('length', h);
-      if (draggingGrommet !== 'TL') setParameter('sailGrommetTLy', ((parameters.sailGrommetTLy as number) || 4) + shift);
-      if (draggingGrommet !== 'TR') setParameter('sailGrommetTRy', ((parameters.sailGrommetTRy as number) || 4) + shift);
-    }
-
-    // Clamp position within sail bounds
-    const cx = Math.max(minEdge, Math.min(w - minEdge, mm.x));
-    const cy = Math.max(minEdge, Math.min(h - minEdge, mm.y));
+    // Allow free movement, clamp to stay within bounds
+    const cx = Math.max(minInset, Math.min(w - minInset, mm.x));
+    const cy = Math.max(minInset, Math.min(h - minInset, mm.y));
 
     // Bilateral symmetry mirrors left↔right (TL↔TR, BL↔BR)
     switch (draggingGrommet) {
       case 'TL': {
-        const ix = cx;
-        const iy = cy;
-        setParameter('sailGrommetTLx', ix);
-        setParameter('sailGrommetTLy', iy);
+        setParameter('sailGrommetTLx', cx);
+        setParameter('sailGrommetTLy', cy);
         if (symmetry) {
-          setParameter('sailGrommetTRx', ix);
-          setParameter('sailGrommetTRy', iy);
+          setParameter('sailGrommetTRx', cx);
+          setParameter('sailGrommetTRy', cy);
         }
         break;
       }
       case 'TR': {
-        const ix = w - cx;
-        const iy = cy;
+        const ix = Math.max(minInset, w - cx);
         setParameter('sailGrommetTRx', ix);
-        setParameter('sailGrommetTRy', iy);
+        setParameter('sailGrommetTRy', cy);
         if (symmetry) {
           setParameter('sailGrommetTLx', ix);
-          setParameter('sailGrommetTLy', iy);
+          setParameter('sailGrommetTLy', cy);
         }
         break;
       }
       case 'BL': {
-        const ix = cx;
-        const iy = h - cy;
-        setParameter('sailGrommetBLx', ix);
+        const iy = Math.max(minInset, h - cy);
+        setParameter('sailGrommetBLx', cx);
         setParameter('sailGrommetBLy', iy);
         if (symmetry) {
-          setParameter('sailGrommetBRx', ix);
+          setParameter('sailGrommetBRx', cx);
           setParameter('sailGrommetBRy', iy);
         }
         break;
       }
       case 'BR': {
-        const ix = w - cx;
-        const iy = h - cy;
+        const ix = Math.max(minInset, w - cx);
+        const iy = Math.max(minInset, h - cy);
         setParameter('sailGrommetBRx', ix);
         setParameter('sailGrommetBRy', iy);
         if (symmetry) {
@@ -320,14 +293,24 @@ export default function PreviewCanvas() {
   const bb = pattern.boundingBox;
   const svgWidth = bb.width;
   const svgHeight = bb.height;
-  const displayWidth = svgWidth * scale;
-  const displayHeight = svgHeight * scale;
+  // Shift needed when bounding box extends into negative space (e.g. side styles)
+  const shiftX = Math.max(0, -bb.x);
+  const shiftY = Math.max(0, -bb.y);
+  // The SVG export translates content by (padding + shift), so the pattern origin in the SVG is at:
+  const originOffsetMM = 10 + shiftX; // 10mm SVG padding + any negative-BB shift
+  const originOffsetMMY = 10 + shiftY;
 
   // LEGO grid as a CSS background on the outer canvas.
   // 1mm in the SVG = CSS_MM_TO_PX screen pixels, then scaled by the zoom factor.
   const gridSpacingPx = CANVAS_GRID_SPACING * CSS_MM_TO_PX * scale;
   const studRadius = 2.4 * CSS_MM_TO_PX * scale;       // 2.4mm stud radius
   const strokeHalf = 0.5;                                // grid line width (px)
+  // Align grid to the pattern origin (0,0). The SVG content is translated by
+  // (padding + shift) mm, so origin in screen px uses that offset.
+  const originScreenX = panOffset.x + originOffsetMM * CSS_MM_TO_PX * scale;
+  const originScreenY = panOffset.y + originOffsetMMY * CSS_MM_TO_PX * scale;
+  const gridOffsetX = ((originScreenX % gridSpacingPx) + gridSpacingPx) % gridSpacingPx;
+  const gridOffsetY = ((originScreenY % gridSpacingPx) + gridSpacingPx) % gridSpacingPx;
   const gridBackground = showGrid
     ? {
         backgroundImage: [
@@ -338,7 +321,7 @@ export default function PreviewCanvas() {
           `radial-gradient(circle ${studRadius}px at ${gridSpacingPx / 2}px ${gridSpacingPx / 2}px, transparent ${studRadius - 1}px, #ddd ${studRadius - 1}px, #ddd ${studRadius}px, transparent ${studRadius}px)`,
         ].join(', '),
         backgroundSize: `${gridSpacingPx}px ${gridSpacingPx}px`,
-        backgroundPosition: `${panOffset.x % gridSpacingPx}px ${panOffset.y % gridSpacingPx}px`,
+        backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
       }
     : {};
 
@@ -369,27 +352,156 @@ export default function PreviewCanvas() {
         }}
       >
 
-        {/* Minifigure silhouette */}
+        {/* X/Y Axis Plane */}
+        <svg
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            overflow: 'visible',
+            pointerEvents: 'none',
+          }}
+          viewBox={`0 0 ${(shiftX + bb.width + 20).toFixed(2)} ${(shiftY + bb.height + 20).toFixed(2)}`}
+          width={`${(shiftX + bb.width + 20).toFixed(2)}mm`}
+          height={`${(shiftY + bb.height + 20).toFixed(2)}mm`}
+        >
+          {/* Origin matches the SVG export's translate(padding + shift) */}
+          <g transform={`translate(${originOffsetMM}, ${originOffsetMMY})`}>
+            {/* Axis lines — extend into negative space so origin is a clear crosshair */}
+            <line x1="-50" y1="0" x2={bb.width + 15} y2="0" stroke="#94a3b8" strokeWidth="0.3" />
+            <line x1="0" y1="-50" x2="0" y2={bb.height + 15} stroke="#94a3b8" strokeWidth="0.3" />
+
+            {/* X-axis arrowhead */}
+            <polygon points={`${bb.width + 15},0 ${bb.width + 12},-1.2 ${bb.width + 12},1.2`} fill="#94a3b8" />
+            {/* Y-axis arrowhead */}
+            <polygon points={`0,${bb.height + 15} -1.2,${bb.height + 12} 1.2,${bb.height + 12}`} fill="#94a3b8" />
+
+            {/* Axis labels */}
+            <text x={bb.width + 14} y={-2} fontSize="3" fill="#64748b" fontFamily="sans-serif" textAnchor="end">X (mm)</text>
+            <text x={3} y={bb.height + 14} fontSize="3" fill="#64748b" fontFamily="sans-serif">Y (mm)</text>
+
+            {/* Origin label */}
+            <text x={-2} y={-3} fontSize="2.5" fill="#94a3b8" fontFamily="sans-serif" textAnchor="end">0</text>
+
+            {/* Positive X-axis ticks (8mm intervals) */}
+            {Array.from({ length: Math.floor(bb.width / 8) + 1 }, (_, i) => (i + 1) * 8).filter(v => v <= bb.width + 8).map(v => (
+              <g key={`xt-${v}`}>
+                <line x1={v} y1={-1.5} x2={v} y2={1.5} stroke="#94a3b8" strokeWidth="0.2" />
+                <text x={v} y={-3} fontSize="2" fill="#94a3b8" fontFamily="sans-serif" textAnchor="middle">{v}</text>
+              </g>
+            ))}
+            {/* Negative X-axis ticks (8mm intervals) */}
+            {Array.from({ length: 5 }, (_, i) => -(i + 1) * 8).map(v => (
+              <g key={`xt-${v}`}>
+                <line x1={v} y1={-1.5} x2={v} y2={1.5} stroke="#94a3b8" strokeWidth="0.2" />
+                <text x={v} y={-3} fontSize="2" fill="#94a3b8" fontFamily="sans-serif" textAnchor="middle">{v}</text>
+              </g>
+            ))}
+            {/* Positive Y-axis ticks (8mm intervals) */}
+            {Array.from({ length: Math.floor(bb.height / 8) + 1 }, (_, i) => (i + 1) * 8).filter(v => v <= bb.height + 8).map(v => (
+              <g key={`yt-${v}`}>
+                <line x1={-1.5} y1={v} x2={1.5} y2={v} stroke="#94a3b8" strokeWidth="0.2" />
+                <text x={-3} y={v + 0.8} fontSize="2" fill="#94a3b8" fontFamily="sans-serif" textAnchor="end">{v}</text>
+              </g>
+            ))}
+            {/* Negative Y-axis ticks (8mm intervals) */}
+            {Array.from({ length: 5 }, (_, i) => -(i + 1) * 8).map(v => (
+              <g key={`yt-${v}`}>
+                <line x1={-1.5} y1={v} x2={1.5} y2={v} stroke="#94a3b8" strokeWidth="0.2" />
+                <text x={-3} y={v + 0.8} fontSize="2" fill="#94a3b8" fontFamily="sans-serif" textAnchor="end">{v}</text>
+              </g>
+            ))}
+          </g>
+        </svg>
+
+        {/* Minifigure silhouette — lower-left spatial reference */}
         {showMinifig && (
           <div
             dangerouslySetInnerHTML={{ __html: minifigSvgOverlay }}
-            onClick={() => setMinifigOnCape(!minifigOnCape)}
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
-              cursor: 'pointer',
+              pointerEvents: 'none',
+              overflow: 'visible',
             }}
           />
         )}
-        {/* Pattern SVG */}
+        {/* Pattern SVG — rendered above grid and axes */}
         <div
           dangerouslySetInnerHTML={{ __html: svgString }}
           style={{
-            width: svgWidth,
-            height: svgHeight,
+            position: 'relative',
+            zIndex: 2,
           }}
         />
+
+        {/* Decoration overlays */}
+        {pattern && decorations.filter(d => d.visible).map((deco) => {
+          return (
+            <div
+              key={deco.id}
+              className={`absolute ${selectedDecorationId === deco.id ? 'ring-2 ring-blue-400' : ''}`}
+              style={{
+                left: `${(deco.x + originOffsetMM) * CSS_MM_TO_PX}px`,
+                top: `${(deco.y + originOffsetMMY) * CSS_MM_TO_PX}px`,
+                width: `${deco.width * deco.scale * CSS_MM_TO_PX}px`,
+                height: `${deco.height * deco.scale * CSS_MM_TO_PX}px`,
+                transform: deco.rotation ? `rotate(${deco.rotation}deg)` : undefined,
+                transformOrigin: '0 0',
+                cursor: deco.locked ? 'default' : 'move',
+                pointerEvents: 'all',
+                opacity: deco.decorationType === 'engraving' ? 0.7 : 1,
+                outline: selectedDecorationId === deco.id ? '1px dashed #3b82f6' : 'none',
+                zIndex: 3,
+              }}
+              onMouseDown={(e) => {
+                if (deco.locked) return;
+                e.stopPropagation();
+                selectDecoration(deco.id);
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const origX = deco.x;
+                const origY = deco.y;
+                const onMove = (ev: MouseEvent) => {
+                  const dx = (ev.clientX - startX) / scale / CSS_MM_TO_PX;
+                  const dy = (ev.clientY - startY) / scale / CSS_MM_TO_PX;
+                  updateDecoration(deco.id, { x: origX + dx, y: origY + dy });
+                };
+                const onUp = () => {
+                  window.removeEventListener('mousemove', onMove);
+                  window.removeEventListener('mouseup', onUp);
+                };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}
+            >
+              {deco.type === 'image' && (
+                <img src={deco.data} alt={deco.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+                  draggable={false} />
+              )}
+              {deco.type === 'text' && (
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: `${(deco.fontSize || 4) * CSS_MM_TO_PX}px`,
+                  fontFamily: deco.fontFamily || 'sans-serif',
+                  color: deco.decorationType === 'engraving' ? '#00aa00' : '#333',
+                  whiteSpace: 'nowrap',
+                  overflow: 'visible',
+                  userSelect: 'none',
+                  pointerEvents: 'none',
+                }}>
+                  {deco.data}
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {/* Sail grommet drag handles */}
         {isSail && pattern && (
@@ -400,17 +512,18 @@ export default function PreviewCanvas() {
               left: 0,
               pointerEvents: 'none',
               overflow: 'visible',
+              zIndex: 4,
             }}
-            viewBox={`0 0 ${(pattern.boundingBox.width + 20).toFixed(2)} ${(pattern.boundingBox.height + 20).toFixed(2)}`}
-            width={`${(pattern.boundingBox.width + 20).toFixed(2)}mm`}
-            height={`${(pattern.boundingBox.height + 20).toFixed(2)}mm`}
+            viewBox={`0 0 ${(shiftX + pattern.boundingBox.width + 20).toFixed(2)} ${(shiftY + pattern.boundingBox.height + 20).toFixed(2)}`}
+            width={`${(shiftX + pattern.boundingBox.width + 20).toFixed(2)}mm`}
+            height={`${(shiftY + pattern.boundingBox.height + 20).toFixed(2)}mm`}
           >
             {sailGrommets.map((g) => {
               const holeType = (parameters.sailHoleType as string) || 'grommet';
               const std = SAIL_HOLE_STANDARDS[holeType as SailHoleType] || SAIL_HOLE_STANDARDS.grommet;
               const handleR = Math.max(std.radius * 1.8, 2.5);
-              const cx = g.x + 10;
-              const cy = g.y + 10;
+              const cx = g.x + originOffsetMM;
+              const cy = g.y + originOffsetMMY;
               return (
                 <g key={g.id}>
                   {/* Visible ring */}
@@ -451,7 +564,7 @@ export default function PreviewCanvas() {
         </label>
         <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
           <input type="checkbox" checked={showMinifig} onChange={(e) => setShowMinifig(e.target.checked)} className="w-3 h-3" />
-          <span className="text-gray-600">Minifig scale</span>
+          <span className="text-gray-600">Minifig reference</span>
         </label>
       </div>
 

@@ -63,6 +63,18 @@ export const SAIL_HOLE_STANDARDS = {
 
 export type SailHoleType = keyof typeof SAIL_HOLE_STANDARDS;
 
+// LEGO stud-based sail size presets
+export const LEGO_STUD_SAIL_PRESETS = [
+  { studsW: 4, studsH: 4, label: '4×4 studs' },
+  { studsW: 6, studsH: 6, label: '6×6 studs' },
+  { studsW: 6, studsH: 8, label: '6×8 studs' },
+  { studsW: 8, studsH: 8, label: '8×8 studs' },
+  { studsW: 8, studsH: 12, label: '8×12 studs' },
+  { studsW: 10, studsH: 10, label: '10×10 studs' },
+  { studsW: 10, studsH: 16, label: '10×16 studs' },
+  { studsW: 12, studsH: 16, label: '12×16 studs' },
+] as const;
+
 // Paper sizes (mm)
 export const PAPER_SIZES = {
   A4: { width: 210, height: 297, label: 'A4 (210×297 mm)' },
