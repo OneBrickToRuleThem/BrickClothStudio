@@ -183,6 +183,32 @@ export function circlePath(cx: number, cy: number, radius: number): string {
 }
 
 /**
+ * Create a square hole path centered on (cx, cy)
+ */
+export function squareHolePath(cx: number, cy: number, size: number): string {
+  const half = size / 2;
+  const path = new SVGPath();
+  path.moveTo(cx - half, cy - half);
+  path.lineTo(cx + half, cy - half);
+  path.lineTo(cx + half, cy + half);
+  path.lineTo(cx - half, cy + half);
+  path.closePath();
+  return path.toString();
+}
+
+/**
+ * Create an oval (ellipse) hole path centered on (cx, cy)
+ */
+export function ovalHolePath(cx: number, cy: number, rx: number, ry: number): string {
+  const path = new SVGPath();
+  path.moveTo(cx - rx, cy);
+  path.arcTo(rx, ry, 0, 1, 1, cx + rx, cy);
+  path.arcTo(rx, ry, 0, 1, 1, cx - rx, cy);
+  path.closePath();
+  return path.toString();
+}
+
+/**
  * Create a keyhole/slit shape for neck attachment
  * x, y = center of keyhole
  * holeRadius = radius of circular head

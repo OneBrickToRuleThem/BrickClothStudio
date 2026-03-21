@@ -8,7 +8,7 @@
 export const LEGO_STUD_DIAMETER_NOM = 4.8; // mm, nominal
 export const LEGO_STUD_DIAMETER_MIN = 4.87; // mm, tight tolerance
 export const LEGO_STUD_DIAMETER_MAX = 4.90; // mm, loose tolerance
-export const LEGO_GRID_SIZE = 8; // mm, fundamental LEGO grid unit
+export const LEGO_GRID_SIZE = 8; // mm, fundamental LEGO grid unit\nexport const LDU_PER_MM = 2.5; // 1 LDU = 0.4mm (LEGO Draw Unit)
 
 // Default hole and clearance settings
 export const DEFAULT_HOLE_DIAMETER = 5.0; // mm

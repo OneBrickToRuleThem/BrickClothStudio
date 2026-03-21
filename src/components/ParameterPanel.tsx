@@ -3,13 +3,14 @@
  * Controls pattern dimensions, hole settings, and decorations
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useEditorStore } from '../store/editor';
 import { HOLE_STANDARDS, DEFAULT_HOLE_TYPE, SAIL_HOLE_STANDARDS, LEGO_GRID_SIZE } from '../utils/constants';
-import type { DecorationType } from '../utils/types';
+
+const LDU_PER_MM = 2.5; // 1 LDU = 0.4mm
 
 export default function ParameterPanel() {
-  const { parameters, setParameter, resetToDefaults, elementType, decorations, addDecoration, updateDecoration, removeDecoration, selectDecoration, selectedDecorationId } = useEditorStore();
+  const { parameters, setParameter, resetToDefaults, elementType } = useEditorStore();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     transformations: false,
     attachment: false,
@@ -92,6 +93,11 @@ export default function ParameterPanel() {
               <input type="checkbox" checked={lockAspect} onChange={(e) => setLockAspect(e.target.checked)} className="w-3 h-3" />
               <span className="text-xs text-gray-500">Lock aspect ratio</span>
             </label>
+            <div className="text-xs text-gray-400 pt-1 border-t border-gray-100 space-y-0.5">
+              <p>{(parameters.length as number).toFixed(1)} × {(parameters.width as number).toFixed(1)} mm</p>
+              <p>{((parameters.length as number) / LEGO_GRID_SIZE).toFixed(2)} × {((parameters.width as number) / LEGO_GRID_SIZE).toFixed(2)} studs</p>
+              <p>{((parameters.length as number) * LDU_PER_MM).toFixed(1)} × {((parameters.width as number) * LDU_PER_MM).toFixed(1)} LDU</p>
+            </div>
           </div>
         </section>
 
@@ -611,7 +617,11 @@ export default function ParameterPanel() {
               <label className="text-xs font-medium text-gray-700">Hem Style</label>
               <select className="w-full mt-1 text-xs border rounded px-2 py-1"
                 value={(parameters[`${elementType}EdgeStyle`] as string) || 'none'}
-                onChange={(e) => setParameter(`${elementType}EdgeStyle`, e.target.value)}>
+                onChange={(e) => {
+                  setParameter(`${elementType}EdgeStyle`, e.target.value);
+                  setParameter(`${elementType}EdgeDepth`, 2);
+                  setParameter(`${elementType}EdgeCount`, 6);
+                }}>
                 <option value="none">none</option>
                 <option value="scalloped">scalloped</option>
                 <option value="zigzag">zigzag</option>
@@ -658,16 +668,57 @@ export default function ParameterPanel() {
         </section>
         )}
 
-        {/* Decorations Section */}
-        <DecorationPanel
-          decorations={decorations}
-          selectedDecorationId={selectedDecorationId}
-          addDecoration={addDecoration}
-          updateDecoration={updateDecoration}
-          removeDecoration={removeDecoration}
-          selectDecoration={selectDecoration}
-        />
+        {/* --- Attachment Hole (all non-sail elements) --- */}
+        {elementType !== 'sail' && (
+        <section className="panel-section border-t pt-4">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('holeOverride')}>
+            <h3 className="panel-section-title">Hole Override</h3>
+            <span className="text-gray-400 text-xs">{openSections.holeOverride ? '▾' : '▸'}</span>
+          </button>
+          {openSections.holeOverride && (
+          <div className="mt-2 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={parameters.holeOverride as boolean || false}
+                onChange={(e) => setParameter('holeOverride', e.target.checked)} className="w-4 h-4" />
+              <span>Custom hole shape</span>
+            </label>
+            {parameters.holeOverride && (
+            <div className="ml-2 space-y-2">
+              <div>
+                <label className="text-xs font-medium text-gray-700">Shape</label>
+                <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                  value={(parameters.holeOverrideShape as string) || 'round'}
+                  onChange={(e) => setParameter('holeOverrideShape', e.target.value)}>
+                  <option value="round">Round</option>
+                  <option value="square">Square</option>
+                  <option value="oval">Oval</option>
+                </select>
+              </div>
+              {(parameters.holeOverrideShape as string || 'round') !== 'oval' ? (
+                <ParameterSlider label="Diameter (mm)" name="holeOverrideDiameter"
+                  min={1} max={10} step={0.1}
+                  value={(parameters.holeOverrideDiameter as number) || 5.0}
+                  onChange={(v) => setParameter('holeOverrideDiameter', v)} />
+              ) : (
+                <>
+                  <ParameterSlider label="Width (mm)" name="holeOverrideWidth"
+                    min={1} max={12} step={0.1}
+                    value={(parameters.holeOverrideWidth as number) || 5.0}
+                    onChange={(v) => setParameter('holeOverrideWidth', v)} />
+                  <ParameterSlider label="Height (mm)" name="holeOverrideHeight"
+                    min={1} max={12} step={0.1}
+                    value={(parameters.holeOverrideHeight as number) || 3.5}
+                    onChange={(v) => setParameter('holeOverrideHeight', v)} />
+                </>
+              )}
+            </div>
+            )}
+          </div>
+          )}
+        </section>
+        )}
 
+        {elementType !== 'sail' && (
         <section className="panel-section border-t pt-4 text-xs text-gray-600">
           <p className="font-semibold mb-1">Hole Standards:</p>
           <p>• Minifigure: {HOLE_STANDARDS.minifigure.diameter}mm hole</p>
@@ -675,265 +726,9 @@ export default function ParameterPanel() {
           <p className="font-semibold mb-1 mt-2">Scale Reference:</p>
           <p>• Stud: 4.8 mm diameter</p>
         </section>
+        )}
       </div>
     </div>
-  );
-}
-
-/**
- * Decoration panel — add/edit image & text decorations with type selection.
- */
-function DecorationPanel({
-  decorations,
-  selectedDecorationId,
-  addDecoration,
-  updateDecoration,
-  removeDecoration,
-  selectDecoration,
-}: {
-  decorations: import('../utils/types').DecorationLayer[];
-  selectedDecorationId: string | null;
-  addDecoration: (decoration: Omit<import('../utils/types').DecorationLayer, 'id'>) => void;
-  updateDecoration: (id: string, updates: Partial<import('../utils/types').DecorationLayer>) => void;
-  removeDecoration: (id: string) => void;
-  selectDecoration: (id: string | null) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function handleAddImage() {
-    fileInputRef.current?.click();
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const img = new Image();
-      img.onload = () => {
-        // Default size: fit within 20mm keeping aspect ratio
-        const aspect = img.width / img.height;
-        const w = aspect >= 1 ? 20 : 20 * aspect;
-        const h = aspect >= 1 ? 20 / aspect : 20;
-        addDecoration({
-          name: file.name.replace(/\.[^.]+$/, ''),
-          type: 'image',
-          decorationType: 'engraving',
-          data: dataUrl,
-          x: 5,
-          y: 5,
-          width: w,
-          height: h,
-          scale: 1,
-          rotation: 0,
-          clipToSilhouette: true,
-          visible: true,
-          locked: false,
-        });
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-    // Reset input so the same file can be re-selected
-    e.target.value = '';
-  }
-
-  function handleAddText() {
-    addDecoration({
-      name: 'Text',
-      type: 'text',
-      decorationType: 'engraving',
-      data: 'Text',
-      x: 5,
-      y: 10,
-      width: 20,
-      height: 5,
-      scale: 1,
-      rotation: 0,
-      fontSize: 4,
-      fontFamily: 'sans-serif',
-      clipToSilhouette: true,
-      visible: true,
-      locked: false,
-    });
-  }
-
-  const sel = decorations.find(d => d.id === selectedDecorationId) ?? null;
-
-  return (
-    <section className="panel-section border-t pt-4">
-      <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => setOpen(!open)}>
-        <h3 className="panel-section-title">Decorations</h3>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">{decorations.length || 'None'}</span>
-          <span className="text-gray-400 text-xs">{open ? '▾' : '▸'}</span>
-        </div>
-      </button>
-      {open && (
-        <div className="mt-2 space-y-3">
-          {/* Add buttons */}
-          <div className="flex gap-2">
-            <button type="button"
-              className="flex-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded px-2 py-1.5"
-              onClick={handleAddImage}>
-              + Image
-            </button>
-            <button type="button"
-              className="flex-1 text-xs bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded px-2 py-1.5"
-              onClick={handleAddText}>
-              + Text
-            </button>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-          </div>
-
-          {/* Decoration list */}
-          {decorations.length === 0 && (
-            <p className="text-xs text-gray-400 italic">No decorations added yet</p>
-          )}
-          {decorations.map((deco) => (
-            <div key={deco.id}
-              className={`border rounded p-2 text-xs cursor-pointer ${
-                selectedDecorationId === deco.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
-              }`}
-              onClick={() => selectDecoration(selectedDecorationId === deco.id ? null : deco.id)}>
-              <div className="flex items-center justify-between">
-                <span className="font-medium truncate flex-1">
-                  {deco.type === 'image' ? '🖼 ' : '📝 '}{deco.name}
-                </span>
-                <div className="flex items-center gap-1 ml-2">
-                  <button type="button"
-                    className="text-gray-400 hover:text-gray-600"
-                    onClick={(e) => { e.stopPropagation(); updateDecoration(deco.id, { visible: !deco.visible }); }}
-                    title={deco.visible ? 'Hide' : 'Show'}>
-                    {deco.visible ? '👁' : '👁‍🗨'}
-                  </button>
-                  <button type="button"
-                    className="text-gray-400 hover:text-red-500"
-                    onClick={(e) => { e.stopPropagation(); removeDecoration(deco.id); }}
-                    title="Remove">
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              {/* Expanded controls when selected */}
-              {selectedDecorationId === deco.id && (
-                <div className="mt-2 space-y-2 border-t pt-2" onClick={(e) => e.stopPropagation()}>
-                  {/* Decoration type — shown as image-style selector */}
-                  <div>
-                    <label className="text-xs font-medium text-gray-600 block mb-1">Output Layer</label>
-                    <select className="w-full border rounded px-2 py-1 text-xs"
-                      value={deco.decorationType}
-                      onChange={(e) => updateDecoration(deco.id, { decorationType: e.target.value as any })}>
-                      <option value="engraving">Engraving (vector)</option>
-                      <option value="rastering">Rastering (raster)</option>
-                      <option value="decoration">Decoration (print only)</option>
-                    </select>
-                  </div>
-
-                  {/* Text content */}
-                  {deco.type === 'text' && (
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 block mb-1">Text</label>
-                      <input type="text" className="w-full border rounded px-2 py-1 text-xs"
-                        value={deco.data}
-                        onChange={(e) => updateDecoration(deco.id, { data: e.target.value })} />
-                    </div>
-                  )}
-
-                  {/* Text font family (task 1) */}
-                  {deco.type === 'text' && (
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 block mb-1">Font</label>
-                      <select className="w-full border rounded px-2 py-1 text-xs"
-                        value={deco.fontFamily || 'sans-serif'}
-                        onChange={(e) => updateDecoration(deco.id, { fontFamily: e.target.value })}>
-                        <option value="sans-serif">Sans-serif</option>
-                        <option value="serif">Serif</option>
-                        <option value="monospace">Monospace</option>
-                        <option value="cursive">Cursive</option>
-                        <option value="fantasy">Fantasy</option>
-                        <option value="'Times New Roman', serif">Times New Roman</option>
-                        <option value="'Arial', sans-serif">Arial</option>
-                        <option value="'Courier New', monospace">Courier New</option>
-                        <option value="'Georgia', serif">Georgia</option>
-                        <option value="'Comic Sans MS', cursive">Comic Sans</option>
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Text font size */}
-                  {deco.type === 'text' && (
-                    <ParameterSlider label="Font size (mm)" name={`fontSize-${deco.id}`}
-                      min={1} max={20} step={0.5}
-                      value={deco.fontSize || 4}
-                      onChange={(v) => updateDecoration(deco.id, { fontSize: v })} />
-                  )}
-
-                  {/* Center decoration on pattern (task 2) */}
-                  <div>
-                    <button type="button"
-                      className="w-full text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-2 py-1"
-                      onClick={() => {
-                        const patW = (useEditorStore.getState().parameters.width as number) || 40;
-                        const patH = (useEditorStore.getState().parameters.length as number) || 40;
-                        const decoW = deco.width * deco.scale;
-                        const decoH = deco.height * deco.scale;
-                        updateDecoration(deco.id, {
-                          x: (patW - decoW) / 2,
-                          y: (patH - decoH) / 2,
-                        });
-                      }}>
-                      Center on pattern
-                    </button>
-                  </div>
-
-                  {/* Position */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-gray-500">X (mm)</label>
-                      <input type="number" className="w-full border rounded px-1 py-0.5 text-xs"
-                        value={Math.round(deco.x * 10) / 10} step={0.5}
-                        onChange={(e) => updateDecoration(deco.id, { x: parseFloat(e.target.value) || 0 })} />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Y (mm)</label>
-                      <input type="number" className="w-full border rounded px-1 py-0.5 text-xs"
-                        value={Math.round(deco.y * 10) / 10} step={0.5}
-                        onChange={(e) => updateDecoration(deco.id, { y: parseFloat(e.target.value) || 0 })} />
-                    </div>
-                  </div>
-
-                  {/* Size */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-gray-500">Width (mm)</label>
-                      <input type="number" className="w-full border rounded px-1 py-0.5 text-xs"
-                        value={Math.round(deco.width * 10) / 10} step={0.5} min={1}
-                        onChange={(e) => updateDecoration(deco.id, { width: parseFloat(e.target.value) || 1 })} />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Height (mm)</label>
-                      <input type="number" className="w-full border rounded px-1 py-0.5 text-xs"
-                        value={Math.round(deco.height * 10) / 10} step={0.5} min={1}
-                        onChange={(e) => updateDecoration(deco.id, { height: parseFloat(e.target.value) || 1 })} />
-                    </div>
-                  </div>
-
-                  {/* Rotation */}
-                  <ParameterSlider label="Rotation (°)" name={`rotation-${deco.id}`}
-                    min={0} max={360} step={5}
-                    value={deco.rotation}
-                    onChange={(v) => updateDecoration(deco.id, { rotation: v })} />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -1035,7 +830,7 @@ function SailParameterPanel({ parameters, setParameter }: {
 
       {/* Sail Options — IN PROGRESS */}
       <section className="panel-section border-t pt-4">
-        <h3 className="panel-section-title">Sail Options <span className="text-xs text-amber-500 font-normal">(in progress)</span></h3>
+        <h3 className="panel-section-title">Sail Options</h3>
         <div className="mt-2 space-y-2">
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" className="w-4 h-4"
@@ -1213,7 +1008,8 @@ function SailParameterPanel({ parameters, setParameter }: {
         )}
       </section>
 
-      {/* Grommet Positions */}
+      {/* Grommet Positions (square & triangular only — polygon uses vertex mask above) */}
+      {!isPolygon && (
       <section className="panel-section border-t pt-4">
         <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('grommets')}>
           <h3 className="panel-section-title">Grommet Positions</h3>
@@ -1277,6 +1073,7 @@ function SailParameterPanel({ parameters, setParameter }: {
           </div>
         )}
       </section>
+      )}
 
       {/* Sail Info */}
       <section className="panel-section border-t pt-4 text-xs text-gray-600">

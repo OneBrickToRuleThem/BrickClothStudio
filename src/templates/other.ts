@@ -646,7 +646,7 @@ export class Wings extends Template {
     const { width, length, holeRadius, slitWidth, enableSlit } = params;
     const paths = [this.generateCutPath(params)];
     // Attachment hole in the arm area near the shoulder
-    paths.push(generateAttachmentHole(width * 0.15, length * 0.65, holeRadius, slitWidth, 8, enableSlit));
+    paths.push(generateAttachmentHole(width * 0.15, length * 0.65, holeRadius, slitWidth, 8, enableSlit, params));
     return paths;
   }
 
@@ -692,10 +692,13 @@ export class Kama extends Template {
     path.lineTo(w * 0.47624, h * 0.92697);
     path.lineTo(w * 0.45962, h * 0.94777);
 
-    // LEFT BOTTOM HEM: from center slit to left tab join
+    // LEFT BOTTOM HEM: from center slit down to bottom, across to left tab
     if (edge.style !== 'none') {
-      drawStyledEdge(path, w * 0.45962, h * 0.94777, w * 0.20744, h * 0.99519,
+      const botY = h * 0.997;
+      path.lineTo(w * 0.45962, botY);
+      drawStyledEdge(path, w * 0.45962, botY, w * 0.17, botY,
         edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+      path.lineTo(w * 0.20744, h * 0.99519);
     } else {
       path.cubicBezierTo(w * 0.43045, h * 0.98427, w * 0.39359, h * 0.99631, w * 0.30792, h * 0.99729);
       path.cubicBezierTo(w * 0.26564, h * 0.99780, w * 0.22042, h * 0.99677, w * 0.20744, h * 0.99519);
@@ -740,10 +743,13 @@ export class Kama extends Template {
     path.cubicBezierTo(w * 0.91168, h * 0.81231, w * 0.89963, h * 0.90941, w * 0.89787, h * 0.91690);
     path.cubicBezierTo(w * 0.89299, h * 0.93764, w * 0.82026, h * 0.99171, w * 0.79256, h * 0.99519);
 
-    // RIGHT BOTTOM HEM: from right tab join back to center slit
+    // RIGHT BOTTOM HEM: from right tab down to bottom, across to center slit
     if (edge.style !== 'none') {
-      drawStyledEdge(path, w * 0.79256, h * 0.99519, w * 0.54038, h * 0.94777,
+      const botY = h * 0.997;
+      path.lineTo(w * 0.83, botY);
+      drawStyledEdge(path, w * 0.83, botY, w * 0.54038, botY,
         edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed + 1);
+      path.lineTo(w * 0.54038, h * 0.94777);
     } else {
       path.cubicBezierTo(w * 0.77958, h * 0.99677, w * 0.73436, h * 0.99780, w * 0.69208, h * 0.99729);
       path.cubicBezierTo(w * 0.60641, h * 0.99631, w * 0.56955, h * 0.98427, w * 0.54038, h * 0.94777);
@@ -759,10 +765,10 @@ export class Kama extends Template {
     const h = length;
     const paths = [this.generateCutPath(params)];
     const holeY = h * 0.27333;
-    paths.push(generateAttachmentHole(w * 0.10571, holeY, holeRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(w * 0.89429, holeY, holeRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(w * 0.41131, holeY, holeRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(w * 0.58869, holeY, holeRadius, slitWidth, 8, enableSlit));
+    paths.push(generateAttachmentHole(w * 0.10571, holeY, holeRadius, slitWidth, 8, enableSlit, params));
+    paths.push(generateAttachmentHole(w * 0.89429, holeY, holeRadius, slitWidth, 8, enableSlit, params));
+    paths.push(generateAttachmentHole(w * 0.41131, holeY, holeRadius, slitWidth, 8, enableSlit, params));
+    paths.push(generateAttachmentHole(w * 0.58869, holeY, holeRadius, slitWidth, 8, enableSlit, params));
     return paths;
   }
 
@@ -950,8 +956,8 @@ export class KamaSplit extends Template {
     const paths = [this.generateCutPath(params)];
     const holeY = length * 0.15;
     // One attachment hole in each panel near the waistband
-    paths.push(generateAttachmentHole(width * 0.20, holeY, holeRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(width * 0.80, holeY, holeRadius, slitWidth, 8, enableSlit));
+    paths.push(generateAttachmentHole(width * 0.20, holeY, holeRadius, slitWidth, 8, enableSlit, params));
+    paths.push(generateAttachmentHole(width * 0.80, holeY, holeRadius, slitWidth, 8, enableSlit, params));
     return paths;
   }
 
@@ -1000,8 +1006,8 @@ export class KamaWaistCape extends Template {
     const { width, length, holeRadius, slitWidth, enableSlit } = params;
     const paths = [this.generateCutPath(params)];
     const holeY = length * 0.18;
-    paths.push(generateAttachmentHole(width * 0.25, holeY, holeRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(width * 0.75, holeY, holeRadius, slitWidth, 8, enableSlit));
+    paths.push(generateAttachmentHole(width * 0.25, holeY, holeRadius, slitWidth, 8, enableSlit, params));
+    paths.push(generateAttachmentHole(width * 0.75, holeY, holeRadius, slitWidth, 8, enableSlit, params));
     return paths;
   }
 

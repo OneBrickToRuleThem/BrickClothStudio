@@ -137,6 +137,12 @@ const defaultParameters = {
   pauldronRoundingAmount: 0.5,
   // Custom flag
   flagCustomHoleCount: 2,
+  // Custom hole override (applies to cape, flag, kama, pauldron)
+  holeOverride: false as boolean,
+  holeOverrideShape: 'round' as string, // round | square | oval
+  holeOverrideDiameter: 5.0,
+  holeOverrideWidth: 5.0,  // for oval/square: horizontal dimension
+  holeOverrideHeight: 3.5, // for oval: vertical dimension
   // Sail grommet positions (inset from corners in mm)
   sailGrommetTLx: 4,
   sailGrommetTLy: 4,
@@ -157,11 +163,7 @@ const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number
 
   'wings': { width: 45, length: 25 },
   'kama': { width: 47, length: 19 },
-  'kama:split-skirt': { width: 50, length: 22 },
-  'kama:waist-cape': { width: 44, length: 16 },
   'pauldron': { width: 23, length: 26 },
-  'pauldron:single-shoulder': { width: 20, length: 24 },
-  'pauldron:double-wide': { width: 28, length: 24 },
   'sail': { width: 60, length: 60 },
   'sail:polygon-sail': { width: 60, length: 60 },
 };

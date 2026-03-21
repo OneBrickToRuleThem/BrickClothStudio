@@ -4,7 +4,7 @@
  */
 
 import { PatternExport, BoundingBox } from '../utils/types';
-import { SVGPath, circlePath, keyholeSlitPath, calculateBoundingBox } from '../geometry/primitives';
+import { SVGPath, circlePath, keyholeSlitPath, squareHolePath, ovalHolePath, calculateBoundingBox } from '../geometry/primitives';
 
 export interface TemplateParams {
   // Common parameters for all templates
@@ -88,14 +88,28 @@ export function generateAttachmentHole(
   centerY: number,
   holeRadius: number,
   slitWidth: number,
-  slitLength: number = 8, // default slit extends 8mm down
-  enableSlit: boolean = false
+  slitLength: number = 8,
+  enableSlit: boolean = false,
+  params?: TemplateParams
 ): string {
+  // Custom hole override
+  if (params?.holeOverride) {
+    const shape = (params.holeOverrideShape as string) || 'round';
+    if (shape === 'square') {
+      const size = (params.holeOverrideDiameter as number) || 5.0;
+      return squareHolePath(centerX, centerY, size);
+    } else if (shape === 'oval') {
+      const rx = ((params.holeOverrideWidth as number) || 5.0) / 2;
+      const ry = ((params.holeOverrideHeight as number) || 3.5) / 2;
+      return ovalHolePath(centerX, centerY, rx, ry);
+    } else {
+      const r = ((params.holeOverrideDiameter as number) || 5.0) / 2;
+      return circlePath(centerX, centerY, r);
+    }
+  }
   if (enableSlit) {
-    // Keyhole slit shape
     return keyholeSlitPath(centerX, centerY, holeRadius, slitWidth, slitLength);
   } else {
-    // Simple circular hole
     return circlePath(centerX, centerY, holeRadius);
   }
 }

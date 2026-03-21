@@ -1017,18 +1017,17 @@ function closeRefNeckAndSlit(path: SVGPath, w: number, h: number, sw: number, cx
  * Generate attachment hole paths for variable hole count.
  * Holes are evenly distributed around center at the reference Y position.
  */
-function generateRefHoles(w: number, h: number, holeRadius: number, holeCount: number = 2): string[] {
+function generateRefHoles(w: number, h: number, holeRadius: number, holeCount: number = 2, params?: TemplateParams): string[] {
   const cx = w / 2;
   const holeY = h * REF_HOLE_Y;
   if (holeCount === 1) {
-    return [generateAttachmentHole(cx, holeY, holeRadius, 0, 0, false)];
+    return [generateAttachmentHole(cx, holeY, holeRadius, 0, 0, false, params)];
   }
-  // Spread holes evenly across the same total span as the original 2-hole layout
-  const totalSpan = w * REF_HOLE_OFFSET * 2; // full width between outermost holes
+  const totalSpan = w * REF_HOLE_OFFSET * 2;
   const holes: string[] = [];
   for (let i = 0; i < holeCount; i++) {
     const x = cx - totalSpan / 2 + (totalSpan / (holeCount - 1)) * i;
-    holes.push(generateAttachmentHole(x, holeY, holeRadius, 0, 0, false));
+    holes.push(generateAttachmentHole(x, holeY, holeRadius, 0, 0, false, params));
   }
   return holes;
 }
@@ -1087,7 +1086,7 @@ export class CapeStandard extends Template {
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length, holeRadius } = params;
     // Holes use REF_H so they stay in the same position regardless of length
-    const paths = [this.generateCutPath(params), ...generateRefHoles(width, REF_H, holeRadius, 2)];
+    const paths = [this.generateCutPath(params), ...generateRefHoles(width, REF_H, holeRadius, 2, params)];
     if (params.swordSlit) {
       paths.push(generateSwordSlit(
         width, length,

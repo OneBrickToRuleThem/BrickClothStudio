@@ -186,13 +186,9 @@ function ElementVariantSelector() {
     ],
     kama: [
       { value: 'wrap-skirt', label: 'Wrap Skirt' },
-      { value: 'split-skirt', label: 'Split Skirt' },
-      { value: 'waist-cape', label: 'Waist Cape' },
     ],
     pauldron: [
       { value: 'shoulder-armor', label: 'Shoulder Armor' },
-      { value: 'single-shoulder', label: 'Single Shoulder' },
-      { value: 'double-wide', label: 'Double Wide' },
     ],
     sail: [
       { value: 'square-sail', label: 'Square Sail' },

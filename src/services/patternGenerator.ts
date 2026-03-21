@@ -18,11 +18,7 @@ import {
   FlagCustom,
   Wings,
   Kama,
-  KamaSplit,
-  KamaWaistCape,
   Pauldron,
-  PauldronSingle,
-  PauldronWide,
   SailSquare,
   SailTriangular,
   SailPolygon,
@@ -87,33 +83,11 @@ export function generatePattern(
     template = new Wings();
     name = 'Wing';
   } else if (elementType === 'kama') {
-    switch (templateVariant) {
-      case 'split-skirt':
-        template = new KamaSplit();
-        name = 'Split Kama';
-        break;
-      case 'waist-cape':
-        template = new KamaWaistCape();
-        name = 'Waist Cape';
-        break;
-      default:
-        template = new Kama();
-        name = 'Kama/Skirt';
-    }
+    template = new Kama();
+    name = 'Kama/Skirt';
   } else if (elementType === 'pauldron') {
-    switch (templateVariant) {
-      case 'single-shoulder':
-        template = new PauldronSingle();
-        name = 'Single Pauldron';
-        break;
-      case 'double-wide':
-        template = new PauldronWide();
-        name = 'Wide Pauldron';
-        break;
-      default:
-        template = new Pauldron();
-        name = 'Pauldron';
-    }
+    template = new Pauldron();
+    name = 'Pauldron';
   } else if (elementType === 'sail') {
     switch (templateVariant) {
       case 'triangular-sail':

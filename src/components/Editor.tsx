@@ -8,18 +8,20 @@ import ParameterPanel from './ParameterPanel';
 import PreviewCanvas from './PreviewCanvas';
 import ExportPanel from './ExportPanel';
 import ElementSelector from './ElementSelector';
+import DecorationPanel from './DecorationPanel';
 import { useEditorStore } from '../store/editor';
 
 type MobileTab = 'elements' | 'preview' | 'settings';
+type RightPanel = 'parameters' | 'decorations' | 'export';
 
 export default function Editor() {
-  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [rightPanel, setRightPanel] = useState<RightPanel>('parameters');
   const [mobileTab, setMobileTab] = useState<MobileTab>('preview');
   const elementType = useEditorStore((s) => s.elementType);
 
   // Switch back to parameters panel when element type changes
   useEffect(() => {
-    setShowExportPanel(false);
+    setRightPanel('parameters');
   }, [elementType]);
 
   return (
@@ -63,33 +65,33 @@ export default function Editor() {
           <PreviewCanvas />
         </div>
 
-        {/* Right panel: Parameters and export */}
-        <div className="w-64 flex-shrink-0 overflow-y-auto bg-white rounded-lg shadow">
-          {!showExportPanel ? (
-            <>
-              <div className="p-4 border-b border-gray-200">
-                <button
-                  onClick={() => setShowExportPanel(true)}
-                  className="btn btn-primary w-full"
-                >
-                  Export Pattern
-                </button>
-              </div>
-              <ParameterPanel />
-            </>
-          ) : (
-            <>
-              <ExportPanel />
-              <div className="p-4 border-t border-gray-200">
-                <button
-                  onClick={() => setShowExportPanel(false)}
-                  className="btn btn-secondary w-full"
-                >
-                  ← Back to Parameters
-                </button>
-              </div>
-            </>
-          )}
+        {/* Right panel: Parameters, Decorations, Export */}
+        <div className="w-64 flex-shrink-0 overflow-y-auto bg-white rounded-lg shadow flex flex-col">
+          {/* Panel tabs */}
+          <div className="flex border-b border-gray-200 flex-shrink-0">
+            {([
+              { key: 'parameters' as RightPanel, label: 'Params' },
+              { key: 'decorations' as RightPanel, label: 'Decor' },
+              { key: 'export' as RightPanel, label: 'Export' },
+            ]).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setRightPanel(tab.key)}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                  rightPanel === tab.key
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {rightPanel === 'parameters' && <ParameterPanel />}
+            {rightPanel === 'decorations' && <DecorationPanel />}
+            {rightPanel === 'export' && <ExportPanel />}
+          </div>
         </div>
       </div>
 
@@ -108,34 +110,32 @@ export default function Editor() {
         )}
 
         {mobileTab === 'settings' && (
-          <div className="flex-1 overflow-y-auto bg-white">
-            {!showExportPanel ? (
-              <>
-                <div className="p-4 border-b border-gray-200">
-                  <button
-                    onClick={() => {
-                      setShowExportPanel(true);
-                    }}
-                    className="btn btn-primary w-full"
-                  >
-                    Export Pattern
-                  </button>
-                </div>
-                <ParameterPanel />
-              </>
-            ) : (
-              <>
-                <ExportPanel />
-                <div className="p-4 border-t border-gray-200">
-                  <button
-                    onClick={() => setShowExportPanel(false)}
-                    className="btn btn-secondary w-full"
-                  >
-                    ← Back to Parameters
-                  </button>
-                </div>
-              </>
-            )}
+          <div className="flex-1 overflow-y-auto bg-white flex flex-col">
+            {/* Panel tabs */}
+            <div className="flex border-b border-gray-200 flex-shrink-0">
+              {([
+                { key: 'parameters' as RightPanel, label: 'Params' },
+                { key: 'decorations' as RightPanel, label: 'Decor' },
+                { key: 'export' as RightPanel, label: 'Export' },
+              ]).map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setRightPanel(tab.key)}
+                  className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                    rightPanel === tab.key
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {rightPanel === 'parameters' && <ParameterPanel />}
+              {rightPanel === 'decorations' && <DecorationPanel />}
+              {rightPanel === 'export' && <ExportPanel />}
+            </div>
           </div>
         )}
       </div>
