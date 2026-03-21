@@ -163,7 +163,7 @@ class BannerFlag extends Template {
   /**
    * Generate a rectangular flag body with styled left/right/bottom edges.
    */
-  private generateStyledFlagPath(params: TemplateParams): string {
+  protected generateStyledFlagPath(params: TemplateParams): string {
     const w = params.width;
     const h = params.length;
     const bottomStyle = (params.flagBottomStyle as string) || 'none';
@@ -412,6 +412,12 @@ class BannerFlag extends Template {
 export class FlagSmall extends BannerFlag {
   protected shape = SMALL_FLAG;
 
+  generateCutPath(params: TemplateParams): string {
+    // Small flag always uses reference SVG shape — ignore any style params
+    const cleanParams = { ...params, flagBottomStyle: 'none', flagLeftStyle: 'none', flagRightStyle: 'none' };
+    return super.generateCutPath(cleanParams);
+  }
+
   export(
     id: string,
     name: string,
@@ -431,6 +437,12 @@ export class FlagSmall extends BannerFlag {
 export class FlagLarge extends BannerFlag {
   protected shape = LARGE_FLAG;
 
+  generateCutPath(params: TemplateParams): string {
+    // Large flag always uses reference SVG shape — ignore any style params
+    const cleanParams = { ...params, flagBottomStyle: 'none', flagLeftStyle: 'none', flagRightStyle: 'none' };
+    return super.generateCutPath(cleanParams);
+  }
+
   export(
     id: string,
     name: string,
@@ -439,6 +451,72 @@ export class FlagLarge extends BannerFlag {
     params: TemplateParams
   ) {
     const flagParams = { ...params, width: params.width || 40, length: params.length || 64 };
+    return super.export(id, name, elementType, variantName, flagParams);
+  }
+}
+
+/**
+ * Custom Flag: rectangular body with configurable holes (1-6) and all edge styling options.
+ * Always uses the rectangular styled path (no flame-tongue SVG).
+ * Default 30×60mm.
+ */
+export class FlagCustom extends BannerFlag {
+  protected shape = LARGE_FLAG; // not actually used since we override generateCutPath
+
+  generateCutPath(params: TemplateParams): string {
+    // Force the styled rectangular path — treat 'none' bottom/side styles as 'straight'
+    const bottomStyle = (params.flagBottomStyle as string) || 'none';
+    const leftStyle = (params.flagLeftStyle as string) || 'none';
+    const rightStyle = (params.flagRightStyle as string) || 'none';
+
+    // If all styles are 'none', use a simple rectangle with rounded top corners
+    if (bottomStyle === 'none' && leftStyle === 'none' && rightStyle === 'none') {
+      const w = params.width;
+      const h = params.length;
+      const margin = 1;
+      const r = 1.5;
+      const path = new SVGPath();
+      path.moveTo(margin + r, margin);
+      path.lineTo(w - margin - r, margin);
+      path.arcTo(r, r, 0, 0, 1, w - margin, margin + r);
+      path.lineTo(w - margin, h - margin);
+      path.lineTo(margin, h - margin);
+      path.lineTo(margin, margin + r);
+      path.arcTo(r, r, 0, 0, 1, margin + r, margin);
+      path.closePath();
+      return path.toString();
+    }
+
+    // Otherwise delegate to the styled path builder in BannerFlag
+    return this.generateStyledFlagPath(params);
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const w = params.width;
+    const paths = [this.generateCutPath(params)];
+
+    const holeCount = Math.max(1, Math.min(6, (params.flagCustomHoleCount as number) || 2));
+    const margin = 1;
+    const usableW = w - 2 * margin;
+    const holeY = margin + HOLE_RADIUS_MM + 1; // near the top
+
+    for (let i = 0; i < holeCount; i++) {
+      // Evenly space holes across the width
+      const cx = margin + usableW * (i + 0.5) / holeCount;
+      paths.push(stadiumPath(cx, holeY, HOLE_HALF_FLAT_MM, HOLE_RADIUS_MM));
+    }
+
+    return paths;
+  }
+
+  export(
+    id: string,
+    name: string,
+    elementType: string,
+    variantName: string,
+    params: TemplateParams
+  ) {
+    const flagParams = { ...params, width: params.width || 30, length: params.length || 60 };
     return super.export(id, name, elementType, variantName, flagParams);
   }
 }
@@ -580,16 +658,30 @@ export class Wings extends Template {
 }
 
 /**
+ * Helper: extract edge style params for kama/pauldron from TemplateParams.
+ */
+function getEdgeParams(params: TemplateParams, prefix: 'kama' | 'pauldron') {
+  return {
+    style: (params[`${prefix}EdgeStyle`] as string) || 'none',
+    depth: (params[`${prefix}EdgeDepth`] as number) || 2,
+    count: (params[`${prefix}EdgeCount`] as number) || 6,
+    seed: (params.seed as number) || 42,
+  };
+}
+
+/**
  * Kama: Minifig waist-wrap skirt traced from kamatemplate.svg (47×19mm default).
  * Bilaterally symmetric outline (left half mirrored for right half).
  * Features: two outer waist tabs with rectangular protrusions, center front slit,
  * inner bridge sections, and four symmetric attachment holes.
+ * Supports edge styles on the two bottom hem segments (left and right panels).
  */
 export class Kama extends Template {
   generateCutPath(params: TemplateParams): string {
     const w = params.width;
     const h = params.length;
     const path = new SVGPath();
+    const edge = getEdgeParams(params, 'kama');
 
     // Symmetric outline from kamatemplate.svg (left half mirrored for right)
     // Start at bottom-right of center slit
@@ -597,15 +689,21 @@ export class Kama extends Template {
     // Right slit wall (mirror of left, going up)
     path.lineTo(w * 0.52376, h * 0.92697);
     path.cubicBezierTo(w * 0.50568, h * 0.55313, w * 0.50225, h * 0.52236, w * 0.50000, h * 0.53148);
-    // Slit top at center
     // Left slit wall (going down)
     path.cubicBezierTo(w * 0.49775, h * 0.52236, w * 0.49432, h * 0.55313, w * 0.48533, h * 0.73895);
     path.lineTo(w * 0.47624, h * 0.92697);
     path.lineTo(w * 0.45962, h * 0.94777);
 
-    // LEFT HALF: bottom edge → left side → left tab → center waistband
-    path.cubicBezierTo(w * 0.43045, h * 0.98427, w * 0.39359, h * 0.99631, w * 0.30792, h * 0.99729);
-    path.cubicBezierTo(w * 0.26564, h * 0.99780, w * 0.22042, h * 0.99677, w * 0.20744, h * 0.99519);
+    // LEFT BOTTOM HEM: from center slit to left tab join
+    if (edge.style !== 'none') {
+      drawStyledEdge(path, w * 0.45962, h * 0.94777, w * 0.20744, h * 0.99519,
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+    } else {
+      path.cubicBezierTo(w * 0.43045, h * 0.98427, w * 0.39359, h * 0.99631, w * 0.30792, h * 0.99729);
+      path.cubicBezierTo(w * 0.26564, h * 0.99780, w * 0.22042, h * 0.99677, w * 0.20744, h * 0.99519);
+    }
+
+    // LEFT SIDE going up through tab to waistband
     path.cubicBezierTo(w * 0.17974, h * 0.99171, w * 0.10701, h * 0.93764, w * 0.10213, h * 0.91690);
     path.cubicBezierTo(w * 0.10037, h * 0.90941, w * 0.08832, h * 0.81231, w * 0.07535, h * 0.70113);
     path.cubicBezierTo(w * 0.06239, h * 0.58995, w * 0.04952, h * 0.49077, w * 0.04676, h * 0.48071);
@@ -623,10 +721,10 @@ export class Kama extends Template {
     path.cubicBezierTo(w * 0.31582, h * 0.06918, w * 0.31669, h * 0.05933, w * 0.33835, h * 0.02399);
     path.cubicBezierTo(w * 0.34862, h * 0.00724, w * 0.35285, h * 0.00646, w * 0.43961, h * 0.00537);
 
-    // Center top: symmetric curve connecting left to right
+    // Center top
     path.cubicBezierTo(w * 0.46980, h * 0.00103, w * 0.53020, h * 0.00103, w * 0.56039, h * 0.00537);
 
-    // RIGHT HALF: mirror of left half (reversed)
+    // RIGHT HALF
     path.cubicBezierTo(w * 0.64715, h * 0.00646, w * 0.65138, h * 0.00724, w * 0.66165, h * 0.02399);
     path.cubicBezierTo(w * 0.68331, h * 0.05933, w * 0.68418, h * 0.06918, w * 0.68366, h * 0.27171);
     path.lineTo(w * 0.68318, h * 0.45526);
@@ -643,8 +741,15 @@ export class Kama extends Template {
     path.cubicBezierTo(w * 0.95048, h * 0.49077, w * 0.93761, h * 0.58995, w * 0.92465, h * 0.70113);
     path.cubicBezierTo(w * 0.91168, h * 0.81231, w * 0.89963, h * 0.90941, w * 0.89787, h * 0.91690);
     path.cubicBezierTo(w * 0.89299, h * 0.93764, w * 0.82026, h * 0.99171, w * 0.79256, h * 0.99519);
-    path.cubicBezierTo(w * 0.77958, h * 0.99677, w * 0.73436, h * 0.99780, w * 0.69208, h * 0.99729);
-    path.cubicBezierTo(w * 0.60641, h * 0.99631, w * 0.56955, h * 0.98427, w * 0.54038, h * 0.94777);
+
+    // RIGHT BOTTOM HEM: from right tab join back to center slit
+    if (edge.style !== 'none') {
+      drawStyledEdge(path, w * 0.79256, h * 0.99519, w * 0.54038, h * 0.94777,
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed + 1);
+    } else {
+      path.cubicBezierTo(w * 0.77958, h * 0.99677, w * 0.73436, h * 0.99780, w * 0.69208, h * 0.99729);
+      path.cubicBezierTo(w * 0.60641, h * 0.99631, w * 0.56955, h * 0.98427, w * 0.54038, h * 0.94777);
+    }
 
     path.closePath();
     return path.toString();
@@ -655,43 +760,40 @@ export class Kama extends Template {
     const w = width;
     const h = length;
     const paths = [this.generateCutPath(params)];
-    // Four symmetric attachment holes from SVG template
     const holeY = h * 0.27333;
-    // Outer pair (in the outer tabs)
     paths.push(generateAttachmentHole(w * 0.10571, holeY, holeRadius, slitWidth, 8, enableSlit));
     paths.push(generateAttachmentHole(w * 0.89429, holeY, holeRadius, slitWidth, 8, enableSlit));
-    // Inner pair (in the center section)
     paths.push(generateAttachmentHole(w * 0.41131, holeY, holeRadius, slitWidth, 8, enableSlit));
     paths.push(generateAttachmentHole(w * 0.58869, holeY, holeRadius, slitWidth, 8, enableSlit));
     return paths;
   }
 
-  generateScorePaths(_params: TemplateParams): string[] {
-    return [];
-  }
-
-  generateEngravePaths(_params: TemplateParams): string[] {
-    return [];
-  }
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
 }
 
 /**
  * Pauldron: Shoulder armor traced from PauldronTemplate.svg (23×26mm default).
  * Bilaterally symmetric outline (left half mirrored for right half).
  * Two symmetric head pin holes for minifig attachment.
+ * Supports edge styles on the bottom rim arc.
  */
 export class Pauldron extends Template {
   generateCutPath(params: TemplateParams): string {
     const w = params.width;
     const h = params.length;
     const path = new SVGPath();
+    const edge = getEdgeParams(params, 'pauldron');
 
-    // Symmetric outline from PauldronTemplate.svg (left half mirrored for right)
-    // Left half: bottom → left side → left shoulder → neck channel center
-    path.moveTo(w * 0.3939, h * 0.9942);
-    path.cubicBezierTo(w * 0.3154, h * 0.9831, w * 0.2444, h * 0.9591, w * 0.1850, h * 0.9235);
-    path.cubicBezierTo(w * 0.1526, h * 0.9041, w * 0.1046, h * 0.8605, w * 0.0958, h * 0.8424);
-    path.cubicBezierTo(w * 0.0863, h * 0.8230, w * 0.0884, h * 0.8101, w * 0.1096, h * 0.7582);
+    // Start point: if rounding is active, start at expanded Y to match rim endpoint
+    const rounding = params.pauldronRounding as boolean;
+    const roundingAmt = (params.pauldronRoundingAmount as number) || 0.5;
+    const rimTopY = h * 0.7582;
+    const rimHalfW = (w * 0.8904 - w * 0.1096) / 2;
+    const rimDepth = rounding ? roundingAmt * rimHalfW : 0;
+    const startY = (rounding && edge.style !== 'none') ? rimTopY + rimDepth : rimTopY;
+    path.moveTo(w * 0.1096, startY);
+    // Left body going UP through shoulder
     path.cubicBezierTo(w * 0.1426, h * 0.6769, w * 0.1547, h * 0.6204, w * 0.1546, h * 0.5471);
     path.cubicBezierTo(w * 0.1544, h * 0.4604, w * 0.1446, h * 0.4359, w * 0.0871, h * 0.3802);
     path.cubicBezierTo(w * 0.0663, h * 0.3600, w * 0.0465, h * 0.3375, w * 0.0405, h * 0.3271);
@@ -705,9 +807,9 @@ export class Pauldron extends Template {
     path.lineTo(w * 0.4879, h * 0.4405);
     path.lineTo(w * 0.4726, h * 0.4472);
     path.cubicBezierTo(w * 0.4421, h * 0.4605, w * 0.4295, h * 0.4936, w * 0.4444, h * 0.5213);
-    // Channel bottom U-turn (symmetric curve dipping below channel)
+    // Channel U-turn
     path.cubicBezierTo(w * 0.4662, h * 0.5623, w * 0.5338, h * 0.5623, w * 0.5556, h * 0.5213);
-    // Right half: mirrored left (channel bottom → right side → bottom)
+    // Right half going DOWN through shoulder
     path.cubicBezierTo(w * 0.5705, h * 0.4936, w * 0.5579, h * 0.4605, w * 0.5274, h * 0.4472);
     path.lineTo(w * 0.5121, h * 0.4405);
     path.lineTo(w * 0.5116, h * 0.3172);
@@ -721,11 +823,35 @@ export class Pauldron extends Template {
     path.cubicBezierTo(w * 0.9535, h * 0.3375, w * 0.9337, h * 0.3600, w * 0.9129, h * 0.3802);
     path.cubicBezierTo(w * 0.8554, h * 0.4359, w * 0.8456, h * 0.4604, w * 0.8454, h * 0.5471);
     path.cubicBezierTo(w * 0.8453, h * 0.6204, w * 0.8574, h * 0.6769, w * 0.8904, h * 0.7582);
-    path.cubicBezierTo(w * 0.9116, h * 0.8101, w * 0.9137, h * 0.8230, w * 0.9042, h * 0.8424);
-    path.cubicBezierTo(w * 0.8954, h * 0.8605, w * 0.8474, h * 0.9041, w * 0.8150, h * 0.9235);
-    path.cubicBezierTo(w * 0.7556, h * 0.9591, w * 0.6846, h * 0.9831, w * 0.6061, h * 0.9942);
-    // Bottom closing curve (symmetric arc through y≈1.0)
-    path.cubicBezierTo(w * 0.5354, h * 1.0000, w * 0.4646, h * 1.0000, w * 0.3939, h * 0.9942);
+
+    // Lower semicircle rim: from right transition (0.8904, 0.7582) to left transition (0.1096, 0.7582)
+    if (edge.style !== 'none') {
+      if (rounding) {
+        const rimY = rimTopY + rimDepth;
+        drawStyledEdge(path, w * 0.8904, rimY, w * 0.1096, rimY,
+          edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+      } else {
+        drawStyledEdge(path, w * 0.8904, rimTopY, w * 0.1096, rimTopY,
+          edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+      }
+    } else if (rounding) {
+      // Rounding without edge style: smooth U-arc expanding downward
+      const cx = w * 0.5;
+      const leftX = w * 0.1096;
+      const rightX = w * 0.8904;
+      const bottomY = rimTopY + rimDepth;
+      const k = 0.5522847498; // kappa for quarter-circle bezier approximation
+      path.cubicBezierTo(rightX, rimTopY + rimDepth * k, cx + rimHalfW * k, bottomY, cx, bottomY);
+      path.cubicBezierTo(cx - rimHalfW * k, bottomY, leftX, rimTopY + rimDepth * k, leftX, rimTopY);
+    } else {
+      path.cubicBezierTo(w * 0.9116, h * 0.8101, w * 0.9137, h * 0.8230, w * 0.9042, h * 0.8424);
+      path.cubicBezierTo(w * 0.8954, h * 0.8605, w * 0.8474, h * 0.9041, w * 0.8150, h * 0.9235);
+      path.cubicBezierTo(w * 0.7556, h * 0.9591, w * 0.6846, h * 0.9831, w * 0.6061, h * 0.9942);
+      path.cubicBezierTo(w * 0.5354, h * 1.0000, w * 0.4646, h * 1.0000, w * 0.3939, h * 0.9942);
+      path.cubicBezierTo(w * 0.3154, h * 0.9831, w * 0.2444, h * 0.9591, w * 0.1850, h * 0.9235);
+      path.cubicBezierTo(w * 0.1526, h * 0.9041, w * 0.1046, h * 0.8605, w * 0.0958, h * 0.8424);
+      path.cubicBezierTo(w * 0.0863, h * 0.8230, w * 0.0884, h * 0.8101, w * 0.1096, h * 0.7582);
+    }
     path.closePath();
     return path.toString();
   }
@@ -733,9 +859,8 @@ export class Pauldron extends Template {
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length } = params;
     const paths = [this.generateCutPath(params)];
-    // Symmetric head pin holes (averaged from SVG template)
     const holeR = width * 0.1070;
-    const holeCx = width * 0.2482; // distance from center to each hole
+    const holeCx = width * 0.2482;
     const holeCy = length * 0.2680;
     const hole1 = new SVGPath();
     hole1.moveTo(width - holeCx + holeR, holeCy);
@@ -752,13 +877,273 @@ export class Pauldron extends Template {
     return paths;
   }
 
-  generateScorePaths(_params: TemplateParams): string[] {
-    return [];
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+}
+
+/**
+ * KamaSplit: Open-front split kama — two separate hanging skirt panels (samurai style).
+ * Each side panel: outer tab at top, panel widens toward the bottom, styled hem edge.
+ * Front center gap divides the two panels. Default 50×22mm.
+ */
+export class KamaSplit extends Template {
+  generateCutPath(params: TemplateParams): string {
+    const w = params.width;
+    const h = params.length;
+    const path = new SVGPath();
+    const edge = getEdgeParams(params, 'kama');
+
+    // Gap fraction in center (20% of width on each side of center)
+    const gapHalf = 0.08;
+    // Right panel
+    const rInner = 0.50 + gapHalf; // right panel inner edge X
+    const rOuter = 1.0;
+
+    // --- RIGHT PANEL ---
+    // Start at top-right of right panel (waistband)
+    path.moveTo(w * rOuter * 0.96, h * 0.003);
+    // Top waistband to inner edge
+    path.lineTo(w * rInner, h * 0.003);
+    // Inner edge going down
+    path.cubicBezierTo(w * rInner, h * 0.10, w * (rInner - 0.01), h * 0.50, w * (rInner - 0.02), h * 0.88);
+    // Bottom edge: inner to outer (styled)
+    const rBotInX = w * (rInner - 0.02);
+    const rBotInY = h * 0.88;
+    const rBotOutX = w * 0.90;
+    const rBotOutY = h * 0.92;
+    if (edge.style !== 'none') {
+      drawStyledEdge(path, rBotInX, rBotInY, rBotOutX, rBotOutY,
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+    } else {
+      path.cubicBezierTo(w * 0.62, h * 0.96, w * 0.78, h * 0.97, rBotOutX, rBotOutY);
+    }
+    // Right outer side going up
+    path.cubicBezierTo(w * 0.94, h * 0.85, w * 0.96, h * 0.60, w * 0.97, h * 0.42);
+    path.cubicBezierTo(w * 0.98, h * 0.25, w * 0.98, h * 0.08, w * 0.96, h * 0.003);
+    path.closePath();
+
+    // --- LEFT PANEL (mirror) ---
+    const lInner = 0.50 - gapHalf;
+    path.moveTo(w * 0.04, h * 0.003);
+    path.lineTo(w * lInner, h * 0.003);
+    // Inner edge going down
+    path.cubicBezierTo(w * lInner, h * 0.10, w * (lInner + 0.01), h * 0.50, w * (lInner + 0.02), h * 0.88);
+    // Bottom edge: inner to outer (styled)
+    const lBotInX = w * (lInner + 0.02);
+    const lBotInY = h * 0.88;
+    const lBotOutX = w * 0.10;
+    const lBotOutY = h * 0.92;
+    if (edge.style !== 'none') {
+      drawStyledEdge(path, lBotInX, lBotInY, lBotOutX, lBotOutY,
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed + 1);
+    } else {
+      path.cubicBezierTo(w * 0.38, h * 0.96, w * 0.22, h * 0.97, lBotOutX, lBotOutY);
+    }
+    // Left outer side going up
+    path.cubicBezierTo(w * 0.06, h * 0.85, w * 0.04, h * 0.60, w * 0.03, h * 0.42);
+    path.cubicBezierTo(w * 0.02, h * 0.25, w * 0.02, h * 0.08, w * 0.04, h * 0.003);
+    path.closePath();
+
+    return path.toString();
   }
 
-  generateEngravePaths(_params: TemplateParams): string[] {
-    return [];
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length, holeRadius, slitWidth, enableSlit } = params;
+    const paths = [this.generateCutPath(params)];
+    const holeY = length * 0.15;
+    // One attachment hole in each panel near the waistband
+    paths.push(generateAttachmentHole(width * 0.20, holeY, holeRadius, slitWidth, 8, enableSlit));
+    paths.push(generateAttachmentHole(width * 0.80, holeY, holeRadius, slitWidth, 8, enableSlit));
+    return paths;
   }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+}
+
+/**
+ * KamaWaistCape: Half-cape kama covering the back — no center slit.
+ * Wraps hip to hip. Flat waistband, curved sides, styled bottom hem.
+ * Default 44×16mm.
+ */
+export class KamaWaistCape extends Template {
+  generateCutPath(params: TemplateParams): string {
+    const w = params.width;
+    const h = params.length;
+    const path = new SVGPath();
+    const edge = getEdgeParams(params, 'kama');
+
+    // Top waistband
+    path.moveTo(w * 0.03, h * 0.04);
+    path.cubicBezierTo(w * 0.20, h * 0.00, w * 0.80, h * 0.00, w * 0.97, h * 0.04);
+
+    // Right side going down
+    path.cubicBezierTo(w * 1.00, h * 0.12, w * 0.99, h * 0.35, w * 0.96, h * 0.55);
+    path.cubicBezierTo(w * 0.94, h * 0.70, w * 0.90, h * 0.82, w * 0.85, h * 0.88);
+
+    // Bottom hem (styled)
+    if (edge.style !== 'none') {
+      drawStyledEdge(path, w * 0.85, h * 0.88, w * 0.15, h * 0.88,
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+    } else {
+      path.cubicBezierTo(w * 0.72, h * 0.96, w * 0.58, h * 1.00, w * 0.50, h * 1.00);
+      path.cubicBezierTo(w * 0.42, h * 1.00, w * 0.28, h * 0.96, w * 0.15, h * 0.88);
+    }
+
+    // Left side going up
+    path.cubicBezierTo(w * 0.10, h * 0.82, w * 0.06, h * 0.70, w * 0.04, h * 0.55);
+    path.cubicBezierTo(w * 0.01, h * 0.35, w * 0.00, h * 0.12, w * 0.03, h * 0.04);
+
+    path.closePath();
+    return path.toString();
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length, holeRadius, slitWidth, enableSlit } = params;
+    const paths = [this.generateCutPath(params)];
+    const holeY = length * 0.18;
+    paths.push(generateAttachmentHole(width * 0.25, holeY, holeRadius, slitWidth, 8, enableSlit));
+    paths.push(generateAttachmentHole(width * 0.75, holeY, holeRadius, slitWidth, 8, enableSlit));
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+}
+
+/**
+ * PauldronSingle: Asymmetric single-shoulder pad (gladiator style).
+ * One large shoulder plate + narrow strap on the other side.
+ * Styled bottom rim. Default 20×24mm.
+ */
+export class PauldronSingle extends Template {
+  generateCutPath(params: TemplateParams): string {
+    const w = params.width;
+    const h = params.length;
+    const path = new SVGPath();
+    const edge = getEdgeParams(params, 'pauldron');
+
+    // Start at top-left (strap side)
+    path.moveTo(w * 0.20, h * 0.005);
+    // Top edge across to right shoulder
+    path.cubicBezierTo(w * 0.40, h * 0.00, w * 0.65, h * 0.00, w * 0.80, h * 0.01);
+    // Right shoulder dome
+    path.cubicBezierTo(w * 0.92, h * 0.03, w * 0.99, h * 0.10, w * 1.00, h * 0.22);
+    path.cubicBezierTo(w * 1.00, h * 0.36, w * 0.97, h * 0.50, w * 0.93, h * 0.62);
+    path.cubicBezierTo(w * 0.90, h * 0.72, w * 0.87, h * 0.80, w * 0.83, h * 0.87);
+
+    // Bottom rim (styled)
+    if (edge.style !== 'none') {
+      drawStyledEdge(path, w * 0.83, h * 0.87, w * 0.15, h * 0.87,
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+    } else {
+      path.cubicBezierTo(w * 0.75, h * 0.95, w * 0.55, h * 1.00, w * 0.42, h * 1.00);
+      path.cubicBezierTo(w * 0.30, h * 0.99, w * 0.20, h * 0.95, w * 0.15, h * 0.87);
+    }
+
+    // Left strap side going up
+    path.cubicBezierTo(w * 0.10, h * 0.75, w * 0.06, h * 0.55, w * 0.04, h * 0.40);
+    path.cubicBezierTo(w * 0.02, h * 0.25, w * 0.005, h * 0.12, w * 0.01, h * 0.06);
+    path.cubicBezierTo(w * 0.03, h * 0.02, w * 0.10, h * 0.005, w * 0.20, h * 0.005);
+
+    path.closePath();
+    return path.toString();
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length } = params;
+    const paths = [this.generateCutPath(params)];
+    // Single head pin hole
+    const holeR = width * 0.10;
+    const holeCx = width * 0.60;
+    const holeCy = length * 0.22;
+    const hole = new SVGPath();
+    hole.moveTo(holeCx + holeR, holeCy);
+    hole.arcTo(holeR, holeR, 0, 1, 1, holeCx - holeR, holeCy);
+    hole.arcTo(holeR, holeR, 0, 1, 1, holeCx + holeR, holeCy);
+    hole.closePath();
+    paths.push(hole.toString());
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+}
+
+/**
+ * PauldronWide: Extended pauldron with wider shoulder coverage.
+ * Same neck channel structure as standard, wider shoulders and rim.
+ * Styled bottom rim. Default 28×24mm.
+ */
+export class PauldronWide extends Template {
+  generateCutPath(params: TemplateParams): string {
+    const w = params.width;
+    const h = params.length;
+    const path = new SVGPath();
+    const edge = getEdgeParams(params, 'pauldron');
+
+    // Start at bottom-left approaching left side
+    path.moveTo(w * 0.35, h * 0.9942);
+    // Left side rises
+    path.cubicBezierTo(w * 0.25, h * 0.97, w * 0.15, h * 0.92, w * 0.08, h * 0.84);
+    path.cubicBezierTo(w * 0.02, h * 0.74, w * 0.00, h * 0.60, w * 0.01, h * 0.46);
+    path.cubicBezierTo(w * 0.03, h * 0.32, w * 0.08, h * 0.20, w * 0.16, h * 0.10);
+    path.cubicBezierTo(w * 0.22, h * 0.04, w * 0.30, h * 0.01, w * 0.38, h * 0.003);
+    // Top to neck channel (left)
+    path.cubicBezierTo(w * 0.42, h * 0.00, w * 0.44, h * 0.00, w * 0.46, h * 0.005);
+    // Neck channel left wall down
+    path.lineTo(w * 0.46, h * 0.12);
+    path.cubicBezierTo(w * 0.46, h * 0.28, w * 0.44, h * 0.38, w * 0.43, h * 0.44);
+    path.cubicBezierTo(w * 0.42, h * 0.49, w * 0.43, h * 0.53, w * 0.45, h * 0.55);
+    // Channel U-turn
+    path.cubicBezierTo(w * 0.47, h * 0.58, w * 0.53, h * 0.58, w * 0.55, h * 0.55);
+    // Neck channel right wall up
+    path.cubicBezierTo(w * 0.57, h * 0.53, w * 0.58, h * 0.49, w * 0.57, h * 0.44);
+    path.cubicBezierTo(w * 0.56, h * 0.38, w * 0.54, h * 0.28, w * 0.54, h * 0.12);
+    path.lineTo(w * 0.54, h * 0.005);
+    // Top to right shoulder
+    path.cubicBezierTo(w * 0.56, h * 0.00, w * 0.58, h * 0.00, w * 0.62, h * 0.003);
+    path.cubicBezierTo(w * 0.70, h * 0.01, w * 0.78, h * 0.04, w * 0.84, h * 0.10);
+    // Right side descends
+    path.cubicBezierTo(w * 0.92, h * 0.20, w * 0.97, h * 0.32, w * 0.99, h * 0.46);
+    path.cubicBezierTo(w * 1.00, h * 0.60, w * 0.98, h * 0.74, w * 0.92, h * 0.84);
+    path.cubicBezierTo(w * 0.85, h * 0.92, w * 0.75, h * 0.97, w * 0.65, h * 0.9942);
+
+    // Bottom rim (styled)
+    if (edge.style !== 'none') {
+      drawStyledEdge(path, w * 0.65, h * 0.9942, w * 0.35, h * 0.9942,
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+    } else {
+      path.cubicBezierTo(w * 0.55, h * 1.00, w * 0.45, h * 1.00, w * 0.35, h * 0.9942);
+    }
+    path.closePath();
+    return path.toString();
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length } = params;
+    const paths = [this.generateCutPath(params)];
+    const holeR = width * 0.085;
+    const holeCx = width * 0.26;
+    const holeCy = length * 0.24;
+    const hole1 = new SVGPath();
+    hole1.moveTo(holeCx + holeR, holeCy);
+    hole1.arcTo(holeR, holeR, 0, 1, 1, holeCx - holeR, holeCy);
+    hole1.arcTo(holeR, holeR, 0, 1, 1, holeCx + holeR, holeCy);
+    hole1.closePath();
+    paths.push(hole1.toString());
+    const rcx = width - holeCx;
+    const hole2 = new SVGPath();
+    hole2.moveTo(rcx + holeR, holeCy);
+    hole2.arcTo(holeR, holeR, 0, 1, 1, rcx - holeR, holeCy);
+    hole2.arcTo(holeR, holeR, 0, 1, 1, rcx + holeR, holeCy);
+    hole2.closePath();
+    paths.push(hole2.toString());
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
 }
 
 /**

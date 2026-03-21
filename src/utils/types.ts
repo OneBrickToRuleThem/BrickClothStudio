@@ -12,8 +12,13 @@ export type TemplateVariant =
 
   | 'small-flag'
   | 'large-flag'
+  | 'custom-flag'
   | 'wrap-skirt'
+  | 'split-skirt'
+  | 'waist-cape'
   | 'shoulder-armor'
+  | 'single-shoulder'
+  | 'double-wide'
   | 'square-sail'
   | 'triangular-sail'
   | 'polygon-sail'

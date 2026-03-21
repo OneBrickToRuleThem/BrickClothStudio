@@ -598,6 +598,66 @@ export default function ParameterPanel() {
         </>
         )}
 
+        {/* --- Kama / Pauldron Edge Style --- */}
+        {(elementType === 'kama' || elementType === 'pauldron') && (
+        <section className="panel-section border-t pt-4">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('edgeStyles')}>
+            <h3 className="panel-section-title">Edge Style</h3>
+            <span className="text-gray-400 text-xs">{openSections.edgeStyles ? '▾' : '▸'}</span>
+          </button>
+          {openSections.edgeStyles && (
+          <div className="mt-2 space-y-3">
+            <div>
+              <label className="text-xs font-medium text-gray-700">Hem Style</label>
+              <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                value={(parameters[`${elementType}EdgeStyle`] as string) || 'none'}
+                onChange={(e) => setParameter(`${elementType}EdgeStyle`, e.target.value)}>
+                <option value="none">none</option>
+                <option value="scalloped">scalloped</option>
+                <option value="zigzag">zigzag</option>
+                <option value="wavy">wavy</option>
+                <option value="castellated">castellated</option>
+                <option value="torn">torn</option>
+              </select>
+            </div>
+            {(parameters[`${elementType}EdgeStyle`] as string || 'none') !== 'none' && (
+            <div className="space-y-2">
+              <ParameterSlider label="Depth (mm)" name={`${elementType}EdgeDepth`}
+                min={0.5} max={8} step={0.5}
+                value={(parameters[`${elementType}EdgeDepth`] as number) || 2}
+                onChange={(v) => setParameter(`${elementType}EdgeDepth`, v)} />
+              <ParameterSlider label="Count" name={`${elementType}EdgeCount`}
+                min={2} max={20} step={1}
+                value={(parameters[`${elementType}EdgeCount`] as number) || 6}
+                onChange={(v) => setParameter(`${elementType}EdgeCount`, v)} />
+            </div>
+            )}
+          </div>
+          )}
+        </section>
+        )}
+
+        {/* --- Pauldron Rounding --- */}
+        {elementType === 'pauldron' && (
+        <section className="panel-section border-t pt-4">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={parameters.pauldronRounding as boolean || false}
+                onChange={(e) => setParameter('pauldronRounding', e.target.checked)} className="w-4 h-4" />
+              <span className="font-medium">Rounding</span>
+            </label>
+            {parameters.pauldronRounding && (
+              <div className="ml-6">
+                <ParameterSlider label="Amount" name="pauldronRoundingAmount"
+                  min={0.1} max={1.0} step={0.05}
+                  value={(parameters.pauldronRoundingAmount as number) || 0.5}
+                  onChange={(v) => setParameter('pauldronRoundingAmount', v)} />
+              </div>
+            )}
+          </div>
+        </section>
+        )}
+
         {/* Decorations Section */}
         <DecorationPanel
           decorations={decorations}
@@ -1239,9 +1299,12 @@ function FlagParameterPanel({ parameters, setParameter }: {
   parameters: Record<string, number | string | boolean>;
   setParameter: (key: string, value: number | string | boolean) => void;
 }) {
+  const { templateVariant } = useEditorStore();
+  const isCustom = templateVariant === 'custom-flag';
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     flagBottom: false,
     flagSides: false,
+    flagHoles: false,
   });
 
   function toggleSection(key: string) {
@@ -1255,7 +1318,36 @@ function FlagParameterPanel({ parameters, setParameter }: {
 
   return (
     <>
-      {/* Flag Bottom Edge */}
+      {/* Non-custom: info note */}
+      {!isCustom && (
+        <section className="panel-section border-t pt-4 text-xs text-gray-500">
+          <p>This flag uses a fixed shape. Select <strong>Custom</strong> for edge styling and hole options.</p>
+        </section>
+      )}
+
+      {/* Custom flag: hole count */}
+      {isCustom && (
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('flagHoles')}>
+          <h3 className="panel-section-title">Attachment Holes</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">{(parameters.flagCustomHoleCount as number) || 2} holes</span>
+            <span className="text-gray-400 text-xs">{openSections.flagHoles ? '▾' : '▸'}</span>
+          </div>
+        </button>
+        {openSections.flagHoles && (
+          <div className="mt-2 space-y-2">
+            <ParameterSlider label="Hole Count" name="flagCustomHoleCount"
+              min={1} max={6} step={1}
+              value={(parameters.flagCustomHoleCount as number) || 2}
+              onChange={(v) => setParameter('flagCustomHoleCount', v)} />
+          </div>
+        )}
+      </section>
+      )}
+
+      {/* Custom flag: Bottom Edge */}
+      {isCustom && (
       <section className="panel-section border-t pt-4">
         <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('flagBottom')}>
           <h3 className="panel-section-title">Bottom Edge</h3>
@@ -1321,8 +1413,10 @@ function FlagParameterPanel({ parameters, setParameter }: {
           </div>
         )}
       </section>
+      )}
 
       {/* Flag Side Styles */}
+      {isCustom && (
       <section className="panel-section border-t pt-4">
         <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('flagSides')}>
           <h3 className="panel-section-title">Side Edges</h3>
@@ -1364,13 +1458,23 @@ function FlagParameterPanel({ parameters, setParameter }: {
           </div>
         )}
       </section>
+      )}
 
       {/* Flag Info */}
       <section className="panel-section border-t pt-4 text-xs text-gray-600">
         <p className="font-semibold mb-1">Flag Template:</p>
-        <p>• Based on cloth banner shape</p>
-        <p>• Two clip holes for bar attachment</p>
-        <p>• Bottom edge from bannertemplates.svg</p>
+        {isCustom ? (
+          <>
+            <p>• Rectangular body with customizable edges</p>
+            <p>• Configurable hole count (1-6)</p>
+          </>
+        ) : (
+          <>
+            <p>• Based on cloth banner shape</p>
+            <p>• Two clip holes for bar attachment</p>
+            <p>• Bottom edge from bannertemplates.svg</p>
+          </>
+        )}
       </section>
     </>
   );

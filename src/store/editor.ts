@@ -125,6 +125,18 @@ const defaultParameters = {
   sailPolygonGrommetMask: '', // per-vertex enable mask, e.g. '111111' — empty = all enabled
   sailStudWidth: 0,  // LEGO stud-based sizing (0 = manual mm)
   sailStudLength: 0,
+  // Kama edge styles
+  kamaEdgeStyle: 'none' as string,
+  kamaEdgeDepth: 2,
+  kamaEdgeCount: 6,
+  // Pauldron edge styles
+  pauldronEdgeStyle: 'none' as string,
+  pauldronEdgeDepth: 2,
+  pauldronEdgeCount: 6,
+  pauldronRounding: false as boolean,
+  pauldronRoundingAmount: 0.5,
+  // Custom flag
+  flagCustomHoleCount: 2,
   // Sail grommet positions (inset from corners in mm)
   sailGrommetTLx: 4,
   sailGrommetTLy: 4,
@@ -141,10 +153,15 @@ const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number
   'cape': { width: 40, length: 39 },
   'flag:small-flag': { width: 22, length: 60 },
   'flag:large-flag': { width: 40, length: 64 },
+  'flag:custom-flag': { width: 30, length: 60 },
 
   'wings': { width: 45, length: 25 },
   'kama': { width: 47, length: 19 },
+  'kama:split-skirt': { width: 50, length: 22 },
+  'kama:waist-cape': { width: 44, length: 16 },
   'pauldron': { width: 23, length: 26 },
+  'pauldron:single-shoulder': { width: 20, length: 24 },
+  'pauldron:double-wide': { width: 28, length: 24 },
   'sail': { width: 60, length: 60 },
   'sail:polygon-sail': { width: 60, length: 60 },
 };

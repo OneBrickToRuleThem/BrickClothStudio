@@ -102,16 +102,12 @@ function ElementIcon({ type, className }: { type: ElementType; className?: strin
 }
 
 const ELEMENTS: Array<{ type: ElementType; label: string; wip?: boolean }> = [
-  // Developed element types first
   { type: 'cape', label: 'Cape' },
   { type: 'flag', label: 'Flag/Banner' },
   { type: 'sail', label: 'Sail' },
-  // In development
-  { type: 'kama', label: 'Kama/Skirt', wip: true },
-
+  { type: 'kama', label: 'Kama/Skirt' },
+  { type: 'pauldron', label: 'Pauldron' },
   { type: 'wings', label: 'Wing', wip: true },
-  { type: 'pauldron', label: 'Pauldron', wip: true },
-
 ];
 
 export default function ElementSelector() {
@@ -182,6 +178,7 @@ function ElementVariantSelector() {
     flag: [
       { value: 'small-flag', label: 'Small Flag' },
       { value: 'large-flag', label: 'Large Flag' },
+      { value: 'custom-flag', label: 'Custom' },
     ],
 
     wings: [
@@ -189,9 +186,13 @@ function ElementVariantSelector() {
     ],
     kama: [
       { value: 'wrap-skirt', label: 'Wrap Skirt' },
+      { value: 'split-skirt', label: 'Split Skirt' },
+      { value: 'waist-cape', label: 'Waist Cape' },
     ],
     pauldron: [
       { value: 'shoulder-armor', label: 'Shoulder Armor' },
+      { value: 'single-shoulder', label: 'Single Shoulder' },
+      { value: 'double-wide', label: 'Double Wide' },
     ],
     sail: [
       { value: 'square-sail', label: 'Square Sail' },
