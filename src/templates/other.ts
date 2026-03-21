@@ -373,8 +373,14 @@ class BannerFlag extends Template {
     const paths = [this.generateCutPath(params)];
 
     // Holes are fixed-size (real LEGO clip holes don't change with flag size)
-    paths.push(stadiumPath(px(shape.hole1X), py(shape.holeY), HOLE_HALF_FLAT_MM, HOLE_RADIUS_MM));
-    paths.push(stadiumPath(px(shape.hole2X), py(shape.holeY), HOLE_HALF_FLAT_MM, HOLE_RADIUS_MM));
+    const h1x = px(shape.hole1X), h2x = px(shape.hole2X), hy = py(shape.holeY);
+    if (params.holeOverride) {
+      paths.push(generateAttachmentHole(h1x, hy, HOLE_RADIUS_MM, 0, 0, false, params));
+      paths.push(generateAttachmentHole(h2x, hy, HOLE_RADIUS_MM, 0, 0, false, params));
+    } else {
+      paths.push(stadiumPath(h1x, hy, HOLE_HALF_FLAT_MM, HOLE_RADIUS_MM));
+      paths.push(stadiumPath(h2x, hy, HOLE_HALF_FLAT_MM, HOLE_RADIUS_MM));
+    }
 
     return paths;
   }
@@ -501,7 +507,11 @@ export class FlagCustom extends BannerFlag {
     for (let i = 0; i < holeCount; i++) {
       // Evenly space holes across the width
       const cx = margin + usableW * (i + 0.5) / holeCount;
-      paths.push(stadiumPath(cx, holeY, HOLE_HALF_FLAT_MM, HOLE_RADIUS_MM));
+      if (params.holeOverride) {
+        paths.push(generateAttachmentHole(cx, holeY, HOLE_RADIUS_MM, 0, 0, false, params));
+      } else {
+        paths.push(stadiumPath(cx, holeY, HOLE_HALF_FLAT_MM, HOLE_RADIUS_MM));
+      }
     }
 
     return paths;
@@ -692,20 +702,19 @@ export class Kama extends Template {
     path.lineTo(w * 0.47624, h * 0.92697);
     path.lineTo(w * 0.45962, h * 0.94777);
 
-    // LEFT BOTTOM HEM: from center slit down to bottom, across to left tab
+    // LEFT BOTTOM HEM: from center slit down to bottom, across to left side
     if (edge.style !== 'none') {
       const botY = h * 0.997;
       path.lineTo(w * 0.45962, botY);
-      drawStyledEdge(path, w * 0.45962, botY, w * 0.17, botY,
+      drawStyledEdge(path, w * 0.45962, botY, w * 0.12, botY,
         edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
-      path.lineTo(w * 0.20744, h * 0.99519);
+      path.lineTo(w * 0.10213, h * 0.91690);
     } else {
       path.cubicBezierTo(w * 0.43045, h * 0.98427, w * 0.39359, h * 0.99631, w * 0.30792, h * 0.99729);
       path.cubicBezierTo(w * 0.26564, h * 0.99780, w * 0.22042, h * 0.99677, w * 0.20744, h * 0.99519);
+      // LEFT SIDE tab-to-side curve (included in styled path via lineTo above)
+      path.cubicBezierTo(w * 0.17974, h * 0.99171, w * 0.10701, h * 0.93764, w * 0.10213, h * 0.91690);
     }
-
-    // LEFT SIDE going up through tab to waistband
-    path.cubicBezierTo(w * 0.17974, h * 0.99171, w * 0.10701, h * 0.93764, w * 0.10213, h * 0.91690);
     path.cubicBezierTo(w * 0.10037, h * 0.90941, w * 0.08832, h * 0.81231, w * 0.07535, h * 0.70113);
     path.cubicBezierTo(w * 0.06239, h * 0.58995, w * 0.04952, h * 0.49077, w * 0.04676, h * 0.48071);
     path.cubicBezierTo(w * 0.04400, h * 0.47066, w * 0.03555, h * 0.45530, w * 0.02800, h * 0.44657);
@@ -741,16 +750,16 @@ export class Kama extends Template {
     path.cubicBezierTo(w * 0.96445, h * 0.45530, w * 0.95600, h * 0.47066, w * 0.95324, h * 0.48071);
     path.cubicBezierTo(w * 0.95048, h * 0.49077, w * 0.93761, h * 0.58995, w * 0.92465, h * 0.70113);
     path.cubicBezierTo(w * 0.91168, h * 0.81231, w * 0.89963, h * 0.90941, w * 0.89787, h * 0.91690);
-    path.cubicBezierTo(w * 0.89299, h * 0.93764, w * 0.82026, h * 0.99171, w * 0.79256, h * 0.99519);
-
-    // RIGHT BOTTOM HEM: from right tab down to bottom, across to center slit
+    // RIGHT BOTTOM HEM: from right side down to bottom, across to center slit
     if (edge.style !== 'none') {
       const botY = h * 0.997;
-      path.lineTo(w * 0.83, botY);
-      drawStyledEdge(path, w * 0.83, botY, w * 0.54038, botY,
+      path.lineTo(w * 0.88, botY);
+      drawStyledEdge(path, w * 0.88, botY, w * 0.54038, botY,
         edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed + 1);
       path.lineTo(w * 0.54038, h * 0.94777);
     } else {
+      // RIGHT SIDE side-to-tab curve (included in styled path via lineTo above)
+      path.cubicBezierTo(w * 0.89299, h * 0.93764, w * 0.82026, h * 0.99171, w * 0.79256, h * 0.99519);
       path.cubicBezierTo(w * 0.77958, h * 0.99677, w * 0.73436, h * 0.99780, w * 0.69208, h * 0.99729);
       path.cubicBezierTo(w * 0.60641, h * 0.99631, w * 0.56955, h * 0.98427, w * 0.54038, h * 0.94777);
     }
@@ -866,18 +875,8 @@ export class Pauldron extends Template {
     const holeR = width * 0.1070;
     const holeCx = width * 0.2482;
     const holeCy = length * 0.2680;
-    const hole1 = new SVGPath();
-    hole1.moveTo(width - holeCx + holeR, holeCy);
-    hole1.arcTo(holeR, holeR, 0, 1, 1, width - holeCx - holeR, holeCy);
-    hole1.arcTo(holeR, holeR, 0, 1, 1, width - holeCx + holeR, holeCy);
-    hole1.closePath();
-    paths.push(hole1.toString());
-    const hole2 = new SVGPath();
-    hole2.moveTo(holeCx + holeR, holeCy);
-    hole2.arcTo(holeR, holeR, 0, 1, 1, holeCx - holeR, holeCy);
-    hole2.arcTo(holeR, holeR, 0, 1, 1, holeCx + holeR, holeCy);
-    hole2.closePath();
-    paths.push(hole2.toString());
+    paths.push(generateAttachmentHole(width - holeCx, holeCy, holeR, 0, 0, false, params));
+    paths.push(generateAttachmentHole(holeCx, holeCy, holeR, 0, 0, false, params));
     return paths;
   }
 
