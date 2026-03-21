@@ -15,11 +15,9 @@ import {
 import {
   FlagSmall,
   FlagLarge,
-  Banner,
   Wings,
   Kama,
   Pauldron,
-  Cloak,
   SailSquare,
   SailTriangular,
   SailPolygon,
@@ -66,9 +64,6 @@ export function generatePattern(
         template = new CapeStandard();
         name = 'Standard Cape';
     }
-  } else if (elementType === 'cloak') {
-    template = new Cloak();
-    name = 'Cloak';
   } else if (elementType === 'flag') {
     switch (templateVariant) {
       case 'large-flag':
@@ -79,12 +74,9 @@ export function generatePattern(
         template = new FlagSmall();
         name = 'Small Flag';
     }
-  } else if (elementType === 'banner') {
-    template = new Banner();
-    name = 'Banner';
   } else if (elementType === 'wings') {
     template = new Wings();
-    name = 'Wings';
+    name = 'Wing';
   } else if (elementType === 'kama') {
     template = new Kama();
     name = 'Kama/Skirt';

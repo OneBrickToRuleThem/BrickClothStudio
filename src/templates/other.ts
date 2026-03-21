@@ -1,11 +1,12 @@
 /**
  * Additional template generators
- * Flags, banners, wings, kama, pauldron, and cloak
+ * Flags, wings, kama, pauldron
  */
 
 import { Template, TemplateParams, generateAttachmentHole } from './base';
 import { SVGPath, stadiumPath, circlePath } from '../geometry/primitives';
 import { SAIL_HOLE_STANDARDS, SailHoleType } from '../utils/constants';
+import { SeededRNG } from '../utils/rng';
 
 /**
  * Banner-shaped flag base class.
@@ -443,168 +444,123 @@ export class FlagLarge extends BannerFlag {
 }
 
 /**
- * Banner: Vertical hanging banner (40×50mm default)
- * Features: horizontal rod pocket at top (score line), decorative bottom edge
- * Can be swallowtail, pointed, or straight bottom
- */
-export class Banner extends Template {
-  generateCutPath(params: TemplateParams): string {
-    const w = params.width;
-    const h = params.length;
-    const path = new SVGPath();
-    const pocketH = 3; // rod pocket height
-    const r = 1; // corner rounding
-
-    // Start top-left corner
-    path.moveTo(r, 0);
-    path.lineTo(w - r, 0);
-    path.arcTo(r, r, 0, 0, 1, w, r);
-
-    // Right edge straight down (shortened to make room for tail)
-    const tailDepth = h * 0.15;
-    const bodyBottom = h - tailDepth;
-    path.lineTo(w, bodyBottom);
-
-    // Bottom edge: swallowtail cut within bounds
-    const cx = w / 2;
-    path.lineTo(cx + 2, bodyBottom);
-    path.lineTo(cx, h);  // tip at bounding box bottom
-    path.lineTo(cx - 2, bodyBottom);
-
-    // Left edge up
-    path.lineTo(0, bodyBottom);
-    path.lineTo(0, r);
-    path.arcTo(r, r, 0, 0, 1, r, 0);
-    path.closePath();
-    return path.toString();
-  }
-
-  generateScorePaths(params: TemplateParams): string[] {
-    const w = params.width;
-    const pocketH = 3;
-    // Rod pocket fold line across the top
-    const score = new SVGPath();
-    score.moveTo(1, pocketH);
-    score.lineTo(w - 1, pocketH);
-    return [score.toString()];
-  }
-
-  generateCutPaths(params: TemplateParams): string[] {
-    const { width, holeRadius, slitWidth, enableSlit } = params;
-    const paths = [this.generateCutPath(params)];
-    // Two attachment holes at top for rod/bar
-    const holeY = 1.5;
-    const holeInset = width * 0.2;
-    paths.push(generateAttachmentHole(holeInset, holeY, holeRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(width - holeInset, holeY, holeRadius, slitWidth, 8, enableSlit));
-    return paths;
-  }
-
-  generateEngravePaths(params: TemplateParams): string[] {
-    return [];
-  }
-}
-
-/**
- * Wings: Symmetric paired butterfly/angel wings (60×50mm default)
- * Two separate wing shapes joined at a center spine for neck attachment
- * Features: feathered outer edges, center column with holes
+ * Wings: Single dragon/bat wing (45×25mm default)
+ * Wing tip at top, membrane sweeps outward to the right,
+ * arm extends downward with body attachment on the left.
  */
 export class Wings extends Template {
   generateCutPath(params: TemplateParams): string {
     const w = params.width;
     const h = params.length;
     const path = new SVGPath();
-    const cx = w / 2;
-    const spineW = 3; // center spine half-width
 
-    // Right wing
-    // Start from top of center spine, go right
-    path.moveTo(cx + spineW, h * 0.05);
+    // Start at wing tip (top)
+    path.moveTo(w * 0.41, 0);
 
-    // Top edge curves out and up
+    // TRAILING EDGE — tip sweeps right into membrane
     path.cubicBezierTo(
-      cx + w * 0.15, h * 0.02,
-      cx + w * 0.3, h * 0.0,
-      cx + w * 0.4, h * 0.08
+      w * 0.50, h * 0.04,
+      w * 0.65, h * 0.07,
+      w * 0.73, h * 0.12
     );
 
-    // Outer tip
+    // Membrane expands outward
     path.cubicBezierTo(
-      cx + w * 0.47, h * 0.15,
-      cx + w * 0.5, h * 0.25,
-      cx + w * 0.48, h * 0.4
+      w * 0.85, h * 0.18,
+      w * 0.94, h * 0.28,
+      w * 0.98, h * 0.38
     );
 
-    // Outer edge with feathered scallops
-    const outerX = cx + w * 0.45;
-    path.cubicBezierTo(outerX, h * 0.5, outerX + 1, h * 0.55, outerX - 1, h * 0.6);
-    path.cubicBezierTo(outerX - 2, h * 0.65, outerX, h * 0.7, outerX - 2, h * 0.75);
-    path.cubicBezierTo(outerX - 3, h * 0.8, cx + w * 0.3, h * 0.9, cx + w * 0.15, h * 0.95);
-
-    // Bottom curves back to center
-    path.cubicBezierTo(cx + w * 0.08, h * 0.97, cx + spineW + 1, h * 0.9, cx + spineW, h * 0.85);
-
-    // Right side of center spine going up
-    path.lineTo(cx + spineW, h * 0.05);
-
-    // Left wing (mirror)
-    path.moveTo(cx - spineW, h * 0.05);
-
-    // Left spine down
-    path.lineTo(cx - spineW, h * 0.85);
-
-    // Bottom curves out left
-    path.cubicBezierTo(cx - spineW - 1, h * 0.9, cx - w * 0.08, h * 0.97, cx - w * 0.15, h * 0.95);
-
-    // Outer edge scallops going up
-    const outerXL = cx - w * 0.45;
-    path.cubicBezierTo(cx - w * 0.3, h * 0.9, outerXL + 3, h * 0.8, outerXL + 2, h * 0.75);
-    path.cubicBezierTo(outerXL, h * 0.7, outerXL + 2, h * 0.65, outerXL + 1, h * 0.6);
-    path.cubicBezierTo(outerXL - 1, h * 0.55, outerXL, h * 0.5, cx - w * 0.48, h * 0.4);
-
-    // Outer tip going up
+    // Membrane peak
     path.cubicBezierTo(
-      cx - w * 0.5, h * 0.25,
-      cx - w * 0.47, h * 0.15,
-      cx - w * 0.4, h * 0.08
+      w * 1.00, h * 0.43,
+      w * 1.00, h * 0.47,
+      w * 0.98, h * 0.50
     );
 
-    // Top edge back to center
+    // Membrane collapses back toward arm
     path.cubicBezierTo(
-      cx - w * 0.3, h * 0.0,
-      cx - w * 0.15, h * 0.02,
-      cx - spineW, h * 0.05
+      w * 0.88, h * 0.52,
+      w * 0.78, h * 0.54,
+      w * 0.70, h * 0.56
     );
+
+    // ARM — right side going down
+    path.cubicBezierTo(
+      w * 0.69, h * 0.62,
+      w * 0.68, h * 0.72,
+      w * 0.67, h * 0.82
+    );
+
+    // Lower arm + claw transition
+    path.cubicBezierTo(
+      w * 0.67, h * 0.88,
+      w * 0.60, h * 0.93,
+      w * 0.46, h * 0.94
+    );
+
+    // Bottom tip
+    path.cubicBezierTo(
+      w * 0.25, h * 0.97,
+      w * 0.10, h * 0.99,
+      w * 0.06, h
+    );
+
+    // ARM — left side going up
+    path.cubicBezierTo(
+      w * 0.02, h * 0.99,
+      w * 0.00, h * 0.90,
+      w * 0.00, h * 0.78
+    );
+
+    path.cubicBezierTo(
+      w * 0.00, h * 0.68,
+      w * 0.00, h * 0.60,
+      w * 0.01, h * 0.57
+    );
+
+    // Arm shoulder — transition back to wing body
+    path.cubicBezierTo(
+      w * 0.06, h * 0.56,
+      w * 0.16, h * 0.55,
+      w * 0.27, h * 0.53
+    );
+
+    // LEADING EDGE — going up to tip
+    path.cubicBezierTo(
+      w * 0.29, h * 0.40,
+      w * 0.32, h * 0.25,
+      w * 0.35, h * 0.12
+    );
+
+    path.cubicBezierTo(
+      w * 0.37, h * 0.06,
+      w * 0.39, h * 0.02,
+      w * 0.41, 0
+    );
+
     path.closePath();
-
     return path.toString();
   }
 
   generateScorePaths(params: TemplateParams): string[] {
     const w = params.width;
     const h = params.length;
-    const cx = w / 2;
     const scores: string[] = [];
 
-    // Feather lines on right wing
-    for (let i = 0; i < 4; i++) {
-      const frac = 0.25 + i * 0.15;
+    // Wing membrane finger lines (radiating from shoulder area)
+    for (let i = 0; i < 3; i++) {
+      const frac = 0.15 + i * 0.12;
       const score = new SVGPath();
-      const startX = cx + 4;
-      const endX = cx + w * (0.2 + i * 0.06);
-      score.moveTo(startX, h * frac);
-      score.quadraticBezierTo((startX + endX) / 2, h * (frac - 0.03), endX, h * frac);
-      scores.push(score.toString());
-    }
-    // Mirror feather lines on left wing
-    for (let i = 0; i < 4; i++) {
-      const frac = 0.25 + i * 0.15;
-      const score = new SVGPath();
-      const startX = cx - 4;
-      const endX = cx - w * (0.2 + i * 0.06);
-      score.moveTo(startX, h * frac);
-      score.quadraticBezierTo((startX + endX) / 2, h * (frac - 0.03), endX, h * frac);
+      const startX = w * 0.32;
+      const startY = h * (0.35 + i * 0.06);
+      const endX = w * (0.70 + i * 0.08);
+      const endY = h * (frac + 0.02);
+      score.moveTo(startX, startY);
+      score.quadraticBezierTo(
+        (startX + endX) / 2, (startY + endY) / 2 - h * 0.04,
+        endX, endY
+      );
       scores.push(score.toString());
     }
     return scores;
@@ -613,10 +569,8 @@ export class Wings extends Template {
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length, holeRadius, slitWidth, enableSlit } = params;
     const paths = [this.generateCutPath(params)];
-    const cx = width / 2;
-    // Two attachment holes in center spine
-    paths.push(generateAttachmentHole(cx, length * 0.12, holeRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(cx, length * 0.3, holeRadius, slitWidth, 8, enableSlit));
+    // Attachment hole in the arm area near the shoulder
+    paths.push(generateAttachmentHole(width * 0.15, length * 0.65, holeRadius, slitWidth, 8, enableSlit));
     return paths;
   }
 
@@ -626,9 +580,10 @@ export class Wings extends Template {
 }
 
 /**
- * Kama: Minifig waist-wrap skirt (40×20mm default)
- * Semi-circular wrap that attaches at the waist with a gap in front
- * Features: Waist holes matching minifig leg post, slight flare at hem
+ * Kama: Minifig waist-wrap skirt traced from kamatemplate.svg (47×19mm default).
+ * Bilaterally symmetric outline (left half mirrored for right half).
+ * Features: two outer waist tabs with rectangular protrusions, center front slit,
+ * inner bridge sections, and four symmetric attachment holes.
  */
 export class Kama extends Template {
   generateCutPath(params: TemplateParams): string {
@@ -636,121 +591,60 @@ export class Kama extends Template {
     const h = params.length;
     const path = new SVGPath();
 
-    // Waistband (straight top with slight curve)
-    const waistH = 3; // waistband height
-    const gapW = w * 0.12; // front gap half-width
+    // Symmetric outline from kamatemplate.svg (left half mirrored for right)
+    // Start at bottom-right of center slit
+    path.moveTo(w * 0.54038, h * 0.94777);
+    // Right slit wall (mirror of left, going up)
+    path.lineTo(w * 0.52376, h * 0.92697);
+    path.cubicBezierTo(w * 0.50568, h * 0.55313, w * 0.50225, h * 0.52236, w * 0.50000, h * 0.53148);
+    // Slit top at center
+    // Left slit wall (going down)
+    path.cubicBezierTo(w * 0.49775, h * 0.52236, w * 0.49432, h * 0.55313, w * 0.48533, h * 0.73895);
+    path.lineTo(w * 0.47624, h * 0.92697);
+    path.lineTo(w * 0.45962, h * 0.94777);
 
-    // Start at top-left
-    path.moveTo(0, 0);
-    path.lineTo(w, 0);
+    // LEFT HALF: bottom edge → left side → left tab → center waistband
+    path.cubicBezierTo(w * 0.43045, h * 0.98427, w * 0.39359, h * 0.99631, w * 0.30792, h * 0.99729);
+    path.cubicBezierTo(w * 0.26564, h * 0.99780, w * 0.22042, h * 0.99677, w * 0.20744, h * 0.99519);
+    path.cubicBezierTo(w * 0.17974, h * 0.99171, w * 0.10701, h * 0.93764, w * 0.10213, h * 0.91690);
+    path.cubicBezierTo(w * 0.10037, h * 0.90941, w * 0.08832, h * 0.81231, w * 0.07535, h * 0.70113);
+    path.cubicBezierTo(w * 0.06239, h * 0.58995, w * 0.04952, h * 0.49077, w * 0.04676, h * 0.48071);
+    path.cubicBezierTo(w * 0.04400, h * 0.47066, w * 0.03555, h * 0.45530, w * 0.02800, h * 0.44657);
+    path.cubicBezierTo(w * 0.00584, h * 0.42097, w * 0.00354, h * 0.40291, w * 0.00159, h * 0.23980);
+    path.cubicBezierTo(w * 0.00000, h * 0.08031, w * 0.00222, h * 0.05158, w * 0.02092, h * 0.02068);
+    path.cubicBezierTo(w * 0.03053, h * 0.00480, w * 0.03598, h * 0.00356, w * 0.09990, h * 0.00270);
+    path.cubicBezierTo(w * 0.17600, h * 0.00168, w * 0.18487, h * 0.00632, w * 0.19788, h * 0.05391);
+    path.cubicBezierTo(w * 0.20469, h * 0.07881, w * 0.20503, h * 0.08914, w * 0.20496, h * 0.26866);
+    path.lineTo(w * 0.20488, h * 0.45724);
+    path.lineTo(w * 0.22330, h * 0.45916);
+    path.cubicBezierTo(w * 0.23343, h * 0.46021, w * 0.25861, h * 0.45976, w * 0.27927, h * 0.45816);
+    path.lineTo(w * 0.31682, h * 0.45526);
+    path.lineTo(w * 0.31634, h * 0.27171);
+    path.cubicBezierTo(w * 0.31582, h * 0.06918, w * 0.31669, h * 0.05933, w * 0.33835, h * 0.02399);
+    path.cubicBezierTo(w * 0.34862, h * 0.00724, w * 0.35285, h * 0.00646, w * 0.43961, h * 0.00537);
 
-    // Right edge curves outward (flare)
-    path.cubicBezierTo(
-      w + w * 0.05, h * 0.3,
-      w + w * 0.08, h * 0.6,
-      w * 0.95, h
-    );
+    // Center top: symmetric curve connecting left to right
+    path.cubicBezierTo(w * 0.46980, h * 0.00103, w * 0.53020, h * 0.00103, w * 0.56039, h * 0.00537);
 
-    // Bottom hem - gentle curve
-    path.cubicBezierTo(
-      w * 0.75, h + h * 0.05,
-      w * 0.55, h + h * 0.06,
-      w / 2, h + h * 0.04
-    );
-    path.cubicBezierTo(
-      w * 0.45, h + h * 0.06,
-      w * 0.25, h + h * 0.05,
-      w * 0.05, h
-    );
-
-    // Left edge curves outward (flare, mirror)
-    path.cubicBezierTo(
-      -w * 0.08, h * 0.6,
-      -w * 0.05, h * 0.3,
-      0, 0
-    );
-
-    path.closePath();
-    return path.toString();
-  }
-
-  generateCutPaths(params: TemplateParams): string[] {
-    const { width, holeRadius, slitWidth, enableSlit } = params;
-    const paths = [this.generateCutPath(params)];
-    // Waist attachment hole at center top
-    const cx = width / 2;
-    paths.push(generateAttachmentHole(cx, 1.5, holeRadius, slitWidth, 8, enableSlit));
-    return paths;
-  }
-
-  generateScorePaths(params: TemplateParams): string[] {
-    const w = params.width;
-    const waistH = 3;
-    // Waistband fold line
-    const score = new SVGPath();
-    score.moveTo(1, waistH);
-    score.lineTo(w - 1, waistH);
-    return [score.toString()];
-  }
-
-  generateEngravePaths(params: TemplateParams): string[] {
-    return [];
-  }
-}
-
-/**
- * Pauldron: Single shoulder armor piece (40×30mm default)
- * Curved piece that wraps over one shoulder
- * Features: Neck cutout on inside edge, arm hole curve on outside
- */
-export class Pauldron extends Template {
-  generateCutPath(params: TemplateParams): string {
-    const w = params.width;
-    const h = params.length;
-    const path = new SVGPath();
-
-    // Top edge: curved from neck side to shoulder
-    path.moveTo(w * 0.15, 0);
-    path.cubicBezierTo(
-      w * 0.3, -h * 0.02,
-      w * 0.6, -h * 0.04,
-      w * 0.9, h * 0.05
-    );
-
-    // Outer shoulder curve goes down
-    path.cubicBezierTo(
-      w * 1.0, h * 0.15,
-      w * 1.02, h * 0.35,
-      w * 0.95, h * 0.55
-    );
-
-    // Lower outer edge curves inward
-    path.cubicBezierTo(
-      w * 0.88, h * 0.7,
-      w * 0.75, h * 0.85,
-      w * 0.55, h * 0.95
-    );
-
-    // Bottom edge
-    path.cubicBezierTo(
-      w * 0.4, h * 1.0,
-      w * 0.25, h * 0.98,
-      w * 0.12, h * 0.9
-    );
-
-    // Inner neck-side curve going up
-    path.cubicBezierTo(
-      w * 0.02, h * 0.75,
-      -w * 0.02, h * 0.5,
-      w * 0.0, h * 0.3
-    );
-
-    // Neck cutout curve back to top
-    path.cubicBezierTo(
-      w * 0.02, h * 0.15,
-      w * 0.08, h * 0.05,
-      w * 0.15, 0
-    );
+    // RIGHT HALF: mirror of left half (reversed)
+    path.cubicBezierTo(w * 0.64715, h * 0.00646, w * 0.65138, h * 0.00724, w * 0.66165, h * 0.02399);
+    path.cubicBezierTo(w * 0.68331, h * 0.05933, w * 0.68418, h * 0.06918, w * 0.68366, h * 0.27171);
+    path.lineTo(w * 0.68318, h * 0.45526);
+    path.lineTo(w * 0.72073, h * 0.45816);
+    path.cubicBezierTo(w * 0.74139, h * 0.45976, w * 0.76657, h * 0.46021, w * 0.77670, h * 0.45916);
+    path.lineTo(w * 0.79512, h * 0.45724);
+    path.lineTo(w * 0.79504, h * 0.26866);
+    path.cubicBezierTo(w * 0.79497, h * 0.08914, w * 0.79531, h * 0.07881, w * 0.80212, h * 0.05391);
+    path.cubicBezierTo(w * 0.81513, h * 0.00632, w * 0.82400, h * 0.00168, w * 0.90010, h * 0.00270);
+    path.cubicBezierTo(w * 0.96402, h * 0.00356, w * 0.96947, h * 0.00480, w * 0.97908, h * 0.02068);
+    path.cubicBezierTo(w * 0.99778, h * 0.05158, w * 1.00000, h * 0.08031, w * 0.99841, h * 0.23980);
+    path.cubicBezierTo(w * 0.99646, h * 0.40291, w * 0.99416, h * 0.42097, w * 0.97200, h * 0.44657);
+    path.cubicBezierTo(w * 0.96445, h * 0.45530, w * 0.95600, h * 0.47066, w * 0.95324, h * 0.48071);
+    path.cubicBezierTo(w * 0.95048, h * 0.49077, w * 0.93761, h * 0.58995, w * 0.92465, h * 0.70113);
+    path.cubicBezierTo(w * 0.91168, h * 0.81231, w * 0.89963, h * 0.90941, w * 0.89787, h * 0.91690);
+    path.cubicBezierTo(w * 0.89299, h * 0.93764, w * 0.82026, h * 0.99171, w * 0.79256, h * 0.99519);
+    path.cubicBezierTo(w * 0.77958, h * 0.99677, w * 0.73436, h * 0.99780, w * 0.69208, h * 0.99729);
+    path.cubicBezierTo(w * 0.60641, h * 0.99631, w * 0.56955, h * 0.98427, w * 0.54038, h * 0.94777);
 
     path.closePath();
     return path.toString();
@@ -758,95 +652,111 @@ export class Pauldron extends Template {
 
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length, holeRadius, slitWidth, enableSlit } = params;
+    const w = width;
+    const h = length;
     const paths = [this.generateCutPath(params)];
-    // Attachment hole near neck edge top
-    paths.push(generateAttachmentHole(width * 0.25, length * 0.15, holeRadius, slitWidth, 8, enableSlit));
+    // Four symmetric attachment holes from SVG template
+    const holeY = h * 0.27333;
+    // Outer pair (in the outer tabs)
+    paths.push(generateAttachmentHole(w * 0.10571, holeY, holeRadius, slitWidth, 8, enableSlit));
+    paths.push(generateAttachmentHole(w * 0.89429, holeY, holeRadius, slitWidth, 8, enableSlit));
+    // Inner pair (in the center section)
+    paths.push(generateAttachmentHole(w * 0.41131, holeY, holeRadius, slitWidth, 8, enableSlit));
+    paths.push(generateAttachmentHole(w * 0.58869, holeY, holeRadius, slitWidth, 8, enableSlit));
     return paths;
   }
 
-  generateScorePaths(params: TemplateParams): string[] {
-    const w = params.width;
-    const h = params.length;
-    // Shoulder ridge fold line
-    const score = new SVGPath();
-    score.moveTo(w * 0.2, h * 0.1);
-    score.cubicBezierTo(w * 0.4, h * 0.05, w * 0.6, h * 0.05, w * 0.85, h * 0.12);
-    return [score.toString()];
+  generateScorePaths(_params: TemplateParams): string[] {
+    return [];
   }
 
-  generateEngravePaths(params: TemplateParams): string[] {
+  generateEngravePaths(_params: TemplateParams): string[] {
     return [];
   }
 }
 
 /**
- * Cloak: Large flowing garment (100×80mm)
- * Based on standard-cloak-cut-ready.svg
- * Features: Flowing tapered body, wavy side edges, dual neck attachment points
+ * Pauldron: Shoulder armor traced from PauldronTemplate.svg (23×26mm default).
+ * Bilaterally symmetric outline (left half mirrored for right half).
+ * Two symmetric head pin holes for minifig attachment.
  */
-export class Cloak extends Template {
+export class Pauldron extends Template {
   generateCutPath(params: TemplateParams): string {
-    const { length, width } = params;
+    const w = params.width;
+    const h = params.length;
     const path = new SVGPath();
-    const cx = width / 2;
 
-    // Main cloak body - vertical teardrop shape
-    path.moveTo(cx, 1);
-    
-    // Right side curves out and down
-    path.quadraticBezierTo(
-      cx + width * 0.15, length * 0.2,
-      cx + width * 0.18, length * 0.5
-    );
-    
-    // Right bottom curves inward
-    path.quadraticBezierTo(
-      cx + width * 0.12, width - 2,
-      cx * 0.95, width
-    );
-    
-    // Bottom curves left (tapers)
-    path.quadraticBezierTo(
-      cx, width + 1,
-      cx * 0.05, width
-    );
-    
-    // Left side curves up (mirror of right)
-    path.quadraticBezierTo(
-      cx - width * 0.12, width - 2,
-      cx - width * 0.18, length * 0.5
-    );
-    
-    // Left top curves to center
-    path.quadraticBezierTo(
-      cx - width * 0.15, length * 0.2,
-      cx, 1
-    );
-    
+    // Symmetric outline from PauldronTemplate.svg (left half mirrored for right)
+    // Left half: bottom → left side → left shoulder → neck channel center
+    path.moveTo(w * 0.3939, h * 0.9942);
+    path.cubicBezierTo(w * 0.3154, h * 0.9831, w * 0.2444, h * 0.9591, w * 0.1850, h * 0.9235);
+    path.cubicBezierTo(w * 0.1526, h * 0.9041, w * 0.1046, h * 0.8605, w * 0.0958, h * 0.8424);
+    path.cubicBezierTo(w * 0.0863, h * 0.8230, w * 0.0884, h * 0.8101, w * 0.1096, h * 0.7582);
+    path.cubicBezierTo(w * 0.1426, h * 0.6769, w * 0.1547, h * 0.6204, w * 0.1546, h * 0.5471);
+    path.cubicBezierTo(w * 0.1544, h * 0.4604, w * 0.1446, h * 0.4359, w * 0.0871, h * 0.3802);
+    path.cubicBezierTo(w * 0.0663, h * 0.3600, w * 0.0465, h * 0.3375, w * 0.0405, h * 0.3271);
+    path.cubicBezierTo(w * 0.0000, h * 0.2580, w * 0.0005, h * 0.1678, w * 0.0417, h * 0.1038);
+    path.cubicBezierTo(w * 0.0691, h * 0.0612, w * 0.1157, h * 0.0281, w * 0.1744, h * 0.0096);
+    path.cubicBezierTo(w * 0.2041, h * 0.0003, w * 0.2067, h * 0.0000, w * 0.2603, h * 0.0001);
+    path.cubicBezierTo(w * 0.3258, h * 0.0003, w * 0.3497, h * 0.0051, w * 0.4025, h * 0.0285);
+    path.cubicBezierTo(w * 0.4427, h * 0.0462, w * 0.4674, h * 0.0662, w * 0.4805, h * 0.0916);
+    path.cubicBezierTo(w * 0.4890, h * 0.1081, w * 0.4895, h * 0.1114, w * 0.4893, h * 0.1515);
+    path.cubicBezierTo(w * 0.4891, h * 0.1748, w * 0.4887, h * 0.2494, w * 0.4884, h * 0.3172);
+    path.lineTo(w * 0.4879, h * 0.4405);
+    path.lineTo(w * 0.4726, h * 0.4472);
+    path.cubicBezierTo(w * 0.4421, h * 0.4605, w * 0.4295, h * 0.4936, w * 0.4444, h * 0.5213);
+    // Channel bottom U-turn (symmetric curve dipping below channel)
+    path.cubicBezierTo(w * 0.4662, h * 0.5623, w * 0.5338, h * 0.5623, w * 0.5556, h * 0.5213);
+    // Right half: mirrored left (channel bottom → right side → bottom)
+    path.cubicBezierTo(w * 0.5705, h * 0.4936, w * 0.5579, h * 0.4605, w * 0.5274, h * 0.4472);
+    path.lineTo(w * 0.5121, h * 0.4405);
+    path.lineTo(w * 0.5116, h * 0.3172);
+    path.cubicBezierTo(w * 0.5113, h * 0.2494, w * 0.5109, h * 0.1748, w * 0.5107, h * 0.1515);
+    path.cubicBezierTo(w * 0.5105, h * 0.1114, w * 0.5110, h * 0.1081, w * 0.5195, h * 0.0916);
+    path.cubicBezierTo(w * 0.5326, h * 0.0662, w * 0.5573, h * 0.0462, w * 0.5975, h * 0.0285);
+    path.cubicBezierTo(w * 0.6503, h * 0.0051, w * 0.6742, h * 0.0003, w * 0.7397, h * 0.0001);
+    path.cubicBezierTo(w * 0.7933, h * 0.0000, w * 0.7959, h * 0.0003, w * 0.8256, h * 0.0096);
+    path.cubicBezierTo(w * 0.8843, h * 0.0281, w * 0.9309, h * 0.0612, w * 0.9583, h * 0.1038);
+    path.cubicBezierTo(w * 0.9995, h * 0.1678, w * 1.0000, h * 0.2580, w * 0.9595, h * 0.3271);
+    path.cubicBezierTo(w * 0.9535, h * 0.3375, w * 0.9337, h * 0.3600, w * 0.9129, h * 0.3802);
+    path.cubicBezierTo(w * 0.8554, h * 0.4359, w * 0.8456, h * 0.4604, w * 0.8454, h * 0.5471);
+    path.cubicBezierTo(w * 0.8453, h * 0.6204, w * 0.8574, h * 0.6769, w * 0.8904, h * 0.7582);
+    path.cubicBezierTo(w * 0.9116, h * 0.8101, w * 0.9137, h * 0.8230, w * 0.9042, h * 0.8424);
+    path.cubicBezierTo(w * 0.8954, h * 0.8605, w * 0.8474, h * 0.9041, w * 0.8150, h * 0.9235);
+    path.cubicBezierTo(w * 0.7556, h * 0.9591, w * 0.6846, h * 0.9831, w * 0.6061, h * 0.9942);
+    // Bottom closing curve (symmetric arc through y≈1.0)
+    path.cubicBezierTo(w * 0.5354, h * 1.0000, w * 0.4646, h * 1.0000, w * 0.3939, h * 0.9942);
     path.closePath();
     return path.toString();
   }
 
   generateCutPaths(params: TemplateParams): string[] {
-    const { width, holeRadius, slitWidth, enableSlit } = params;
-    const mainPath = this.generateCutPath(params);
-    const paths = [mainPath];
-    const cx = width / 2;
-    
-    // Two neck attachment holes
-    const leftHoleX = cx - 3.5;
-    const rightHoleX = cx + 3.5;
-    paths.push(generateAttachmentHole(leftHoleX, 3, holeRadius, slitWidth, 8, enableSlit));
-    paths.push(generateAttachmentHole(rightHoleX, 3, holeRadius, slitWidth, 8, enableSlit));
-    
+    const { width, length } = params;
+    const paths = [this.generateCutPath(params)];
+    // Symmetric head pin holes (averaged from SVG template)
+    const holeR = width * 0.1070;
+    const holeCx = width * 0.2482; // distance from center to each hole
+    const holeCy = length * 0.2680;
+    const hole1 = new SVGPath();
+    hole1.moveTo(width - holeCx + holeR, holeCy);
+    hole1.arcTo(holeR, holeR, 0, 1, 1, width - holeCx - holeR, holeCy);
+    hole1.arcTo(holeR, holeR, 0, 1, 1, width - holeCx + holeR, holeCy);
+    hole1.closePath();
+    paths.push(hole1.toString());
+    const hole2 = new SVGPath();
+    hole2.moveTo(holeCx + holeR, holeCy);
+    hole2.arcTo(holeR, holeR, 0, 1, 1, holeCx - holeR, holeCy);
+    hole2.arcTo(holeR, holeR, 0, 1, 1, holeCx + holeR, holeCy);
+    hole2.closePath();
+    paths.push(hole2.toString());
     return paths;
   }
 
-  generateScorePaths(params: TemplateParams): string[] {
+  generateScorePaths(_params: TemplateParams): string[] {
     return [];
   }
 
-  generateEngravePaths(params: TemplateParams): string[] {
+  generateEngravePaths(_params: TemplateParams): string[] {
     return [];
   }
 }
@@ -861,7 +771,8 @@ function drawStyledEdge(
   x0: number, y0: number, x1: number, y1: number,
   style: string, depth: number, count: number,
   outwardX: number, outwardY: number,
-  safeInset: number
+  safeInset: number,
+  seed: number = 0
 ): void {
   if (style === 'none' || style === 'straight') {
     path.lineTo(x1, y1);
@@ -946,6 +857,64 @@ function drawStyledEdge(
       }
       break;
     }
+    case 'torn': {
+      // Ripped/torn edge: organic curvy tears with seeded noise + endpoint fraying.
+      // Scramble seed with golden ratio hash for better variance between adjacent seeds
+      const scrambled = seed != null ? ((seed * 2654435761) >>> 0) : Math.round(x0 * 100 + y0 * 37 + count * 7);
+      const rng = new SeededRNG(scrambled);
+      // Dense sub-segments for detailed tears
+      const tearSegs = count * 4;
+      const tearSegW = safeLen / tearSegs;
+
+      // Generate tear points with depth and lateral variance
+      const points: Array<{ x: number; y: number }> = [];
+      for (let i = 0; i <= tearSegs; i++) {
+        const t = i / tearSegs;
+        const baseX = sx0 + ux * (t * safeLen);
+        const baseY = sy0 + uy * (t * safeLen);
+
+        if (i === 0 || i === tearSegs) {
+          points.push({ x: baseX, y: baseY });
+          continue;
+        }
+
+        const r1 = rng.nextRange(0, 1);
+        const r2 = rng.nextRange(0, 1);
+        // Deep gashes (~25%) vs shallow erosion; deeper tears cluster in the middle
+        const midBias = Math.sin(t * Math.PI); // peaks at center, fades at edges
+        const isDeepTear = r1 < 0.25;
+        const tearDepth = isDeepTear
+          ? depth * (0.6 + r2 * 0.4) * (0.5 + midBias * 0.5)
+          : depth * r2 * 0.35 * (0.3 + midBias * 0.7);
+        // Mostly outward, occasional inward bites
+        const dir = rng.nextRange(0, 1) < 0.7 ? 1 : -0.25;
+        // Lateral jitter for organic feel
+        const lateralJitter = rng.nextRange(-0.4, 0.4) * tearSegW;
+
+        points.push({
+          x: baseX + ux * lateralJitter + outwardX * tearDepth * dir,
+          y: baseY + uy * lateralJitter + outwardY * tearDepth * dir,
+        });
+      }
+
+      // Draw with cubic beziers for smooth, organic curves
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i];
+        const p1 = points[i + 1];
+        // Randomized control point offsets for natural curves
+        const cpOff1 = rng.nextRange(0.2, 0.5);
+        const cpOff2 = rng.nextRange(0.5, 0.8);
+        const cpPerp1 = rng.nextRange(-0.3, 0.3) * depth;
+        const cpPerp2 = rng.nextRange(-0.3, 0.3) * depth;
+        const cp1x = p0.x + (p1.x - p0.x) * cpOff1 + outwardX * cpPerp1;
+        const cp1y = p0.y + (p1.y - p0.y) * cpOff1 + outwardY * cpPerp1;
+        const cp2x = p0.x + (p1.x - p0.x) * cpOff2 + outwardX * cpPerp2;
+        const cp2y = p0.y + (p1.y - p0.y) * cpOff2 + outwardY * cpPerp2;
+        path.cubicBezierTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
+      }
+
+      break;
+    }
     default:
       path.lineTo(sx1, sy1);
   }
@@ -972,9 +941,10 @@ function buildSailCutPath(
   corners: Array<{ x: number; y: number }>,
   r: number,
   edgeStyles: string[],
-  depth: number,
+  edgeDepths: number[],
   count: number,
-  safeInset: number
+  safeInset: number,
+  tornSeed: number = 42
 ): string {
   const n = corners.length;
   const path = new SVGPath();
@@ -1034,7 +1004,7 @@ function buildSailCutPath(
     drawStyledEdge(
       path, departures[i].x, departures[i].y,
       arrivals[nextIdx].x, arrivals[nextIdx].y,
-      edgeStyles[i], depth, count, outX, outY, safeInset
+      edgeStyles[i], edgeDepths[i] ?? 3, count, outX, outY, safeInset, tornSeed + i
     );
 
     // Arc at next corner connecting arrival to departure (centered at corner)
@@ -1118,9 +1088,16 @@ export class SailSquare extends Template {
         (params.sailBottomStyle as string) || 'none',
         (params.sailLeftStyle as string) || 'none',
       ];
-      const depth = (params.sailEdgeDepth as number) || 3;
+      const globalDepth = (params.sailEdgeDepth as number) || 3;
+      const edgeDepths = [
+        (params.sailTopDepth as number) || globalDepth,
+        (params.sailRightDepth as number) || globalDepth,
+        (params.sailBottomDepth as number) || globalDepth,
+        (params.sailLeftDepth as number) || globalDepth,
+      ];
       const count = (params.sailEdgeCount as number) || 6;
-      return buildSailCutPath(grommets, margin, edgeStyles, depth, count, 2);
+      const tornSeed = (params.sailTornSeed as number) || 42;
+      return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed);
     }
 
     // Outline rectangle: always gap mm outside every grommet hole edge
@@ -1130,19 +1107,24 @@ export class SailSquare extends Template {
     const bottomStyle = (params.sailBottomStyle as string) || 'none';
     const leftStyle = (params.sailLeftStyle as string) || 'none';
     const rightStyle = (params.sailRightStyle as string) || 'none';
-    const depth = (params.sailEdgeDepth as number) || 3;
+    const globalDepth = (params.sailEdgeDepth as number) || 3;
+    const topDepth = (params.sailTopDepth as number) || globalDepth;
+    const bottomDepth = (params.sailBottomDepth as number) || globalDepth;
+    const leftDepth = (params.sailLeftDepth as number) || globalDepth;
+    const rightDepth = (params.sailRightDepth as number) || globalDepth;
     const count = (params.sailEdgeCount as number) || 6;
-    const safeInset = 6;
+    const tornSeed = (params.sailTornSeed as number) || 42;
+    const safeInset = 0;
 
     const path = new SVGPath();
     path.moveTo(left + r, top);
-    drawStyledEdge(path, left + r, top, right - r, top, topStyle, depth, count, 0, -1, safeInset);
+    drawStyledEdge(path, left + r, top, right - r, top, topStyle, topDepth, count, 0, -1, safeInset, tornSeed);
     path.arcTo(r, r, 0, 0, 1, right, top + r);
-    drawStyledEdge(path, right, top + r, right, bottom - r, rightStyle, depth, count, 1, 0, safeInset);
+    drawStyledEdge(path, right, top + r, right, bottom - r, rightStyle, rightDepth, count, 1, 0, safeInset, tornSeed + 1);
     path.arcTo(r, r, 0, 0, 1, right - r, bottom);
-    drawStyledEdge(path, right - r, bottom, left + r, bottom, bottomStyle, depth, count, 0, 1, safeInset);
+    drawStyledEdge(path, right - r, bottom, left + r, bottom, bottomStyle, bottomDepth, count, 0, 1, safeInset, tornSeed + 2);
     path.arcTo(r, r, 0, 0, 1, left, bottom - r);
-    drawStyledEdge(path, left, bottom - r, left, top + r, leftStyle, depth, count, -1, 0, safeInset);
+    drawStyledEdge(path, left, bottom - r, left, top + r, leftStyle, leftDepth, count, -1, 0, safeInset, tornSeed + 3);
     path.arcTo(r, r, 0, 0, 1, left + r, top);
     path.closePath();
     return path.toString();
@@ -1210,24 +1192,33 @@ export class SailTriangular extends Template {
         (params.sailBottomStyle as string) || 'none',
         (params.sailLeftStyle as string) || 'none',
       ];
-      const depth = (params.sailEdgeDepth as number) || 3;
+      const globalDepth = (params.sailEdgeDepth as number) || 3;
+      const edgeDepths = [
+        globalDepth,
+        (params.sailBottomDepth as number) || globalDepth,
+        (params.sailLeftDepth as number) || globalDepth,
+      ];
       const count = (params.sailEdgeCount as number) || 6;
-      return buildSailCutPath(grommets, margin, edgeStyles, depth, count, 2);
+      const tornSeed = (params.sailTornSeed as number) || 42;
+      return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed);
     }
 
     // Outline triangle: always gap mm outside every grommet hole edge
     const { left, top, right, bottom } = sailOutlineBounds(grommets, holeR, gap, w, h);
     const bottomStyle = (params.sailBottomStyle as string) || 'none';
     const leftStyle = (params.sailLeftStyle as string) || 'none';
-    const depth = (params.sailEdgeDepth as number) || 3;
+    const globalDepth = (params.sailEdgeDepth as number) || 3;
+    const bottomDepth = (params.sailBottomDepth as number) || globalDepth;
+    const leftDepth = (params.sailLeftDepth as number) || globalDepth;
     const count = (params.sailEdgeCount as number) || 6;
-    const safeInset = 6;
+    const tornSeed = (params.sailTornSeed as number) || 42;
+    const safeInset = 0;
 
     const path = new SVGPath();
     path.moveTo(left, top);
     path.lineTo(right, bottom);
-    drawStyledEdge(path, right, bottom, left, bottom, bottomStyle, depth, count, 0, 1, safeInset);
-    drawStyledEdge(path, left, bottom, left, top, leftStyle, depth, count, -1, 0, safeInset);
+    drawStyledEdge(path, right, bottom, left, bottom, bottomStyle, bottomDepth, count, 0, 1, safeInset, tornSeed + 2);
+    drawStyledEdge(path, left, bottom, left, top, leftStyle, leftDepth, count, -1, 0, safeInset, tornSeed + 3);
     path.closePath();
     return path.toString();
   }
@@ -1272,17 +1263,20 @@ export class SailPolygon extends Template {
     const w = params.width;
     const h = params.length;
     const sides = Math.max(5, Math.min(12, (params.sailSides as number) || 6));
-    const inset = 4; // mm inset from bounding box
+    const inset = (params.sailPolygonInset as number) ?? 4;
     const cx = w / 2;
     const cy = h / 2;
     const rx = w / 2 - inset;
     const ry = h / 2 - inset;
-    const grommets: Array<{ x: number; y: number }> = [];
+    const grommets: Array<{ x: number; y: number; enabled: boolean }> = [];
+    const mask = (params.sailPolygonGrommetMask as string) || '';
     for (let i = 0; i < sides; i++) {
       const angle = -Math.PI / 2 + (2 * Math.PI * i) / sides;
+      const enabled = mask.length >= sides ? mask[i] !== '0' : true;
       grommets.push({
         x: cx + rx * Math.cos(angle),
         y: cy + ry * Math.sin(angle),
+        enabled,
       });
     }
     return grommets;
@@ -1295,15 +1289,19 @@ export class SailPolygon extends Template {
     const margin = holeR + gap;
     const sides = grommets.length;
     const edgeStyles: string[] = new Array(sides).fill('none');
-    const depth = (params.sailEdgeDepth as number) || 3;
+    const globalDepth = (params.sailEdgeDepth as number) || 3;
+    const edgeDepths: number[] = new Array(sides).fill(globalDepth);
     const count = (params.sailEdgeCount as number) || 6;
-    return buildSailCutPath(grommets, margin, edgeStyles, depth, count, 2);
+    const tornSeed = (params.sailTornSeed as number) || 42;
+    return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed);
   }
 
   generateCutPaths(params: TemplateParams): string[] {
     const r = getSailHoleRadius(params);
     const paths = [this.generateCutPath(params)];
-    for (const g of this.getGrommets(params)) paths.push(circlePath(g.x, g.y, r));
+    for (const g of this.getGrommets(params)) {
+      if (g.enabled) paths.push(circlePath(g.x, g.y, r));
+    }
     return paths;
   }
 
@@ -1320,7 +1318,7 @@ export class SailPolygon extends Template {
     inner.closePath();
     scores.push(inner.toString());
 
-    scores.push(...buildGrommetCrosshairs(grommets, holeR));
+    scores.push(...buildGrommetCrosshairs(grommets.filter(g => g.enabled), holeR));
     return scores;
   }
 

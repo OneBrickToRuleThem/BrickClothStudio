@@ -2,16 +2,14 @@
  * Type definitions for the Brick Cloth Studio application
  */
 
-export type ElementType = 'cape' | 'cloak' | 'flag' | 'banner' | 'wings' | 'kama' | 'pauldron' | 'sail';
+export type ElementType = 'cape' | 'flag' | 'wings' | 'kama' | 'pauldron' | 'sail';
 export type TemplateVariant = 
   | 'standard'
   | 'short'
   | 'long'
   | 'tattered'
-  | 'hooded'
-  | 'swallowtail'
-  | 'small-wings'
-  | 'large-wings'
+
+
   | 'small-flag'
   | 'large-flag'
   | 'wrap-skirt'

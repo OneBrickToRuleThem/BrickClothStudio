@@ -3,17 +3,24 @@
  * Responsive layout: desktop 3-column, mobile stacked with tab navigation
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ParameterPanel from './ParameterPanel';
 import PreviewCanvas from './PreviewCanvas';
 import ExportPanel from './ExportPanel';
 import ElementSelector from './ElementSelector';
+import { useEditorStore } from '../store/editor';
 
 type MobileTab = 'elements' | 'preview' | 'settings';
 
 export default function Editor() {
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>('preview');
+  const elementType = useEditorStore((s) => s.elementType);
+
+  // Switch back to parameters panel when element type changes
+  useEffect(() => {
+    setShowExportPanel(false);
+  }, [elementType]);
 
   return (
     <div className="flex h-screen flex-col bg-gray-100">

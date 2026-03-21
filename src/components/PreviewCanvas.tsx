@@ -28,9 +28,12 @@ export default function PreviewCanvas() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showMinifig, setShowMinifig] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
+  const [showXYGrid, setShowXYGrid] = useState(true);
+  const [showFill, setShowFill] = useState(false);
+  const [fillColor, setFillColor] = useState('#d4e6f1');
   const [centered, setCentered] = useState(false);
   const [draggingGrommet, setDraggingGrommet] = useState<string | null>(null);
-  const { elementType, templateVariant, parameters, setParameter, decorations, selectedDecorationId, updateDecoration, selectDecoration } = useEditorStore();
+  const { elementType, templateVariant, parameters, setParameter, decorations, selectedDecorationId, updateDecoration, selectDecoration, removeDecoration } = useEditorStore();
 
   // Generate pattern based on current parameters
   const pattern = useMemo(() => {
@@ -76,6 +79,21 @@ export default function PreviewCanvas() {
       </g>
     </svg>`;
   }, [pattern]);
+
+  // Delete selected decoration on Delete/Backspace key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedDecorationId) {
+        // Don't delete if user is typing in an input/textarea
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+        removeDecoration(selectedDecorationId);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedDecorationId, removeDecoration]);
 
   // Center the pattern in the canvas on first render and when element type changes
   const prevElementRef = useRef<string>('');
@@ -353,6 +371,7 @@ export default function PreviewCanvas() {
       >
 
         {/* X/Y Axis Plane */}
+        {showXYGrid && (
         <svg
           style={{
             position: 'absolute',
@@ -413,6 +432,7 @@ export default function PreviewCanvas() {
             ))}
           </g>
         </svg>
+        )}
 
         {/* Minifigure silhouette — lower-left spatial reference */}
         {showMinifig && (
@@ -427,6 +447,29 @@ export default function PreviewCanvas() {
             }}
           />
         )}
+        {/* Pattern fill overlay */}
+        {showFill && pattern.cutPaths.length > 0 && (
+          <svg
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              overflow: 'visible',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}
+            viewBox={`0 0 ${(shiftX + bb.width + 20).toFixed(2)} ${(shiftY + bb.height + 20).toFixed(2)}`}
+            width={`${(shiftX + bb.width + 20).toFixed(2)}mm`}
+            height={`${(shiftY + bb.height + 20).toFixed(2)}mm`}
+          >
+            <g transform={`translate(${originOffsetMM}, ${originOffsetMMY})`}>
+              {pattern.cutPaths.map((d, i) => (
+                <path key={i} d={d} fill={i === 0 ? fillColor : '#ffffff'} stroke="none" fillRule="evenodd" opacity={0.4} />
+              ))}
+            </g>
+          </svg>
+        )}
+
         {/* Pattern SVG — rendered above grid and axes */}
         <div
           dangerouslySetInnerHTML={{ __html: svgString }}
@@ -448,7 +491,7 @@ export default function PreviewCanvas() {
                 width: `${deco.width * deco.scale * CSS_MM_TO_PX}px`,
                 height: `${deco.height * deco.scale * CSS_MM_TO_PX}px`,
                 transform: deco.rotation ? `rotate(${deco.rotation}deg)` : undefined,
-                transformOrigin: '0 0',
+                transformOrigin: 'center center',
                 cursor: deco.locked ? 'default' : 'move',
                 pointerEvents: 'all',
                 opacity: deco.decorationType === 'engraving' ? 0.7 : 1,
@@ -566,12 +609,24 @@ export default function PreviewCanvas() {
           <input type="checkbox" checked={showMinifig} onChange={(e) => setShowMinifig(e.target.checked)} className="w-3 h-3" />
           <span className="text-gray-600">Minifig reference</span>
         </label>
+        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
+          <input type="checkbox" checked={showXYGrid} onChange={(e) => setShowXYGrid(e.target.checked)} className="w-3 h-3" />
+          <span className="text-gray-600">XY axis</span>
+        </label>
       </div>
 
       {/* Pattern info */}
       <div className="absolute top-4 left-4 bg-white px-3 py-2 rounded shadow text-xs border-l-4 border-green-500">
         <div className="font-bold text-gray-900">{pattern.name}</div>
         <div className="text-gray-500">Scroll to zoom · drag to pan</div>
+        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
+          <input type="checkbox" checked={showFill} onChange={(e) => setShowFill(e.target.checked)} className="w-3 h-3" />
+          <span className="text-gray-600">Fill shape</span>
+          {showFill && (
+            <input type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)}
+              className="w-4 h-4 rounded border border-gray-300 cursor-pointer ml-1" />
+          )}
+        </label>
       </div>
     </div>
   );

@@ -107,19 +107,19 @@ describe('Pattern Generation', () => {
       slitWidth: 1.2,
       enableSlit: false,
     });
-    expect(pattern.name).toBe('Flag');
+    expect(pattern.name).toBe('Small Flag');
   });
 
   it('should generate wings pattern', () => {
-    const pattern = generatePattern('wings', 'small-wings', {
-      length: 60,
-      width: 100,
+    const pattern = generatePattern('wings', 'standard', {
+      length: 25,
+      width: 45,
       holeRadius: 2.5,
       clearance: 0.2,
       slitWidth: 1.2,
       enableSlit: false,
     });
-    expect(pattern.name).toBe('Wings');
+    expect(pattern.name).toBe('Wing');
   });
 });
 

@@ -341,6 +341,14 @@ function drawStyledLeftSide(
       const phase = (st * count) % 1;
       // Sharp triangular thorns
       offset = phase < 0.15 ? -depth * (phase / 0.15) : phase < 0.3 ? -depth * (1 - (phase - 0.15) / 0.15) : 0;
+    } else if (style === 'torn') {
+      const rng = new SeededRNG(seed + i * 7 + 31);
+      const r1 = rng.nextRange(0, 1);
+      const r2 = rng.nextRange(0, 1);
+      // Deep gashes mixed with shallow jags
+      offset = r1 < 0.2 ? -depth * (0.7 + r2 * 0.3) : -depth * r2 * 0.4;
+      // Slight inward variance for realism
+      if (rng.nextRange(0, 1) > 0.65) offset *= -0.3;
     }
 
     path.lineTo(adjustedX + offset, y);
@@ -397,6 +405,12 @@ function drawStyledRightSide(
     } else if (style === 'thorned') {
       const phase = (st * count) % 1;
       offset = phase < 0.15 ? depth * (phase / 0.15) : phase < 0.3 ? depth * (1 - (phase - 0.15) / 0.15) : 0;
+    } else if (style === 'torn') {
+      const rng = new SeededRNG(seed + (segments - i) * 7 + 31);
+      const r1 = rng.nextRange(0, 1);
+      const r2 = rng.nextRange(0, 1);
+      offset = r1 < 0.2 ? depth * (0.7 + r2 * 0.3) : depth * r2 * 0.4;
+      if (rng.nextRange(0, 1) > 0.65) offset *= -0.3;
     }
 
     path.lineTo(adjustedX + offset, y);
@@ -1083,13 +1097,15 @@ export class CapeStandard extends Template {
       ));
     }
     if (params.starHoles) {
-      paths.push(...generateWornHoles(
+      const holePaths = generateWornHoles(
         width, length,
         (params.starHoleCount as number) || 5,
         (params.starHoleSize as number) || 1.5,
         (params.seed as number) || 12345,
         params
-      ));
+      );
+      // Merge worn holes as subpaths of the main outline for boolean subtraction
+      paths[0] = paths[0] + ' ' + holePaths.join(' ');
     }
     if (params.armSlits) {
       paths.push(...generateArmSlits(

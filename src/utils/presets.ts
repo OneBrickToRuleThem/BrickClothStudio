@@ -122,7 +122,6 @@ export async function getBuiltInPreset(name: string): Promise<DesignPreset | nul
  */
 export const BUILTIN_PRESETS = [
   'hero-cape',
-  'tattered-cloak',
   'mini-cape',
   'battle-flag',
   'dragon-wings',

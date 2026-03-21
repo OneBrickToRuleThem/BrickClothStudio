@@ -109,11 +109,20 @@ const defaultParameters = {
   sailRightStyle: 'none' as string,
   sailEdgeDepth: 3,
   sailEdgeCount: 6,
+  // Per-edge depth overrides (0 = use global sailEdgeDepth)
+  sailTopDepth: 0,
+  sailBottomDepth: 0,
+  sailLeftDepth: 0,
+  sailRightDepth: 0,
+  // Torn edge seed (different seeds produce different tear patterns)
+  sailTornSeed: 42,
   // Sail options
   sailSymmetry: false as boolean,
-  sailLockCorners: false as boolean,
+  sailLockCorners: true as boolean,
   sailGrommetMargin: 3,
   sailSides: 6,  // polygon sail: number of sides (5-12)
+  sailPolygonInset: 4, // polygon grommet inset from bounding box edge (mm)
+  sailPolygonGrommetMask: '', // per-vertex enable mask, e.g. '111111' — empty = all enabled
   sailStudWidth: 0,  // LEGO stud-based sizing (0 = manual mm)
   sailStudLength: 0,
   // Sail grommet positions (inset from corners in mm)
@@ -132,11 +141,10 @@ const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number
   'cape': { width: 40, length: 39 },
   'flag:small-flag': { width: 22, length: 60 },
   'flag:large-flag': { width: 40, length: 64 },
-  'cloak': { width: 40, length: 60 },
-  'banner': { width: 40, length: 50 },
-  'wings': { width: 60, length: 50 },
-  'kama': { width: 40, length: 20 },
-  'pauldron': { width: 40, length: 30 },
+
+  'wings': { width: 45, length: 25 },
+  'kama': { width: 47, length: 19 },
+  'pauldron': { width: 23, length: 26 },
   'sail': { width: 60, length: 60 },
   'sail:polygon-sail': { width: 60, length: 60 },
 };
