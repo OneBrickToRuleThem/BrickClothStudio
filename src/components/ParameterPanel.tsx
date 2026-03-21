@@ -654,24 +654,33 @@ export default function ParameterPanel() {
         </section>
         )}
 
-        {/* --- Pauldron Rounding --- */}
+        {/* --- Pauldron Transformations --- */}
         {elementType === 'pauldron' && (
         <section className="panel-section border-t pt-4">
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={parameters.pauldronRounding as boolean || false}
-                onChange={(e) => setParameter('pauldronRounding', e.target.checked)} className="w-4 h-4" />
-              <span className="font-medium">Rounding</span>
-            </label>
-            {parameters.pauldronRounding && (
-              <div className="ml-6">
-                <ParameterSlider label="Amount" name="pauldronRoundingAmount"
-                  min={0.1} max={1.0} step={0.05}
-                  value={(parameters.pauldronRoundingAmount as number) || 0.5}
-                  onChange={(v) => setParameter('pauldronRoundingAmount', v)} />
-              </div>
-            )}
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('transformations')}>
+            <h3 className="panel-section-title">Transformations</h3>
+            <span className="text-gray-400 text-xs">{openSections.transformations ? '▾' : '▸'}</span>
+          </button>
+          {openSections.transformations && (
+          <div className="space-y-3 mt-2">
+            <div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={parameters.pauldronRounding as boolean || false}
+                  onChange={(e) => setParameter('pauldronRounding', e.target.checked)} className="w-4 h-4" />
+                <span>Rounding</span>
+              </label>
+              <p className="text-[10px] text-gray-500 ml-6">Curve the bottom rim into a U-shape</p>
+              {parameters.pauldronRounding && (
+                <div className="ml-6 mt-1">
+                  <ParameterSlider label="Amount" name="pauldronRoundingAmount"
+                    min={0.1} max={1.0} step={0.05}
+                    value={(parameters.pauldronRoundingAmount as number) || 0.5}
+                    onChange={(v) => setParameter('pauldronRoundingAmount', v)} />
+                </div>
+              )}
+            </div>
           </div>
+          )}
         </section>
         )}
 

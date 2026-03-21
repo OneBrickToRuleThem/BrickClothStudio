@@ -705,8 +705,8 @@ export class Kama extends Template {
     // LEFT BOTTOM HEM: from center slit down to bottom, across to left side
     if (edge.style !== 'none') {
       const botY = h * 0.997;
-      path.lineTo(w * 0.45962, botY);
-      drawStyledEdge(path, w * 0.45962, botY, w * 0.12, botY,
+      // Diagonal from slit corner to styled edge start avoids unstyled vertical gap
+      drawStyledEdge(path, w * 0.45962, h * 0.94777, w * 0.12, botY,
         edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
       path.lineTo(w * 0.10213, h * 0.91690);
     } else {
@@ -754,9 +754,9 @@ export class Kama extends Template {
     if (edge.style !== 'none') {
       const botY = h * 0.997;
       path.lineTo(w * 0.88, botY);
-      drawStyledEdge(path, w * 0.88, botY, w * 0.54038, botY,
+      // Diagonal from outer edge to slit corner avoids unstyled vertical gap
+      drawStyledEdge(path, w * 0.88, botY, w * 0.54038, h * 0.94777,
         edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed + 1);
-      path.lineTo(w * 0.54038, h * 0.94777);
     } else {
       // RIGHT SIDE side-to-tab curve (included in styled path via lineTo above)
       path.cubicBezierTo(w * 0.89299, h * 0.93764, w * 0.82026, h * 0.99171, w * 0.79256, h * 0.99519);
@@ -798,14 +798,13 @@ export class Pauldron extends Template {
     const path = new SVGPath();
     const edge = getEdgeParams(params, 'pauldron');
 
-    // Start point: if rounding is active, start at expanded Y to match rim endpoint
+    // Start point: left edge at rim height (arc starts/ends at rimTopY)
     const rounding = params.pauldronRounding as boolean;
     const roundingAmt = (params.pauldronRoundingAmount as number) || 0.5;
     const rimTopY = h * 0.7582;
     const rimHalfW = (w * 0.8904 - w * 0.1096) / 2;
     const rimDepth = rounding ? roundingAmt * rimHalfW : 0;
-    const startY = (rounding && edge.style !== 'none') ? rimTopY + rimDepth : rimTopY;
-    path.moveTo(w * 0.1096, startY);
+    path.moveTo(w * 0.1096, rimTopY);
     // Left body going UP through shoulder
     path.cubicBezierTo(w * 0.1426, h * 0.6769, w * 0.1547, h * 0.6204, w * 0.1546, h * 0.5471);
     path.cubicBezierTo(w * 0.1544, h * 0.4604, w * 0.1446, h * 0.4359, w * 0.0871, h * 0.3802);
@@ -840,9 +839,27 @@ export class Pauldron extends Template {
     // Lower semicircle rim: from right transition (0.8904, 0.7582) to left transition (0.1096, 0.7582)
     if (edge.style !== 'none') {
       if (rounding) {
-        const rimY = rimTopY + rimDepth;
-        drawStyledEdge(path, w * 0.8904, rimY, w * 0.1096, rimY,
-          edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+        // Styled edge following the rounded arc — sample arc points and chain styled segments
+        const cx = w * 0.5;
+        const leftX = w * 0.1096;
+        const rightX = w * 0.8904;
+        const bottomY = rimTopY + rimDepth;
+        const segs = Math.max(3, edge.count);
+        const segCount = Math.max(1, Math.round(edge.count / segs));
+        // Sample the elliptical arc: parametric t from 0 (right) to PI (left)
+        const pts: { x: number; y: number }[] = [];
+        for (let i = 0; i <= segs; i++) {
+          const t = (i / segs) * Math.PI;
+          const px = cx + rimHalfW * Math.cos(t);
+          const py = rimTopY + rimDepth * Math.sin(t);
+          pts.push({ x: px, y: py });
+        }
+        // Draw styled edges between consecutive arc sample points
+        const countPerSeg = Math.max(1, Math.round(edge.count / segs));
+        for (let i = 0; i < pts.length - 1; i++) {
+          drawStyledEdge(path, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y,
+            edge.style, edge.depth, countPerSeg, 0, 1, 0, edge.seed + i);
+        }
       } else {
         drawStyledEdge(path, w * 0.8904, rimTopY, w * 0.1096, rimTopY,
           edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
