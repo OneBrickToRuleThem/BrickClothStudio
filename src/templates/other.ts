@@ -10,9 +10,9 @@ import { SeededRNG } from '../utils/rng';
 
 /**
  * Banner-shaped flag base class.
- * Small and large flags have DISTINCT outlines traced from separate SVG templates:
- *   - SmallFlag_Correct.svg: single flame tongue, narrower body
- *   - LargeFlag.svg: three flame tongues, wider body
+ * Small and large flags have distinct outlines:
+ *   - Small: single flame tongue, narrower body
+ *   - Large: three flame tongues, wider body
  * Each variant stores its own body path data and reference bounds.
  * Coordinates are normalised to fractions of (w, h) so the shape scales.
  * Two pill-shaped clip holes near top for LEGO bar attachment.
@@ -34,7 +34,7 @@ interface FlagShapeData {
   holeY: number;  // both holes centre Y
 }
 
-// ── SmallFlag body (from SmallFlag_Correct.svg subpath 0) ──
+// ── SmallFlag body ──
 // 24 cubics + 1 lineTo, single flame tongue on right side
 const SMALL_FLAG: FlagShapeData = {
   refLeft: -20.079,
@@ -74,7 +74,7 @@ const SMALL_FLAG: FlagShapeData = {
   holeY: 4.819,     // centre Y of both holes
 };
 
-// ── LargeFlag body (from LargeFlag.svg subpath 0) ──
+// ── LargeFlag body ──
 // 29 cubics, three flame tongues
 const LARGE_FLAG: FlagShapeData = {
   refLeft: -92.002,
@@ -407,7 +407,6 @@ class BannerFlag extends Template {
 
 /**
  * Small Flag: single flame tongue, narrower body (~20×36mm)
- * Shape from SmallFlag_Correct.svg
  */
 export class FlagSmall extends BannerFlag {
   protected shape = SMALL_FLAG;
@@ -432,7 +431,6 @@ export class FlagSmall extends BannerFlag {
 
 /**
  * Large Flag: three flame tongues, wider body (~40×64mm)
- * Shape from LargeFlag.svg
  */
 export class FlagLarge extends BannerFlag {
   protected shape = LARGE_FLAG;
@@ -670,7 +668,7 @@ function getEdgeParams(params: TemplateParams, prefix: 'kama' | 'pauldron') {
 }
 
 /**
- * Kama: Minifig waist-wrap skirt traced from kamatemplate.svg (47×19mm default).
+ * Kama: Minifig waist-wrap skirt (47×19mm default).
  * Bilaterally symmetric outline (left half mirrored for right half).
  * Features: two outer waist tabs with rectangular protrusions, center front slit,
  * inner bridge sections, and four symmetric attachment holes.
@@ -683,7 +681,7 @@ export class Kama extends Template {
     const path = new SVGPath();
     const edge = getEdgeParams(params, 'kama');
 
-    // Symmetric outline from kamatemplate.svg (left half mirrored for right)
+    // Symmetric outline (left half mirrored for right)
     // Start at bottom-right of center slit
     path.moveTo(w * 0.54038, h * 0.94777);
     // Right slit wall (mirror of left, going up)
@@ -773,7 +771,7 @@ export class Kama extends Template {
 }
 
 /**
- * Pauldron: Shoulder armor traced from PauldronTemplate.svg (23×26mm default).
+ * Pauldron: Shoulder armor (23×26mm default).
  * Bilaterally symmetric outline (left half mirrored for right half).
  * Two symmetric head pin holes for minifig attachment.
  * Supports edge styles on the bottom rim arc.

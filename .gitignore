@@ -14,3 +14,6 @@ dist/
 .eslintcache
 .vitest.cache
 coverage/
+
+# Archived source template files (shapes embedded as path data)
+archive/

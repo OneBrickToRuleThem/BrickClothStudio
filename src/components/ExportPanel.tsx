@@ -66,17 +66,6 @@ export default function ExportPanel() {
         </p>
       </section>
 
-      {/* Single Export */}
-      <section className="panel-section">
-        <h3 className="panel-section-title">Single Pattern</h3>
-        <button onClick={handleExportSingle} className="btn btn-primary w-full text-sm mb-2">
-          ↓ Export SVG
-        </button>
-        <p className="text-xs text-gray-500">
-          Downloads {pattern.name} as a single SVG file for cutting
-        </p>
-      </section>
-
       {/* Multiple Copies / Sheet Layout */}
       <section className="panel-section border-t pt-4">
         <h3 className="panel-section-title">Sheet Export</h3>

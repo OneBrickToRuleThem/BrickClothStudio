@@ -69,11 +69,12 @@ export function exportSinglePatternSVG(
 `;
 
   // Cut layer (always included)
+  // Merge all cut paths into a single compound path so Cricut/silhouette
+  // machines interpret holes correctly via fill-rule="evenodd"
   if (includeLayers.cut && pattern.cutPaths.length > 0) {
     svg += `  <g id="cut" class="cut-layer">\n`;
-    for (const path of pattern.cutPaths) {
-      svg += `    <path d="${path}" class="cut-line" fill-rule="evenodd" />\n`;
-    }
+    const mergedCut = pattern.cutPaths.join(' ');
+    svg += `    <path d="${mergedCut}" class="cut-line" fill-rule="evenodd" />\n`;
     svg += `  </g>\n`;
   }
 
@@ -216,7 +217,8 @@ export function exportPrintSheetSVG(
     svg += `    <g transform="translate(${(PAD + shiftX).toFixed(2)}, ${(PAD + shiftY).toFixed(2)})">\n`;
 
     if (p.cutPaths.length > 0) {
-      for (const d of p.cutPaths) svg += `      <path d="${d}" class="cut-line" fill-rule="evenodd" />\n`;
+      const mergedCut = p.cutPaths.join(' ');
+      svg += `      <path d="${mergedCut}" class="cut-line" fill-rule="evenodd" />\n`;
     }
     if (p.scorePaths.length > 0) {
       for (const d of p.scorePaths) svg += `      <path d="${d}" class="score-line" />\n`;

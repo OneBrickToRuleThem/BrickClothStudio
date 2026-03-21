@@ -1472,7 +1472,7 @@ function FlagParameterPanel({ parameters, setParameter }: {
           <>
             <p>• Based on cloth banner shape</p>
             <p>• Two clip holes for bar attachment</p>
-            <p>• Bottom edge from bannertemplates.svg</p>
+            <p>• Bottom edge from banner template</p>
           </>
         )}
       </section>

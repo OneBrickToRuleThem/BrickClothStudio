@@ -67,8 +67,7 @@ export default function Editor() {
         <div className="w-64 flex-shrink-0 overflow-y-auto bg-white rounded-lg shadow">
           {!showExportPanel ? (
             <>
-              <ParameterPanel />
-              <div className="p-4 border-t border-gray-200">
+              <div className="p-4 border-b border-gray-200">
                 <button
                   onClick={() => setShowExportPanel(true)}
                   className="btn btn-primary w-full"
@@ -76,6 +75,7 @@ export default function Editor() {
                   Export Pattern
                 </button>
               </div>
+              <ParameterPanel />
             </>
           ) : (
             <>
@@ -111,8 +111,7 @@ export default function Editor() {
           <div className="flex-1 overflow-y-auto bg-white">
             {!showExportPanel ? (
               <>
-                <ParameterPanel />
-                <div className="p-4 border-t border-gray-200">
+                <div className="p-4 border-b border-gray-200">
                   <button
                     onClick={() => {
                       setShowExportPanel(true);
@@ -122,6 +121,7 @@ export default function Editor() {
                     Export Pattern
                   </button>
                 </div>
+                <ParameterPanel />
               </>
             ) : (
               <>
@@ -139,6 +139,16 @@ export default function Editor() {
           </div>
         )}
       </div>
+
+      {/* Footer */}
+      <footer className="flex-shrink-0 px-3 py-1 text-[10px] text-gray-400 flex items-center gap-3 bg-gray-50 border-t border-gray-200">
+        <span>Created by <a href="https://www.instagram.com/OneBrickToRuleThem" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 underline">OneBrickToRuleThem</a> (Jason Gianou)</span>
+        <span className="hidden sm:inline">·</span>
+        <a href="https://github.com/OneBrickToRuleThem/BrickClothStudio#readme" target="_blank" rel="noopener noreferrer" className="hidden sm:inline hover:text-gray-600 underline">README</a>
+        <span className="hidden sm:inline">·</span>
+        <a href="https://github.com/OneBrickToRuleThem/BrickClothStudio/issues" target="_blank" rel="noopener noreferrer" className="hidden sm:inline hover:text-gray-600 underline">Feedback</a>
+        <span className="ml-auto text-gray-300">Not affiliated with LEGO® Group. For personal use only.</span>
+      </footer>
     </div>
   );
 }
