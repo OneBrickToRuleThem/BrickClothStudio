@@ -60,7 +60,7 @@ export default function ParameterPanel() {
           </div>
           <div className="space-y-2">
             <ParameterSlider
-              label={elementType === 'flag' ? 'Height (mm)' : 'Length (mm)'}
+              label="Length (mm)"
               name="length"
               min={elementType === 'flag' ? 15 : 20}
               max={elementType === 'flag' ? 80 : 200}
@@ -93,11 +93,18 @@ export default function ParameterPanel() {
               <input type="checkbox" checked={lockAspect} onChange={(e) => setLockAspect(e.target.checked)} className="w-3 h-3" />
               <span className="text-xs text-gray-500">Lock aspect ratio</span>
             </label>
-            <div className="text-xs text-gray-400 pt-1 border-t border-gray-100 space-y-0.5">
-              <p>{(parameters.length as number).toFixed(1)} × {(parameters.width as number).toFixed(1)} mm</p>
-              <p>{((parameters.length as number) / LEGO_GRID_SIZE).toFixed(2)} × {((parameters.width as number) / LEGO_GRID_SIZE).toFixed(2)} studs</p>
-              <p>{((parameters.length as number) * LDU_PER_MM).toFixed(1)} × {((parameters.width as number) * LDU_PER_MM).toFixed(1)} LDU</p>
-            </div>
+            {(() => {
+              const pad = elementType === 'flag' ? 2 : 0; // flags have 1mm margin on each side
+              const actL = (parameters.length as number) - pad;
+              const actW = (parameters.width as number) - pad;
+              return (
+                <div className="text-xs text-gray-400 pt-1 border-t border-gray-100 space-y-0.5">
+                  <p>{actL.toFixed(1)} × {actW.toFixed(1)} mm{pad > 0 && <span className="text-gray-300"> (incl. {pad / 2}mm padding)</span>}</p>
+                  <p>{(actL / LEGO_GRID_SIZE).toFixed(2)} × {(actW / LEGO_GRID_SIZE).toFixed(2)} studs</p>
+                  <p>{(actL * LDU_PER_MM).toFixed(1)} × {(actW * LDU_PER_MM).toFixed(1)} LDU</p>
+                </div>
+              );
+            })()}
           </div>
         </section>
 
