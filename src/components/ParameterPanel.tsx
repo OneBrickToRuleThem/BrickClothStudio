@@ -116,6 +116,82 @@ export default function ParameterPanel() {
           <SailParameterPanel parameters={parameters} setParameter={setParameter} />
         )}
 
+        {/* --- Attachment Hole (all non-sail elements) --- */}
+        {elementType !== 'sail' && (
+        <section className="panel-section border-t pt-4">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('attachment')}>
+            <h3 className="panel-section-title">Attachment Hole</h3>
+            <span className="text-gray-400 text-xs">{openSections.attachment ? '▾' : '▸'}</span>
+          </button>
+          {openSections.attachment && (
+          <div className="mt-2 space-y-3">
+            {/* Hole Type Selector — cape only */}
+            {elementType === 'cape' && (
+            <div className="form-group">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hole Type</label>
+              <select
+                value={parameters.holeType as string || DEFAULT_HOLE_TYPE}
+                onChange={(e) => {
+                  const holeType = e.target.value as keyof typeof HOLE_STANDARDS;
+                  setParameter('holeType', holeType);
+                  setParameter('holeRadius', HOLE_STANDARDS[holeType].radius);
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                {Object.entries(HOLE_STANDARDS).map(([key, standard]) => (
+                  <option key={key} value={key} title={standard.description}>
+                    {standard.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {HOLE_STANDARDS[parameters.holeType as keyof typeof HOLE_STANDARDS || 'minifigure']?.description}
+              </p>
+            </div>
+            )}
+
+            {/* Custom hole shape override — all non-sail */}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={parameters.holeOverride as boolean || false}
+                onChange={(e) => setParameter('holeOverride', e.target.checked)} className="w-4 h-4" />
+              <span>Custom hole shape</span>
+            </label>
+            {parameters.holeOverride && (
+            <div className="ml-2 space-y-2">
+              <div>
+                <label className="text-xs font-medium text-gray-700">Shape</label>
+                <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                  value={(parameters.holeOverrideShape as string) || 'round'}
+                  onChange={(e) => setParameter('holeOverrideShape', e.target.value)}>
+                  <option value="round">Round</option>
+                  <option value="square">Square</option>
+                  <option value="oval">Oval</option>
+                </select>
+              </div>
+              {(parameters.holeOverrideShape as string || 'round') !== 'oval' ? (
+                <ParameterSlider label="Diameter (mm)" name="holeOverrideDiameter"
+                  min={1} max={10} step={0.1}
+                  value={(parameters.holeOverrideDiameter as number) || 5.0}
+                  onChange={(v) => setParameter('holeOverrideDiameter', v)} />
+              ) : (
+                <>
+                  <ParameterSlider label="Width (mm)" name="holeOverrideWidth"
+                    min={1} max={12} step={0.1}
+                    value={(parameters.holeOverrideWidth as number) || 5.0}
+                    onChange={(v) => setParameter('holeOverrideWidth', v)} />
+                  <ParameterSlider label="Height (mm)" name="holeOverrideHeight"
+                    min={1} max={12} step={0.1}
+                    value={(parameters.holeOverrideHeight as number) || 3.5}
+                    onChange={(v) => setParameter('holeOverrideHeight', v)} />
+                </>
+              )}
+            </div>
+            )}
+          </div>
+          )}
+        </section>
+        )}
+
         {elementType === 'cape' && (
         <>
         {/* Transformations Section */}
@@ -640,82 +716,6 @@ export default function ParameterPanel() {
                 min={2} max={20} step={1}
                 value={(parameters[`${elementType}EdgeCount`] as number) || 6}
                 onChange={(v) => setParameter(`${elementType}EdgeCount`, v)} />
-            </div>
-            )}
-          </div>
-          )}
-        </section>
-        )}
-
-        {/* --- Attachment Hole (all non-sail elements) --- */}
-        {elementType !== 'sail' && (
-        <section className="panel-section border-t pt-4">
-          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('attachment')}>
-            <h3 className="panel-section-title">Attachment Hole</h3>
-            <span className="text-gray-400 text-xs">{openSections.attachment ? '▾' : '▸'}</span>
-          </button>
-          {openSections.attachment && (
-          <div className="mt-2 space-y-3">
-            {/* Hole Type Selector — cape only */}
-            {elementType === 'cape' && (
-            <div className="form-group">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hole Type</label>
-              <select
-                value={parameters.holeType as string || DEFAULT_HOLE_TYPE}
-                onChange={(e) => {
-                  const holeType = e.target.value as keyof typeof HOLE_STANDARDS;
-                  setParameter('holeType', holeType);
-                  setParameter('holeRadius', HOLE_STANDARDS[holeType].radius);
-                }}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-              >
-                {Object.entries(HOLE_STANDARDS).map(([key, standard]) => (
-                  <option key={key} value={key} title={standard.description}>
-                    {standard.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {HOLE_STANDARDS[parameters.holeType as keyof typeof HOLE_STANDARDS || 'minifigure']?.description}
-              </p>
-            </div>
-            )}
-
-            {/* Custom hole shape override — all non-sail */}
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={parameters.holeOverride as boolean || false}
-                onChange={(e) => setParameter('holeOverride', e.target.checked)} className="w-4 h-4" />
-              <span>Custom hole shape</span>
-            </label>
-            {parameters.holeOverride && (
-            <div className="ml-2 space-y-2">
-              <div>
-                <label className="text-xs font-medium text-gray-700">Shape</label>
-                <select className="w-full mt-1 text-xs border rounded px-2 py-1"
-                  value={(parameters.holeOverrideShape as string) || 'round'}
-                  onChange={(e) => setParameter('holeOverrideShape', e.target.value)}>
-                  <option value="round">Round</option>
-                  <option value="square">Square</option>
-                  <option value="oval">Oval</option>
-                </select>
-              </div>
-              {(parameters.holeOverrideShape as string || 'round') !== 'oval' ? (
-                <ParameterSlider label="Diameter (mm)" name="holeOverrideDiameter"
-                  min={1} max={10} step={0.1}
-                  value={(parameters.holeOverrideDiameter as number) || 5.0}
-                  onChange={(v) => setParameter('holeOverrideDiameter', v)} />
-              ) : (
-                <>
-                  <ParameterSlider label="Width (mm)" name="holeOverrideWidth"
-                    min={1} max={12} step={0.1}
-                    value={(parameters.holeOverrideWidth as number) || 5.0}
-                    onChange={(v) => setParameter('holeOverrideWidth', v)} />
-                  <ParameterSlider label="Height (mm)" name="holeOverrideHeight"
-                    min={1} max={12} step={0.1}
-                    value={(parameters.holeOverrideHeight as number) || 3.5}
-                    onChange={(v) => setParameter('holeOverrideHeight', v)} />
-                </>
-              )}
             </div>
             )}
           </div>
