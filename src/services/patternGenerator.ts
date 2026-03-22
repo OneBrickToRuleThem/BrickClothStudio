@@ -23,6 +23,13 @@ import {
   SailTriangular,
   SailPolygon,
 } from '../templates/other';
+import {
+  CapeWindSwept,
+  CapePhantomShroud,
+  CapeSevenPoints,
+  KamaFullSkirt,
+  MantleHighCollar,
+} from '../templates/svgVariants';
 
 /**
  * Main pattern generator
@@ -61,6 +68,18 @@ export function generatePattern(
         template = new CapeTattered();
         name = 'Tattered Cape';
         break;
+      case 'wind-swept':
+        template = new CapeWindSwept();
+        name = 'Wind Swept Cape';
+        break;
+      case 'phantom-shroud':
+        template = new CapePhantomShroud();
+        name = 'Phantom Shroud Cape';
+        break;
+      case 'seven-points':
+        template = new CapeSevenPoints();
+        name = 'Seven Points Cape';
+        break;
       default:
         template = new CapeStandard();
         name = 'Standard Cape';
@@ -83,11 +102,26 @@ export function generatePattern(
     template = new Wings();
     name = 'Wing';
   } else if (elementType === 'kama') {
-    template = new Kama();
-    name = 'Kama/Skirt';
-  } else if (elementType === 'pauldron') {
-    template = new Pauldron();
-    name = 'Pauldron';
+    switch (templateVariant) {
+      case 'full-skirt':
+        template = new KamaFullSkirt();
+        name = 'Full Skirt';
+        break;
+      default:
+        template = new Kama();
+        name = 'Kama/Skirt';
+        break;
+    }
+  } else if (elementType === 'mantle') {
+    switch (templateVariant) {
+      case 'high-collar':
+        template = new MantleHighCollar();
+        name = 'High Collar';
+        break;
+      default:
+        template = new Pauldron();
+        name = 'Shoulder Armor';
+    }
   } else if (elementType === 'sail') {
     switch (templateVariant) {
       case 'triangular-sail':

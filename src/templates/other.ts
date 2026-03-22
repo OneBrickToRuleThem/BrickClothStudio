@@ -1,6 +1,6 @@
 /**
  * Additional template generators
- * Flags, wings, kama, pauldron
+ * Flags, wings, kama, mantle
  */
 
 import { Template, TemplateParams, generateAttachmentHole } from './base';
@@ -666,9 +666,9 @@ export class Wings extends Template {
 }
 
 /**
- * Helper: extract edge style params for kama/pauldron from TemplateParams.
+ * Helper: extract edge style params for kama/mantle from TemplateParams.
  */
-function getEdgeParams(params: TemplateParams, prefix: 'kama' | 'pauldron') {
+function getEdgeParams(params: TemplateParams, prefix: 'kama' | 'mantle') {
   return {
     style: (params[`${prefix}EdgeStyle`] as string) || 'none',
     depth: (params[`${prefix}EdgeDepth`] as number) || 2,
@@ -796,11 +796,11 @@ export class Pauldron extends Template {
     const w = params.width;
     const h = params.length;
     const path = new SVGPath();
-    const edge = getEdgeParams(params, 'pauldron');
+    const edge = getEdgeParams(params, 'mantle');
 
     // Start point: left edge at rim height (arc starts/ends at rimTopY)
-    const rounding = params.pauldronRounding as boolean;
-    const roundingAmt = (params.pauldronRoundingAmount as number) || 0.5;
+    const rounding = params.mantleRounding as boolean;
+    const roundingAmt = (params.mantleRoundingAmount as number) || 0.5;
     const rimTopY = h * 0.7582;
     const rimHalfW = (w * 0.8904 - w * 0.1096) / 2;
     const rimDepth = rounding ? roundingAmt * rimHalfW : 0;
@@ -1041,7 +1041,7 @@ export class PauldronSingle extends Template {
     const w = params.width;
     const h = params.length;
     const path = new SVGPath();
-    const edge = getEdgeParams(params, 'pauldron');
+    const edge = getEdgeParams(params, 'mantle');
 
     // Start at top-left (strap side)
     path.moveTo(w * 0.20, h * 0.005);
@@ -1100,7 +1100,7 @@ export class PauldronWide extends Template {
     const w = params.width;
     const h = params.length;
     const path = new SVGPath();
-    const edge = getEdgeParams(params, 'pauldron');
+    const edge = getEdgeParams(params, 'mantle');
 
     // Start at bottom-left approaching left side
     path.moveTo(w * 0.35, h * 0.9942);

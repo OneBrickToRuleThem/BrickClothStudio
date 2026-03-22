@@ -650,8 +650,8 @@ export default function ParameterPanel() {
         </>
         )}
 
-        {/* --- Pauldron Transformations --- */}
-        {elementType === 'pauldron' && (
+        {/* --- Mantle Transformations --- */}
+        {elementType === 'mantle' && (
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('transformations')}>
             <h3 className="panel-section-title">Transformations</h3>
@@ -661,17 +661,17 @@ export default function ParameterPanel() {
           <div className="space-y-3 mt-2">
             <div>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={parameters.pauldronRounding as boolean || false}
-                  onChange={(e) => setParameter('pauldronRounding', e.target.checked)} className="w-4 h-4" />
+                <input type="checkbox" checked={parameters.mantleRounding as boolean || false}
+                  onChange={(e) => setParameter('mantleRounding', e.target.checked)} className="w-4 h-4" />
                 <span>Rounding</span>
               </label>
               <p className="text-[10px] text-gray-500 ml-6">Curve the bottom rim into a U-shape</p>
-              {parameters.pauldronRounding && (
+              {parameters.mantleRounding && (
                 <div className="ml-6 mt-1">
-                  <ParameterSlider label="Amount" name="pauldronRoundingAmount"
+                  <ParameterSlider label="Amount" name="mantleRoundingAmount"
                     min={0.1} max={1.0} step={0.05}
-                    value={(parameters.pauldronRoundingAmount as number) || 0.5}
-                    onChange={(v) => setParameter('pauldronRoundingAmount', v)} />
+                    value={(parameters.mantleRoundingAmount as number) || 0.5}
+                    onChange={(v) => setParameter('mantleRoundingAmount', v)} />
                 </div>
               )}
             </div>
@@ -680,8 +680,8 @@ export default function ParameterPanel() {
         </section>
         )}
 
-        {/* --- Kama / Pauldron Bottom Edge --- */}
-        {(elementType === 'kama' || elementType === 'pauldron') && (
+        {/* --- Kama / Mantle Bottom Edge --- */}
+        {(elementType === 'kama' || elementType === 'mantle') && (
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('edgeStyles')}>
             <h3 className="panel-section-title">Bottom Edge</h3>

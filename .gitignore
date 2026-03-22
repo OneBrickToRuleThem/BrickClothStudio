@@ -17,3 +17,7 @@ coverage/
 
 # Archived source template files (shapes embedded as path data)
 archive/
+
+# SVG template source files and generated PNG previews (root level only)
+/*.svg
+/*.png

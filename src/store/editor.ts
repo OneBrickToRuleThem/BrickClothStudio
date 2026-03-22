@@ -129,15 +129,15 @@ const defaultParameters = {
   kamaEdgeStyle: 'none' as string,
   kamaEdgeDepth: 2,
   kamaEdgeCount: 6,
-  // Pauldron edge styles
-  pauldronEdgeStyle: 'none' as string,
-  pauldronEdgeDepth: 2,
-  pauldronEdgeCount: 6,
-  pauldronRounding: false as boolean,
-  pauldronRoundingAmount: 0.5,
+  // Mantle edge styles
+  mantleEdgeStyle: 'none' as string,
+  mantleEdgeDepth: 2,
+  mantleEdgeCount: 6,
+  mantleRounding: false as boolean,
+  mantleRoundingAmount: 0.5,
   // Custom flag
   flagCustomHoleCount: 2,
-  // Custom hole override (applies to cape, flag, kama, pauldron)
+  // Custom hole override (applies to cape, flag, kama, mantle)
   holeOverride: false as boolean,
   holeOverrideShape: 'round' as string, // round | square | oval
   holeOverrideDiameter: 5.0,
@@ -163,7 +163,12 @@ const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number
 
   'wings': { width: 45, length: 25 },
   'kama': { width: 47, length: 19 },
-  'pauldron': { width: 23, length: 26 },
+  'kama:full-skirt': { width: 47, length: 19 },
+  'mantle': { width: 23, length: 26 },
+  'cape:wind-swept': { width: 47, length: 51 },
+  'cape:phantom-shroud': { width: 48, length: 51 },
+  'cape:seven-points': { width: 52, length: 40 },
+  'mantle:high-collar': { width: 32, length: 18 },
   'sail': { width: 60, length: 60 },
   'sail:polygon-sail': { width: 60, length: 60 },
 };

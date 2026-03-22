@@ -65,7 +65,7 @@ function ElementIcon({ type, className }: { type: ElementType; className?: strin
         </svg>
       );
 
-    case 'pauldron':
+    case 'mantle':
       // Exact Pauldron outline at 23×26 default
       return (
         <svg {...common} viewBox="-1 -1 25 28">
@@ -106,7 +106,7 @@ const ELEMENTS: Array<{ type: ElementType; label: string; wip?: boolean }> = [
   { type: 'flag', label: 'Flag/Banner' },
   { type: 'sail', label: 'Sail' },
   { type: 'kama', label: 'Kama/Skirt' },
-  { type: 'pauldron', label: 'Pauldron' },
+  { type: 'mantle', label: 'Mantle' },
   { type: 'wings', label: 'Wing', wip: true },
 ];
 
@@ -122,7 +122,7 @@ export default function ElementSelector() {
       flag: 'small-flag',
       wings: 'standard',
       kama: 'wrap-skirt',
-      pauldron: 'shoulder-armor',
+      mantle: 'shoulder-armor',
       sail: 'square-sail',
     };
     const variant = variants[type];
@@ -173,6 +173,9 @@ function ElementVariantSelector() {
   const variants: Record<ElementType, Array<{ value: string; label: string }>> = {
     cape: [
       { value: 'standard', label: 'Standard' },
+      { value: 'wind-swept', label: 'Wind Swept' },
+      { value: 'phantom-shroud', label: 'Phantom Shroud' },
+      { value: 'seven-points', label: 'Seven Points' },
     ],
 
     flag: [
@@ -186,9 +189,11 @@ function ElementVariantSelector() {
     ],
     kama: [
       { value: 'wrap-skirt', label: 'Wrap Skirt' },
+      { value: 'full-skirt', label: 'Full Skirt' },
     ],
-    pauldron: [
+    mantle: [
       { value: 'shoulder-armor', label: 'Shoulder Armor' },
+      { value: 'high-collar', label: 'High Collar' },
     ],
     sail: [
       { value: 'square-sail', label: 'Square Sail' },
