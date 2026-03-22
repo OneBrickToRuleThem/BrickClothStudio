@@ -209,11 +209,11 @@ export function ovalHolePath(cx: number, cy: number, rx: number, ry: number): st
 }
 
 /**
- * Create a keyhole/slit shape for neck attachment
- * x, y = center of keyhole
+ * Create a keyhole attachment: circle hole + single slit line extending downward.
+ * x, y = center of circular hole
  * holeRadius = radius of circular head
- * slitWidth = width of slit
- * slitLength = length of slit (downward from circle)
+ * slitWidth = unused (kept for API compatibility)
+ * slitLength = length of slit line (downward from circle bottom)
  */
 export function keyholeSlitPath(
   x: number,
@@ -223,29 +223,17 @@ export function keyholeSlitPath(
   slitLength: number
 ): string {
   const path = new SVGPath();
-  const slitHalf = slitWidth / 2;
 
-  // Start at bottom of circle
-  path.moveTo(x, y + holeRadius);
-
-  // Right side of slit
-  path.lineTo(x + slitHalf, y + holeRadius);
-  path.lineTo(x + slitHalf, y + holeRadius + slitLength);
-
-  // Bottom of slit (rounded)
-  const slitBottomRadius = slitHalf;
-  path.arcTo(slitBottomRadius, slitBottomRadius, 0, 0, 1, x - slitHalf, y + holeRadius + slitLength);
-
-  // Left side of slit
-  path.lineTo(x - slitHalf, y + holeRadius);
-
-  // Circle (right side)
-  path.arcTo(holeRadius, holeRadius, 0, 0, 1, x, y - holeRadius);
-
-  // Circle (left side back to start)
-  path.arcTo(holeRadius, holeRadius, 0, 0, 1, x, y + holeRadius);
-
+  // Circle
+  path.moveTo(x, y - holeRadius);
+  path.arcTo(holeRadius, holeRadius, 0, 1, 1, x, y + holeRadius);
+  path.arcTo(holeRadius, holeRadius, 0, 1, 1, x, y - holeRadius);
   path.closePath();
+
+  // Single slit line extending downward from circle bottom
+  path.moveTo(x, y + holeRadius);
+  path.lineTo(x, y + holeRadius + slitLength);
+
   return path.toString();
 }
 

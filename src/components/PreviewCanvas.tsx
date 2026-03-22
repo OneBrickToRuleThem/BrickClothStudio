@@ -311,6 +311,8 @@ export default function PreviewCanvas() {
   const bb = pattern.boundingBox;
   const svgWidth = bb.width;
   const svgHeight = bb.height;
+  // Color design parameters
+  const splitCount = (parameters.colorSplitCount as number) || 0;
   // Shift needed when bounding box extends into negative space (e.g. side styles)
   const shiftX = Math.max(0, -bb.x);
   const shiftY = Math.max(0, -bb.y);
@@ -466,6 +468,96 @@ export default function PreviewCanvas() {
               {pattern.cutPaths.map((d, i) => (
                 <path key={i} d={d} fill={i === 0 ? fillColor : '#ffffff'} stroke="none" fillRule="evenodd" opacity={0.4} />
               ))}
+            </g>
+          </svg>
+        )}
+
+        {/* Color design overlays (split colors + edge color + stripes) */}
+        {pattern.cutPaths.length > 0 && (splitCount >= 1 || !!parameters.edgeColorEnabled || !!parameters.stripeEnabled) && (
+          <svg
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              overflow: 'visible',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}
+            viewBox={`0 0 ${(shiftX + bb.width + 20).toFixed(2)} ${(shiftY + bb.height + 20).toFixed(2)}`}
+            width={`${(shiftX + bb.width + 20).toFixed(2)}mm`}
+            height={`${(shiftY + bb.height + 20).toFixed(2)}mm`}
+          >
+            <defs>
+              <clipPath id="silhouette-clip">
+                <path d={pattern.cutPaths.join(' ')} fillRule="evenodd" />
+              </clipPath>
+            </defs>
+            <g transform={`translate(${originOffsetMM}, ${originOffsetMMY})`} clipPath="url(#silhouette-clip)">
+              {/* Stripe pattern */}
+              {!!parameters.stripeEnabled && (() => {
+                const sw = (parameters.stripeWidth as number) || 3;
+                const sa = (parameters.stripeAngle as number) || 0;
+                let sColors: string[] = [];
+                try { sColors = JSON.parse((parameters.stripeColors as string) || '["#1a1a8a","#c0c0c0"]'); } catch { sColors = ['#1a1a8a', '#c0c0c0']; }
+                if (sColors.length < 2) sColors = ['#1a1a8a', '#c0c0c0'];
+                const diag = Math.sqrt(bb.width * bb.width + bb.height * bb.height);
+                const count = Math.ceil(diag / sw) + 2;
+                const cx = bb.width / 2;
+                const cy = bb.height / 2;
+                const stripes: React.ReactElement[] = [];
+                for (let i = -count; i <= count; i++) {
+                  const offset = i * sw;
+                  stripes.push(
+                    <rect key={`stripe-${i}`}
+                      x={-diag} y={offset - sw / 2}
+                      width={diag * 2} height={sw}
+                      fill={sColors[((i % sColors.length) + sColors.length) % sColors.length]} opacity={0.45}
+                      transform={`translate(${cx}, ${cy}) rotate(${sa}) translate(${-cx}, ${-cy})`}
+                    />
+                  );
+                }
+                return stripes;
+              })()}
+              {/* Single color fill */}
+              {splitCount === 1 && (() => {
+                let colors: string[] = [];
+                try { colors = JSON.parse((parameters.colorSplitColors as string) || '[]'); } catch { colors = []; }
+                if (colors.length === 0) colors = ['#e74c3c'];
+                return <rect x={-10} y={-10} width={bb.width + 20} height={bb.height + 20} fill={colors[0]} opacity={0.5} />;
+              })()}
+              {/* Split color pie slices */}
+              {splitCount >= 2 && (() => {
+                const cx = bb.width / 2;
+                const cy = bb.height / 2;
+                const r = Math.max(bb.width, bb.height) * 1.5;
+                const angleStep = 360 / splitCount;
+                const baseAngle = ((parameters.colorSplitAngle as number) || 0) - 90;
+                let colors: string[] = [];
+                try { colors = JSON.parse((parameters.colorSplitColors as string) || '[]'); } catch { colors = []; }
+                const DEFAULT_PALETTE = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+                while (colors.length < splitCount) colors.push(DEFAULT_PALETTE[colors.length % DEFAULT_PALETTE.length]);
+                return colors.slice(0, splitCount).map((color, i) => {
+                  const a1 = (baseAngle + i * angleStep) * Math.PI / 180;
+                  const a2 = (baseAngle + (i + 1) * angleStep) * Math.PI / 180;
+                  const x1 = cx + r * Math.cos(a1);
+                  const y1 = cy + r * Math.sin(a1);
+                  const x2 = cx + r * Math.cos(a2);
+                  const y2 = cy + r * Math.sin(a2);
+                  const largeArc = angleStep > 180 ? 1 : 0;
+                  const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+                  return <path key={`split-${i}`} d={d} fill={color} opacity={0.5} stroke="none" />;
+                });
+              })()}
+              {/* Edge color band */}
+              {!!parameters.edgeColorEnabled && pattern.cutPaths[0] && (
+                <path
+                  d={pattern.cutPaths[0]}
+                  fill="none"
+                  stroke={(parameters.edgeColor as string) || '#8B4513'}
+                  strokeWidth={((parameters.edgeColorWidth as number) || 2) * 2}
+                  opacity={0.6}
+                />
+              )}
             </g>
           </svg>
         )}

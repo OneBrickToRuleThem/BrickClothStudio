@@ -7,6 +7,7 @@ import React, { useMemo } from 'react';
 import { useEditorStore } from '../store/editor';
 import { generatePattern } from '../services/patternGenerator';
 import { exportSinglePatternSVG, exportPrintSheetSVG, downloadSVG } from '../export/svg';
+import type { ColorDesignParams } from '../export/svg';
 import { generateStandardCalibration } from '../templates/calibration';
 
 export default function ExportPanel() {
@@ -25,9 +26,33 @@ export default function ExportPanel() {
     return generatePattern(elementType, templateVariant, parameters);
   }, [elementType, templateVariant, parameters]);
 
+  const colorDesign = useMemo((): ColorDesignParams | undefined => {
+    if (!exportOptions.includeDesigns) return undefined;
+    const splitCount = (parameters.colorSplitCount as number) || 0;
+    let splitColors: string[] = [];
+    try { splitColors = JSON.parse((parameters.colorSplitColors as string) || '[]'); } catch { splitColors = []; }
+    let stripeColors: string[] = [];
+    try { stripeColors = JSON.parse((parameters.stripeColors as string) || '["#1a1a8a","#c0c0c0"]'); } catch { stripeColors = ['#1a1a8a', '#c0c0c0']; }
+    const edgeEnabled = !!parameters.edgeColorEnabled;
+    const stripeEnabled = !!parameters.stripeEnabled;
+    if (splitCount < 1 && !edgeEnabled && !stripeEnabled) return undefined;
+    return {
+      colorSplitCount: splitCount,
+      colorSplitAngle: (parameters.colorSplitAngle as number) || 0,
+      colorSplitColors: splitColors,
+      edgeColorEnabled: edgeEnabled,
+      edgeColorWidth: (parameters.edgeColorWidth as number) || 2,
+      edgeColor: (parameters.edgeColor as string) || '#8B4513',
+      stripeEnabled: stripeEnabled,
+      stripeWidth: (parameters.stripeWidth as number) || 3,
+      stripeAngle: (parameters.stripeAngle as number) || 0,
+      stripeColors: stripeColors,
+    };
+  }, [exportOptions.includeDesigns, parameters]);
+
   const handleExportSingle = () => {
     if (!pattern) return;
-    const svg = exportSinglePatternSVG(pattern, exportOptions, decorations);
+    const svg = exportSinglePatternSVG(pattern, exportOptions, decorations, colorDesign);
     downloadSVG(svg, `${pattern.name}.svg`);
   };
 
@@ -113,6 +138,21 @@ export default function ExportPanel() {
         </button>
         <p className="text-xs text-gray-500">
           Lays out {printConfig.copies} copy(ies) on a single {printConfig.paperSize} {printConfig.orientation} sheet
+        </p>
+      </section>
+
+      {/* Design Export */}
+      <section className="panel-section border-t pt-4">
+        <h3 className="panel-section-title">Design Colors</h3>
+        <label className="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox"
+            checked={exportOptions.includeDesigns}
+            onChange={(e) => setExportOptions({ includeDesigns: e.target.checked })}
+            className="w-3.5 h-3.5" />
+          Include color designs in export
+        </label>
+        <p className="text-xs text-gray-500 mt-1">
+          Exports color split and edge color bands into the SVG file
         </p>
       </section>
 

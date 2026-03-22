@@ -15,12 +15,29 @@ import {
 import { packItemsOnPage, LayoutItem } from './packer';
 
 /**
+ * Color design parameters for export
+ */
+export interface ColorDesignParams {
+  colorSplitCount: number;
+  colorSplitAngle: number;
+  colorSplitColors: string[];
+  edgeColorEnabled: boolean;
+  edgeColorWidth: number;
+  edgeColor: string;
+  stripeEnabled: boolean;
+  stripeWidth: number;
+  stripeAngle: number;
+  stripeColors: string[];
+}
+
+/**
  * Export a single pattern as SVG
  */
 export function exportSinglePatternSVG(
   pattern: PatternExport,
   options: Partial<SVGExportOptions> = {},
-  decorations: DecorationLayer[] = []
+  decorations: DecorationLayer[] = [],
+  colorDesign?: ColorDesignParams
 ): string {
   const {
     strokeWidth = SVG_STROKE_WIDTH,
@@ -37,6 +54,7 @@ export function exportSinglePatternSVG(
       reference: SVG_REFERENCE_COLOR,
     },
     groupByLayer = true,
+    includeDesigns = false,
   } = options;
 
   const bb = pattern.boundingBox;
@@ -51,7 +69,7 @@ export function exportSinglePatternSVG(
   const height = shiftY + bb.height + paddingY * 2;
 
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" 
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
      viewBox="0 0 ${width.toFixed(2)} ${height.toFixed(2)}" 
      width="${width.toFixed(2)}mm" 
      height="${height.toFixed(2)}mm">
@@ -76,6 +94,71 @@ export function exportSinglePatternSVG(
     const mergedCut = pattern.cutPaths.join(' ');
     svg += `    <path d="${mergedCut}" class="cut-line" fill-rule="evenodd" />\n`;
     svg += `  </g>\n`;
+  }
+
+  // Color design layer (split colors + edge color)
+  if (includeDesigns && colorDesign && pattern.cutPaths.length > 0) {
+    const hasSplit = colorDesign.colorSplitCount >= 1 && colorDesign.colorSplitColors.length >= colorDesign.colorSplitCount;
+    const hasEdge = colorDesign.edgeColorEnabled && colorDesign.edgeColorWidth > 0;
+    const hasStripe = colorDesign.stripeEnabled && colorDesign.stripeWidth > 0;
+    if (hasSplit || hasEdge || hasStripe) {
+      svg += `  <g id="color-design" class="color-design-layer">\n`;
+      svg += `    <defs>\n`;
+      svg += `      <clipPath id="silhouette-clip">\n`;
+      svg += `        <path d="${pattern.cutPaths.join(' ')}" fill-rule="evenodd" />\n`;
+      svg += `      </clipPath>\n`;
+      svg += `    </defs>\n`;
+      svg += `    <g clip-path="url(#silhouette-clip)">\n`;
+
+      // Stripe pattern
+      if (hasStripe) {
+        const sw = colorDesign.stripeWidth;
+        const sa = colorDesign.stripeAngle;
+        const sColors = colorDesign.stripeColors.length >= 2 ? colorDesign.stripeColors : ['#1a1a8a', '#c0c0c0'];
+        const diag = Math.sqrt(bb.width * bb.width + bb.height * bb.height);
+        const count = Math.ceil(diag / sw) + 2;
+        const cx = bb.width / 2;
+        const cy = bb.height / 2;
+        for (let i = -count; i <= count; i++) {
+          const offset = i * sw;
+          const sc = sColors[((i % sColors.length) + sColors.length) % sColors.length];
+          svg += `      <rect x="${-diag}" y="${(offset - sw / 2).toFixed(2)}" width="${(diag * 2).toFixed(2)}" height="${sw}" fill="${sc}" opacity="0.45" transform="translate(${cx}, ${cy}) rotate(${sa}) translate(${-cx}, ${-cy})" />\n`;
+        }
+      }
+
+      // Color fill
+      if (hasSplit) {
+        if (colorDesign.colorSplitCount === 1) {
+          svg += `      <rect x="-10" y="-10" width="${(bb.width + 20).toFixed(2)}" height="${(bb.height + 20).toFixed(2)}" fill="${colorDesign.colorSplitColors[0]}" opacity="0.5" />\n`;
+        } else {
+          const cx = bb.width / 2;
+          const cy = bb.height / 2;
+          const r = Math.max(bb.width, bb.height) * 1.5;
+          const angleStep = 360 / colorDesign.colorSplitCount;
+          const baseAngle = colorDesign.colorSplitAngle - 90;
+          for (let i = 0; i < colorDesign.colorSplitCount; i++) {
+            const a1 = (baseAngle + i * angleStep) * Math.PI / 180;
+            const a2 = (baseAngle + (i + 1) * angleStep) * Math.PI / 180;
+            const x1 = cx + r * Math.cos(a1);
+            const y1 = cy + r * Math.sin(a1);
+            const x2 = cx + r * Math.cos(a2);
+            const y2 = cy + r * Math.sin(a2);
+            const largeArc = angleStep > 180 ? 1 : 0;
+            const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+            svg += `      <path d="${d}" fill="${colorDesign.colorSplitColors[i]}" opacity="0.5" />\n`;
+          }
+        }
+      }
+
+      // Edge color band
+      if (hasEdge && pattern.cutPaths[0]) {
+        const strokeW = colorDesign.edgeColorWidth * 2;
+        svg += `      <path d="${pattern.cutPaths[0]}" fill="none" stroke="${colorDesign.edgeColor}" stroke-width="${strokeW}" opacity="0.6" />\n`;
+      }
+
+      svg += `    </g>\n`;
+      svg += `  </g>\n`;
+    }
   }
 
   // Score layer
@@ -124,7 +207,7 @@ export function exportSinglePatternSVG(
         const rot = deco.rotation ? ` rotate(${deco.rotation} ${tx + w / 2} ${ty + h / 2})` : '';
         svg += `    <g transform="translate(${tx.toFixed(2)}, ${ty.toFixed(2)})${rot}">\n`;
         if (deco.type === 'image') {
-          svg += `      <image href="${escapeXML(deco.data)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" />\n`;
+          svg += `      <image xlink:href="${escapeXML(deco.data)}" href="${escapeXML(deco.data)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" />\n`;
         } else if (deco.type === 'text') {
           const fontSize = deco.fontSize || 4;
           const fontFamily = deco.fontFamily || 'sans-serif';

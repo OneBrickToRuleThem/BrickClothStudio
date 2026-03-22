@@ -9,6 +9,23 @@ import { HOLE_STANDARDS, DEFAULT_HOLE_TYPE, SAIL_HOLE_STANDARDS, LEGO_GRID_SIZE 
 
 const LDU_PER_MM = 2.5; // 1 LDU = 0.4mm
 
+type MeasurementUnit = 'mm' | 'studs' | 'ldu' | 'plates' | 'inches';
+const UNIT_LABELS: Record<MeasurementUnit, string> = {
+  mm: 'mm',
+  studs: 'studs',
+  ldu: 'LDU',
+  plates: 'plates',
+  inches: 'in',
+};
+// Multiply mm by this factor to get the unit value
+const MM_TO_UNIT: Record<MeasurementUnit, number> = {
+  mm: 1,
+  studs: 1 / LEGO_GRID_SIZE, // 1 stud = 8mm
+  ldu: LDU_PER_MM,           // 1 mm = 2.5 LDU
+  plates: 1 / 3.2,           // 1 plate = 3.2mm
+  inches: 1 / 25.4,          // 1 inch = 25.4mm
+};
+
 export default function ParameterPanel() {
   const { parameters, setParameter, resetToDefaults, elementType } = useEditorStore();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -19,25 +36,56 @@ export default function ParameterPanel() {
     cutsDetails: false,
   });
   const [lockAspect, setLockAspect] = useState(false);
+  const [measureUnit, setMeasureUnit] = useState<MeasurementUnit>('mm');
 
   function toggleSection(key: string) {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
   // Summary labels for collapsed sections
-  const activeHem = parameters.tattered ? 'Tattered'
-    : parameters.scalloped && !parameters.scallopInverted ? 'Scalloped'
-    : parameters.scalloped && parameters.scallopInverted ? 'Arched'
-    : parameters.fishtail ? 'Notched'
-    : parameters.pointed ? 'Pointed'
-    : parameters.zigzag ? 'Zigzag'
-    : parameters.wavy ? 'Wavy'
-    : parameters.castellated ? 'Castellated'
-    : parameters.dovetail ? 'Dovetail'
-    : parameters.flame ? 'Flame'
-    : parameters.stepped ? 'Stepped'
-    : 'None';
+  // Derive bottom edge value from individual booleans
+  const activeHemValue: string = parameters.tattered ? 'tattered'
+    : parameters.scalloped && !parameters.scallopInverted ? 'scalloped'
+    : parameters.scalloped && parameters.scallopInverted ? 'arched'
+    : parameters.fishtail ? 'notched'
+    : parameters.pointed ? 'pointed'
+    : parameters.zigzag ? 'zigzag'
+    : parameters.wavy ? 'wavy'
+    : parameters.castellated ? 'castellated'
+    : parameters.dovetail ? 'dovetail'
+    : parameters.flame ? 'flame'
+    : parameters.stepped ? 'stepped'
+    : 'none';
+  const activeHem = activeHemValue === 'none' ? 'None'
+    : activeHemValue.charAt(0).toUpperCase() + activeHemValue.slice(1);
   const activeSide = (parameters.sideStyle as string || 'none') === 'none' ? 'None' : (parameters.sideStyle as string);
+
+  function setBottomEdge(style: string) {
+    setParameter('tattered', false);
+    setParameter('scalloped', false);
+    setParameter('scallopInverted', false);
+    setParameter('fishtail', false);
+    setParameter('pointed', false);
+    setParameter('zigzag', false);
+    setParameter('wavy', false);
+    setParameter('castellated', false);
+    setParameter('dovetail', false);
+    setParameter('flame', false);
+    setParameter('stepped', false);
+    switch (style) {
+      case 'tattered': setParameter('tattered', true); break;
+      case 'scalloped': setParameter('scalloped', true); break;
+      case 'arched': setParameter('scalloped', true); setParameter('scallopInverted', true); break;
+      case 'notched': setParameter('fishtail', true); break;
+      case 'pointed': setParameter('pointed', true); break;
+      case 'zigzag': setParameter('zigzag', true); break;
+      case 'wavy': setParameter('wavy', true); break;
+      case 'castellated': setParameter('castellated', true); break;
+      case 'dovetail': setParameter('dovetail', true); break;
+      case 'flame': setParameter('flame', true); break;
+      case 'stepped': setParameter('stepped', true); break;
+    }
+  }
   const activeCuts = [
     parameters.swordSlit && 'Sword slit',
     parameters.armSlits && 'Arm slits',
@@ -58,10 +106,10 @@ export default function ParameterPanel() {
               Reset all
             </button>
           </div>
-          <div className="space-y-2">
-            <ParameterSlider
-              label="Length (mm)"
-              name="length"
+          <div className="space-y-3">
+            <DimensionSlider
+              label="Length"
+              unit={measureUnit}
               min={elementType === 'flag' ? 15 : 20}
               max={elementType === 'flag' ? 80 : 200}
               value={parameters.length as number}
@@ -74,9 +122,9 @@ export default function ParameterPanel() {
                 }
               }}
             />
-            <ParameterSlider
-              label="Width (mm)"
-              name="width"
+            <DimensionSlider
+              label="Width"
+              unit={measureUnit}
               min={elementType === 'flag' ? 10 : 20}
               max={elementType === 'flag' ? 60 : 150}
               value={parameters.width as number}
@@ -93,18 +141,18 @@ export default function ParameterPanel() {
               <input type="checkbox" checked={lockAspect} onChange={(e) => setLockAspect(e.target.checked)} className="w-3 h-3" />
               <span className="text-xs text-gray-500">Lock aspect ratio</span>
             </label>
-            {(() => {
-              const pad = elementType === 'flag' ? 2 : 0; // flags have 1mm margin on each side
-              const actL = (parameters.length as number) - pad;
-              const actW = (parameters.width as number) - pad;
-              return (
-                <div className="text-xs text-gray-400 pt-1 border-t border-gray-100 space-y-0.5">
-                  <p>{actL.toFixed(1)} × {actW.toFixed(1)} mm{pad > 0 && <span className="text-gray-300"> (incl. {pad / 2}mm padding)</span>}</p>
-                  <p>{(actL / LEGO_GRID_SIZE).toFixed(2)} × {(actW / LEGO_GRID_SIZE).toFixed(2)} studs</p>
-                  <p>{(actL * LDU_PER_MM).toFixed(1)} × {(actW * LDU_PER_MM).toFixed(1)} LDU</p>
-                </div>
-              );
-            })()}
+            <div>
+              <label className="text-xs text-gray-600 block mb-1">Measurement unit</label>
+              <select className="w-full border rounded px-2 py-1 text-xs"
+                value={measureUnit}
+                onChange={(e) => setMeasureUnit(e.target.value as MeasurementUnit)}>
+                <option value="mm">Millimeters (mm)</option>
+                <option value="studs">Studs (8mm)</option>
+                <option value="ldu">LDU (0.4mm)</option>
+                <option value="plates">Plates (3.2mm)</option>
+                <option value="inches">Inches (25.4mm)</option>
+              </select>
+            </div>
           </div>
         </section>
 
@@ -125,8 +173,8 @@ export default function ParameterPanel() {
           </button>
           {openSections.attachment && (
           <div className="mt-2 space-y-3">
-            {/* Hole Type Selector — cape only */}
-            {elementType === 'cape' && (
+            {/* Hole Type Selector — cape, kama, mantle */}
+            {(elementType === 'cape' || elementType === 'kama' || elementType === 'mantle') && (
             <div className="form-group">
               <label className="block text-sm font-medium text-gray-700 mb-1">Hole Type</label>
               <select
@@ -154,7 +202,7 @@ export default function ParameterPanel() {
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={parameters.holeOverride as boolean || false}
                 onChange={(e) => setParameter('holeOverride', e.target.checked)} className="w-4 h-4" />
-              <span>Custom hole shape</span>
+              <span>Override hole options</span>
             </label>
             {parameters.holeOverride && (
             <div className="ml-2 space-y-2">
@@ -185,6 +233,14 @@ export default function ParameterPanel() {
                     onChange={(v) => setParameter('holeOverrideHeight', v)} />
                 </>
               )}
+              <ParameterSlider label="Horizontal offset (mm)" name="holeOverrideOffsetX"
+                min={-5} max={5} step={0.1}
+                value={(parameters.holeOverrideOffsetX as number) || 0}
+                onChange={(v) => setParameter('holeOverrideOffsetX', v)} />
+              <ParameterSlider label="Vertical offset (mm)" name="holeOverrideOffsetY"
+                min={-5} max={5} step={0.1}
+                value={(parameters.holeOverrideOffsetY as number) || 0}
+                onChange={(v) => setParameter('holeOverrideOffsetY', v)} />
             </div>
             )}
           </div>
@@ -230,7 +286,7 @@ export default function ParameterPanel() {
           )}
         </section>
 
-        {/* Bottom Edge — only one can be active */}
+        {/* Bottom Edge — dropdown selector */}
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('hemStyle')}>
             <h3 className="panel-section-title">Bottom Edge</h3>
@@ -240,272 +296,189 @@ export default function ParameterPanel() {
             </div>
           </button>
           {openSections.hemStyle && (
-          <div className="mt-2">
-          <p className="text-xs text-gray-500 mb-2">Choose one bottom edge style</p>
-          <div className="space-y-3">
+          <div className="mt-2 space-y-2">
+          <select className="w-full border rounded px-2 py-1.5 text-sm"
+            value={activeHemValue}
+            onChange={(e) => setBottomEdge(e.target.value)}>
+            <option value="none">None</option>
+            <option value="tattered">Tattered</option>
+            <option value="scalloped">Scalloped</option>
+            <option value="arched">Arched</option>
+            <option value="notched">Notched</option>
+            <option value="pointed">Pointed</option>
+            <option value="zigzag">Zigzag</option>
+            <option value="wavy">Wavy</option>
+            <option value="castellated">Castellated</option>
+            <option value="dovetail">Dovetail</option>
+            <option value="flame">Flame</option>
+            <option value="stepped">Stepped</option>
+          </select>
 
-            {/* None */}
-            <label className="flex items-center gap-2 text-sm">
-              <input type="radio" name="hemStyle" className="w-4 h-4"
-                checked={!parameters.tattered && !parameters.scalloped && !parameters.fishtail && !parameters.pointed && !parameters.zigzag && !parameters.wavy && !parameters.castellated && !parameters.dovetail && !parameters.flame && !parameters.stepped}
-                onChange={() => { setParameter('tattered', false); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-              <span>None</span>
-            </label>
-
-            {/* Tattered */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.tattered as boolean}
-                  onChange={() => { setParameter('tattered', true); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Tattered</span>
+          {/* Tattered options */}
+          {activeHemValue === 'tattered' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Intensity" name="tatteredIntensity"
+                min={0.02} max={0.12} step={0.01}
+                value={parameters.tatteredIntensity as number || 0.06}
+                onChange={(v) => setParameter('tatteredIntensity', v)} />
+              <label className="flex items-center gap-2 text-sm mt-1">
+                <input type="checkbox" className="w-4 h-4"
+                  checked={parameters.tatteredSymmetric !== false}
+                  onChange={(e) => setParameter('tatteredSymmetric', e.target.checked)} />
+                <span>Symmetric</span>
               </label>
-              {parameters.tattered && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Intensity" name="tatteredIntensity"
-                    min={0.02} max={0.12} step={0.01}
-                    value={parameters.tatteredIntensity as number || 0.06}
-                    onChange={(v) => setParameter('tatteredIntensity', v)} />
-                  <label className="flex items-center gap-2 text-sm mt-1">
-                    <input type="checkbox" className="w-4 h-4"
-                      checked={parameters.tatteredSymmetric !== false}
-                      onChange={(e) => setParameter('tatteredSymmetric', e.target.checked)} />
-                    <span>Symmetric</span>
-                  </label>
-                  <ParameterSlider label="Seed" name="seed"
-                    min={1} max={99999} step={1}
-                    value={parameters.seed as number}
-                    onChange={(v) => setParameter('seed', v)} />
-                </div>
-              )}
+              <ParameterSlider label="Seed" name="seed"
+                min={1} max={99999} step={1}
+                value={parameters.seed as number}
+                onChange={(v) => setParameter('seed', v)} />
             </div>
+          )}
 
-            {/* Scalloped */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.scalloped as boolean && !parameters.scallopInverted}
-                  onChange={() => { setParameter('scalloped', true); setParameter('scallopInverted', false); setParameter('tattered', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Scalloped</span>
-              </label>
-              {parameters.scalloped && !parameters.scallopInverted && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Scallops" name="scallopCount"
-                    min={4} max={16} step={1}
-                    value={parameters.scallopCount as number || 8}
-                    onChange={(v) => setParameter('scallopCount', v)} />
-                  <ParameterSlider label="Depth (mm)" name="scallopDepth"
-                    min={1} max={20} step={0.5}
-                    value={parameters.scallopDepth as number || 3}
-                    onChange={(v) => setParameter('scallopDepth', v)} />
-                </div>
-              )}
+          {/* Scalloped options */}
+          {activeHemValue === 'scalloped' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Scallops" name="scallopCount"
+                min={4} max={16} step={1}
+                value={parameters.scallopCount as number || 8}
+                onChange={(v) => setParameter('scallopCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="scallopDepth"
+                min={1} max={20} step={0.5}
+                value={parameters.scallopDepth as number || 3}
+                onChange={(v) => setParameter('scallopDepth', v)} />
             </div>
+          )}
 
-            {/* Arched (inverted scallop) */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.scalloped as boolean && parameters.scallopInverted as boolean}
-                  onChange={() => { setParameter('scalloped', true); setParameter('scallopInverted', true); setParameter('tattered', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Arched</span>
-              </label>
-              {parameters.scalloped && parameters.scallopInverted && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Arches" name="scallopCount"
-                    min={2} max={16} step={1}
-                    value={parameters.scallopCount as number || 8}
-                    onChange={(v) => setParameter('scallopCount', v)} />
-                  <ParameterSlider label="Depth (mm)" name="scallopDepth"
-                    min={1} max={20} step={0.5}
-                    value={parameters.scallopDepth as number || 3}
-                    onChange={(v) => setParameter('scallopDepth', v)} />
-                </div>
-              )}
+          {/* Arched options */}
+          {activeHemValue === 'arched' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Arches" name="scallopCount"
+                min={2} max={16} step={1}
+                value={parameters.scallopCount as number || 8}
+                onChange={(v) => setParameter('scallopCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="scallopDepth"
+                min={1} max={20} step={0.5}
+                value={parameters.scallopDepth as number || 3}
+                onChange={(v) => setParameter('scallopDepth', v)} />
             </div>
+          )}
 
-            {/* Notched */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.fishtail as boolean}
-                  onChange={() => { setParameter('fishtail', true); setParameter('tattered', false); setParameter('scalloped', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Notched</span>
-              </label>
-              {parameters.fishtail && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Notches" name="fishtailNotches"
-                    min={1} max={5} step={1}
-                    value={parameters.fishtailNotches as number || 3}
-                    onChange={(v) => setParameter('fishtailNotches', v)} />
-                  <ParameterSlider label="Depth (%)" name="fishtailDepth"
-                    min={0.05} max={0.65} step={0.05}
-                    value={parameters.fishtailDepth as number || 0.15}
-                    onChange={(v) => setParameter('fishtailDepth', v)} />
-                </div>
-              )}
+          {/* Notched options */}
+          {activeHemValue === 'notched' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Notches" name="fishtailNotches"
+                min={1} max={5} step={1}
+                value={parameters.fishtailNotches as number || 3}
+                onChange={(v) => setParameter('fishtailNotches', v)} />
+              <ParameterSlider label="Depth (%)" name="fishtailDepth"
+                min={0.05} max={0.65} step={0.05}
+                value={parameters.fishtailDepth as number || 0.15}
+                onChange={(v) => setParameter('fishtailDepth', v)} />
             </div>
+          )}
 
-            {/* Pointed */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.pointed as boolean}
-                  onChange={() => { setParameter('pointed', true); setParameter('tattered', false); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Pointed</span>
-              </label>
-              {parameters.pointed && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Depth" name="pointedDepth"
-                    min={0.1} max={0.6} step={0.05}
-                    value={parameters.pointedDepth as number || 0.3}
-                    onChange={(v) => setParameter('pointedDepth', v)} />
-                  <ParameterSlider label="Roundness" name="pointedRoundness"
-                    min={0} max={1} step={0.05}
-                    value={parameters.pointedRoundness as number ?? 0.4}
-                    onChange={(v) => setParameter('pointedRoundness', v)} />
-                </div>
-              )}
+          {/* Pointed options */}
+          {activeHemValue === 'pointed' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Depth" name="pointedDepth"
+                min={0.1} max={0.6} step={0.05}
+                value={parameters.pointedDepth as number || 0.3}
+                onChange={(v) => setParameter('pointedDepth', v)} />
+              <ParameterSlider label="Roundness" name="pointedRoundness"
+                min={0} max={1} step={0.05}
+                value={parameters.pointedRoundness as number ?? 0.4}
+                onChange={(v) => setParameter('pointedRoundness', v)} />
             </div>
+          )}
 
-            {/* Zigzag */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.zigzag as boolean}
-                  onChange={() => { setParameter('zigzag', true); setParameter('tattered', false); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Zigzag</span>
-              </label>
-              {parameters.zigzag && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Points" name="zigzagCount"
-                    min={3} max={20} step={1}
-                    value={parameters.zigzagCount as number || 10}
-                    onChange={(v) => setParameter('zigzagCount', v)} />
-                  <ParameterSlider label="Depth (mm)" name="zigzagDepth"
-                    min={1} max={15} step={0.5}
-                    value={parameters.zigzagDepth as number || 4}
-                    onChange={(v) => setParameter('zigzagDepth', v)} />
-                </div>
-              )}
+          {/* Zigzag options */}
+          {activeHemValue === 'zigzag' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Points" name="zigzagCount"
+                min={3} max={20} step={1}
+                value={parameters.zigzagCount as number || 10}
+                onChange={(v) => setParameter('zigzagCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="zigzagDepth"
+                min={1} max={15} step={0.5}
+                value={parameters.zigzagDepth as number || 4}
+                onChange={(v) => setParameter('zigzagDepth', v)} />
             </div>
+          )}
 
-            {/* Wavy */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.wavy as boolean}
-                  onChange={() => { setParameter('wavy', true); setParameter('tattered', false); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Wavy</span>
-              </label>
-              {parameters.wavy && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Waves" name="wavyCount"
-                    min={2} max={12} step={1}
-                    value={parameters.wavyCount as number || 6}
-                    onChange={(v) => setParameter('wavyCount', v)} />
-                  <ParameterSlider label="Depth (mm)" name="wavyDepth"
-                    min={1} max={10} step={0.5}
-                    value={parameters.wavyDepth as number || 3}
-                    onChange={(v) => setParameter('wavyDepth', v)} />
-                </div>
-              )}
+          {/* Wavy options */}
+          {activeHemValue === 'wavy' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Waves" name="wavyCount"
+                min={2} max={12} step={1}
+                value={parameters.wavyCount as number || 6}
+                onChange={(v) => setParameter('wavyCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="wavyDepth"
+                min={1} max={10} step={0.5}
+                value={parameters.wavyDepth as number || 3}
+                onChange={(v) => setParameter('wavyDepth', v)} />
             </div>
+          )}
 
-            {/* Castellated */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.castellated as boolean}
-                  onChange={() => { setParameter('castellated', true); setParameter('tattered', false); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('dovetail', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Castellated</span>
-              </label>
-              {parameters.castellated && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Merlons" name="castellatedCount"
-                    min={3} max={16} step={1}
-                    value={parameters.castellatedCount as number || 8}
-                    onChange={(v) => setParameter('castellatedCount', v)} />
-                  <ParameterSlider label="Depth (mm)" name="castellatedDepth"
-                    min={1} max={15} step={0.5}
-                    value={parameters.castellatedDepth as number || 3}
-                    onChange={(v) => setParameter('castellatedDepth', v)} />
-                </div>
-              )}
+          {/* Castellated options */}
+          {activeHemValue === 'castellated' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Merlons" name="castellatedCount"
+                min={3} max={16} step={1}
+                value={parameters.castellatedCount as number || 8}
+                onChange={(v) => setParameter('castellatedCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="castellatedDepth"
+                min={1} max={15} step={0.5}
+                value={parameters.castellatedDepth as number || 3}
+                onChange={(v) => setParameter('castellatedDepth', v)} />
             </div>
+          )}
 
-            {/* Dovetail */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.dovetail as boolean}
-                  onChange={() => { setParameter('dovetail', true); setParameter('tattered', false); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('flame', false); setParameter('stepped', false); }} />
-                <span>Dovetail</span>
-              </label>
-              {parameters.dovetail && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Depth" name="dovetailDepth"
-                    min={0.1} max={0.5} step={0.05}
-                    value={parameters.dovetailDepth as number || 0.25}
-                    onChange={(v) => setParameter('dovetailDepth', v)} />
-                  <ParameterSlider label="Width" name="dovetailWidth"
-                    min={0.1} max={0.6} step={0.05}
-                    value={parameters.dovetailWidth as number || 0.3}
-                    onChange={(v) => setParameter('dovetailWidth', v)} />
-                </div>
-              )}
+          {/* Dovetail options */}
+          {activeHemValue === 'dovetail' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Depth" name="dovetailDepth"
+                min={0.1} max={0.5} step={0.05}
+                value={parameters.dovetailDepth as number || 0.25}
+                onChange={(v) => setParameter('dovetailDepth', v)} />
+              <ParameterSlider label="Width" name="dovetailWidth"
+                min={0.1} max={0.6} step={0.05}
+                value={parameters.dovetailWidth as number || 0.3}
+                onChange={(v) => setParameter('dovetailWidth', v)} />
             </div>
+          )}
 
-            {/* Flame */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.flame as boolean}
-                  onChange={() => { setParameter('flame', true); setParameter('tattered', false); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('stepped', false); }} />
-                <span>Flame</span>
-              </label>
-              {parameters.flame && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Flames" name="flameCount"
-                    min={3} max={10} step={1}
-                    value={parameters.flameCount as number || 5}
-                    onChange={(v) => setParameter('flameCount', v)} />
-                  <ParameterSlider label="Depth (mm)" name="flameDepth"
-                    min={2} max={20} step={1}
-                    value={parameters.flameDepth as number || 6}
-                    onChange={(v) => setParameter('flameDepth', v)} />
-                </div>
-              )}
+          {/* Flame options */}
+          {activeHemValue === 'flame' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Flames" name="flameCount"
+                min={3} max={10} step={1}
+                value={parameters.flameCount as number || 5}
+                onChange={(v) => setParameter('flameCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="flameDepth"
+                min={2} max={20} step={1}
+                value={parameters.flameDepth as number || 6}
+                onChange={(v) => setParameter('flameDepth', v)} />
             </div>
+          )}
 
-            {/* Stepped */}
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="hemStyle" className="w-4 h-4"
-                  checked={parameters.stepped as boolean}
-                  onChange={() => { setParameter('stepped', true); setParameter('tattered', false); setParameter('scalloped', false); setParameter('fishtail', false); setParameter('pointed', false); setParameter('zigzag', false); setParameter('wavy', false); setParameter('castellated', false); setParameter('dovetail', false); setParameter('flame', false); }} />
-                <span>Stepped</span>
-              </label>
-              {parameters.stepped && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Steps" name="steppedCount"
-                    min={2} max={10} step={1}
-                    value={parameters.steppedCount as number || 5}
-                    onChange={(v) => setParameter('steppedCount', v)} />
-                  <ParameterSlider label="Depth (mm)" name="steppedDepth"
-                    min={1} max={15} step={0.5}
-                    value={parameters.steppedDepth as number || 4}
-                    onChange={(v) => setParameter('steppedDepth', v)} />
-                </div>
-              )}
+          {/* Stepped options */}
+          {activeHemValue === 'stepped' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Steps" name="steppedCount"
+                min={2} max={10} step={1}
+                value={parameters.steppedCount as number || 5}
+                onChange={(v) => setParameter('steppedCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="steppedDepth"
+                min={1} max={15} step={0.5}
+                value={parameters.steppedDepth as number || 4}
+                onChange={(v) => setParameter('steppedDepth', v)} />
             </div>
+          )}
 
-          </div>
           </div>
           )}
         </section>
 
-        {/* Side Edges Section */}
+        {/* Side Edges — dropdown selector */}
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('sideStyle')}>
             <h3 className="panel-section-title">Side Edges</h3>
@@ -515,32 +488,33 @@ export default function ParameterPanel() {
             </div>
           </button>
           {openSections.sideStyle && (
-          <div className="mt-2">
-          <p className="text-xs text-gray-500 mb-2">Modify the left and right edges</p>
-          <div className="space-y-3">
-            {(['none', 'tattered', 'scalloped', 'zigzag', 'wavy', 'castellated', 'serrated', 'thorned', 'torn'] as const).map((style) => (
-              <div key={style}>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="sideStyle" className="w-4 h-4"
-                    checked={(parameters.sideStyle as string || 'none') === style}
-                    onChange={() => setParameter('sideStyle', style)} />
-                  <span className="capitalize">{style}</span>
-                </label>
-                {(parameters.sideStyle as string || 'none') === style && style !== 'none' && (
-                  <div className="ml-6 mt-1">
-                    <ParameterSlider label="Depth (mm)" name="sideStyleDepth"
-                      min={0.5} max={8} step={0.5}
-                      value={parameters.sideStyleDepth as number || 3}
-                      onChange={(v) => setParameter('sideStyleDepth', v)} />
-                    <ParameterSlider label="Count" name="sideStyleCount"
-                      min={3} max={20} step={1}
-                      value={parameters.sideStyleCount as number || 8}
-                      onChange={(v) => setParameter('sideStyleCount', v)} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <div className="mt-2 space-y-2">
+          <select className="w-full border rounded px-2 py-1.5 text-sm"
+            value={(parameters.sideStyle as string) || 'none'}
+            onChange={(e) => setParameter('sideStyle', e.target.value)}>
+            <option value="none">None</option>
+            <option value="tattered">Tattered</option>
+            <option value="scalloped">Scalloped</option>
+            <option value="zigzag">Zigzag</option>
+            <option value="wavy">Wavy</option>
+            <option value="castellated">Castellated</option>
+            <option value="serrated">Serrated</option>
+            <option value="thorned">Thorned</option>
+            <option value="torn">Torn</option>
+          </select>
+
+          {(parameters.sideStyle as string || 'none') !== 'none' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Depth (mm)" name="sideStyleDepth"
+                min={0.5} max={8} step={0.5}
+                value={parameters.sideStyleDepth as number || 3}
+                onChange={(v) => setParameter('sideStyleDepth', v)} />
+              <ParameterSlider label="Count" name="sideStyleCount"
+                min={3} max={20} step={1}
+                value={parameters.sideStyleCount as number || 8}
+                onChange={(v) => setParameter('sideStyleCount', v)} />
+            </div>
+          )}
           </div>
           )}
         </section>
@@ -1325,6 +1299,59 @@ function ParameterSlider({
         min={min}
         max={max}
         step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+      />
+    </div>
+  );
+}
+
+/** Dimension slider that displays values in the selected measurement unit */
+function DimensionSlider({
+  label,
+  unit,
+  min,
+  max,
+  value,
+  onChange,
+}: {
+  label: string;
+  unit: MeasurementUnit;
+  min: number;
+  max: number;
+  value: number;
+  onChange: (mmValue: number) => void;
+}) {
+  const factor = MM_TO_UNIT[unit];
+  const unitLabel = UNIT_LABELS[unit];
+  const displayVal = value * factor;
+  const decimals = unit === 'mm' ? 1 : unit === 'ldu' ? 1 : 2;
+  return (
+    <div className="form-group">
+      <label className="form-label flex justify-between items-center text-xs">
+        <span>{label} ({unitLabel})</span>
+        <input
+          type="number"
+          min={(min * factor).toFixed(decimals)}
+          max={(max * factor).toFixed(decimals)}
+          step={unit === 'mm' ? 0.5 : unit === 'ldu' ? 1 : unit === 'inches' ? 0.01 : 0.1}
+          value={displayVal.toFixed(decimals)}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (!isNaN(v)) {
+              const mm = v / factor;
+              onChange(Math.min(max, Math.max(min, Math.round(mm * 2) / 2)));
+            }
+          }}
+          className="font-mono bg-gray-100 px-2 py-0.5 rounded w-20 text-right text-xs border border-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
+      </label>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={0.5}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"

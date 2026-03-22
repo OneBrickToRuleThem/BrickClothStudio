@@ -135,6 +135,7 @@ export interface SVGExportOptions {
     reference: string;
   };
   groupByLayer: boolean;
+  includeDesigns: boolean;
 }
 
 /**

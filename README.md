@@ -37,11 +37,14 @@ Different elements support different edge style options:
 
 ### LEGO-Accurate Geometry
 - **Hole types**: Minifigure (5.3 mm) or Minidoll (4.8 mm) with adjustable clearance
-- **Keyhole slit option**: 1.2 mm wide slit for head attachment
+- **Override hole options**: Custom shape (round, square, oval), size, and mirrored XY position offset
+- **Keyhole slit**: Single-line cut with stress-relief circle — laser/knife kerf creates the physical opening
 - **Calibration test strip**: Hole sizes 4.8–5.2 mm to verify fit with your equipment and fabric
 - **Stud-based sizing**: Sail dimensions can be set in LEGO stud units (8 mm grid)
+- **Measurement units**: Display dimensions in mm, studs, LDU, plates, or inches
 
 ### Decorations
+- **Color Fill**: Single color, split color, edge color band, or multi-color stripes (2–4 colors)
 - **SVG import**: Upload vector logos and shapes
 - **Image import**: PNG/JPG for reference overlays
 - **Text**: Configurable font, size, and positioning
@@ -122,7 +125,7 @@ All measurements in millimeters. Stroke width: 0.1 mm.
 |-----------|-------|
 | LEGO stud diameter (nominal) | 4.8 mm |
 | Default hole diameter | 5.0 mm |
-| Keyhole slit width | 1.2 mm |
+| Keyhole slit width | Single-line cut |
 | LEGO grid unit | 8.0 mm |
 | A4 paper | 210 × 297 mm |
 | US Letter | 216 × 279 mm |

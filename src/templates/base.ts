@@ -94,17 +94,29 @@ export function generateAttachmentHole(
 ): string {
   // Custom hole override
   if (params?.holeOverride) {
+    const offsetX = (params.holeOverrideOffsetX as number) || 0;
+    const offsetY = (params.holeOverrideOffsetY as number) || 0;
+    // Mirrored X: holes left of center shift left, right of center shift right
+    const cx = (params.width as number) / 2;
+    let ax = centerX;
+    if (centerX < cx - 0.01) {
+      ax = centerX - offsetX;
+    } else if (centerX > cx + 0.01) {
+      ax = centerX + offsetX;
+    }
+    const ay = centerY + offsetY;
+
     const shape = (params.holeOverrideShape as string) || 'round';
     if (shape === 'square') {
       const size = (params.holeOverrideDiameter as number) || 5.0;
-      return squareHolePath(centerX, centerY, size);
+      return squareHolePath(ax, ay, size);
     } else if (shape === 'oval') {
       const rx = ((params.holeOverrideWidth as number) || 5.0) / 2;
       const ry = ((params.holeOverrideHeight as number) || 3.5) / 2;
-      return ovalHolePath(centerX, centerY, rx, ry);
+      return ovalHolePath(ax, ay, rx, ry);
     } else {
       const r = ((params.holeOverrideDiameter as number) || 5.0) / 2;
-      return circlePath(centerX, centerY, r);
+      return circlePath(ax, ay, r);
     }
   }
   if (enableSlit) {

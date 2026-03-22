@@ -143,6 +143,8 @@ const defaultParameters = {
   holeOverrideDiameter: 5.0,
   holeOverrideWidth: 5.0,  // for oval/square: horizontal dimension
   holeOverrideHeight: 3.5, // for oval: vertical dimension
+  holeOverrideOffsetX: 0,  // mm, mirrored horizontal offset (positive = spread apart)
+  holeOverrideOffsetY: 0,  // mm, vertical offset (positive = move down)
   // Sail grommet positions (inset from corners in mm)
   sailGrommetTLx: 4,
   sailGrommetTLy: 4,
@@ -152,6 +154,20 @@ const defaultParameters = {
   sailGrommetBLy: 4,
   sailGrommetBRx: 4,
   sailGrommetBRy: 4,
+  // Color split design
+  colorSplitCount: 0 as number,
+  colorSplitAngle: 0 as number,
+  colorSplitColors: '[]' as string,
+  // Edge color band
+  edgeColorEnabled: false as boolean,
+  edgeColorWidth: 2 as number,
+  edgeColor: '#8B4513' as string,
+  // Stripe design
+  stripeEnabled: false as boolean,
+  stripeWidth: 3 as number,
+  stripeAngle: 0 as number,
+  stripeColors: '["#1a1a8a","#c0c0c0"]' as string,
+  stripeColorCount: 2 as number,
 };
 
 // Default dimensions per element type / variant
@@ -208,6 +224,7 @@ const defaultExportOptions: SVGExportOptions = {
     reference: '#cccccc',
   },
   groupByLayer: true,
+  includeDesigns: false,
 };
 
 export const useEditorStore = create<EditorStore>((set) => ({

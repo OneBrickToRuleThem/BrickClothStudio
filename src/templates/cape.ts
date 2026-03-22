@@ -956,8 +956,6 @@ function generateArmSlits(
   return [leftPath.toString(), rightPath.toString()];
 }
 
-/** Reference slit half-width factor (fraction of width) */
-const REF_SLIT_HW = 0.008;
 /** Reference keyhole radius in mm */
 const REF_SLIT_R = 1.3;
 /** Reference keyhole center Y (fraction of height) */
@@ -970,47 +968,60 @@ const REF_HOLE_Y = 0.156;
 const REF_HOLE_OFFSET = 0.127;
 
 /**
- * Draw the neck opening and slit from the reference.
- * Path direction: neck-bottom-left → left arm up → left shoulder peak →
- * (outline) → right shoulder peak → right arm down → neck-bottom-right →
- * slit wall down → keyhole arc → closePath back to start.
- *
- * Call this as the FIRST thing after moveTo(cx - sw, neckBottomY).
+ * Draw the neck opening from center bottom up to the left shoulder peak.
+ * Call this as the FIRST thing after moveTo(cx, neckBottomY).
  * The outline goes between the two neck arm sections.
  */
-function drawRefNeckAndSlit(path: SVGPath, w: number, h: number) {
-  const sw = w * REF_SLIT_HW;
-  const cx = w / 2;
-  const holeCenterY = h * REF_SLIT_CENTER_Y;
-  const dy = Math.sqrt(REF_SLIT_R * REF_SLIT_R - sw * sw);
-  const arcJoinY = holeCenterY - dy;
-
-  // --- Neck left arm: 3 cubics from neck-bottom-left up to left shoulder peak ---
+function drawRefNeck(path: SVGPath, w: number, h: number) {
+  // --- Neck left arm: 3 cubics from neck-bottom (center) up to left shoulder peak ---
   path.cubicBezierTo(w * 0.46734, h * 0.04666, w * 0.46423, h * 0.04467, w * 0.44870, h * 0.02594);
   path.cubicBezierTo(w * 0.43236, h * 0.00626, w * 0.42500, h * 0.00000, w * 0.41816, h * 0.00000);
   path.cubicBezierTo(w * 0.41366, h * 0.00000, w * 0.38230, h * 0.00476, w * 0.35585, h * 0.00946);
 
   // <<< caller inserts outline here >>>
-
-  return { sw, cx, arcJoinY };
 }
 
 /**
- * Complete the neck right arm + slit after the outline.
+ * Complete the neck right arm after the outline.
  * Call after drawRefOutline / custom outline has been drawn,
  * with the path positioned at right shoulder peak (0.64415w, 0.00946h).
  */
-function closeRefNeckAndSlit(path: SVGPath, w: number, h: number, sw: number, cx: number, arcJoinY: number) {
-  // --- Neck right arm: 3 cubics from right shoulder peak to neck-bottom-right ---
+function closeRefNeck(path: SVGPath, w: number, h: number) {
+  const cx = w / 2;
+  // --- Neck right arm: 3 cubics from right shoulder peak to neck-bottom (center) ---
   path.cubicBezierTo(w * 0.61770, h * 0.00476, w * 0.58634, h * 0.00000, w * 0.58184, h * 0.00000);
   path.cubicBezierTo(w * 0.57500, h * 0.00000, w * 0.56764, h * 0.00626, w * 0.55130, h * 0.02594);
-  path.cubicBezierTo(w * 0.53577, h * 0.04467, w * 0.53266, h * 0.04666, cx + sw, h * 0.04778);
-
-  // --- Slit: right wall down → keyhole arc → close back to start ---
-  path.lineTo(cx + sw, arcJoinY);
-  path.arcTo(REF_SLIT_R, REF_SLIT_R, 0, 1, 1, cx - sw, arcJoinY);
+  path.cubicBezierTo(w * 0.53577, h * 0.04467, w * 0.53266, h * 0.04666, cx, h * 0.04778);
 
   path.closePath();
+}
+
+/**
+ * Generate the center neck slit as a single cut line from the neck opening
+ * down to the top of the keyhole circle.
+ */
+function generateCenterSlit(w: number, h: number): string {
+  const cx = w / 2;
+  const neckBottomY = h * 0.04778;
+  const keyholeTopY = h * REF_SLIT_CENTER_Y - REF_SLIT_R;
+  const path = new SVGPath();
+  path.moveTo(cx, neckBottomY);
+  path.lineTo(cx, keyholeTopY);
+  return path.toString();
+}
+
+/**
+ * Generate the center keyhole as a separate circle cut path.
+ */
+function generateCenterKeyhole(w: number, h: number): string {
+  const cx = w / 2;
+  const keyholeY = h * REF_SLIT_CENTER_Y;
+  const path = new SVGPath();
+  path.moveTo(cx, keyholeY - REF_SLIT_R);
+  path.arcTo(REF_SLIT_R, REF_SLIT_R, 0, 1, 1, cx, keyholeY + REF_SLIT_R);
+  path.arcTo(REF_SLIT_R, REF_SLIT_R, 0, 1, 1, cx, keyholeY - REF_SLIT_R);
+  path.closePath();
+  return path.toString();
 }
 
 /**
@@ -1033,30 +1044,23 @@ function generateRefHoles(w: number, h: number, holeRadius: number, holeCount: n
 }
 
 /**
- * Generate extra slit cut paths for 3+ hole configurations.
- * The center slit is already part of the main outline; this adds the additional ones.
- * For N holes, there are N-1 slits total; 1 is built-in, so this generates N-2 extra.
+ * Generate extra slit cut lines for 3+ hole configurations.
+ * Each slit is a single vertical cut line between consecutive hole positions.
  */
 function generateExtraSlits(w: number, h: number, holeCount: number): string[] {
   if (holeCount <= 2) return [];
   const cx = w / 2;
   const totalSpan = w * REF_HOLE_OFFSET * 2;
-  const sw = w * REF_SLIT_HW;
   const slitTopY = h * 0.04778;
-  const holeCenterY = h * REF_SLIT_CENTER_Y;
-  const dy = Math.sqrt(REF_SLIT_R * REF_SLIT_R - sw * sw);
-  const arcJoinY = holeCenterY - dy;
+  const keyholeTopY = h * REF_SLIT_CENTER_Y - REF_SLIT_R;
   const slits: string[] = [];
-  // All N-1 slit positions between consecutive holes
   for (let i = 0; i < holeCount - 1; i++) {
     const slitCx = cx - totalSpan / 2 + (totalSpan / (holeCount - 1)) * (i + 0.5);
-    // Skip the center slit (already in the outline) — it's at cx
+    // Skip the center slit (already generated separately)
     if (Math.abs(slitCx - cx) < 0.1) continue;
     const path = new SVGPath();
-    path.moveTo(slitCx - sw, slitTopY);
-    path.lineTo(slitCx - sw, arcJoinY);
-    path.arcTo(REF_SLIT_R, REF_SLIT_R, 0, 1, 1, slitCx + sw, arcJoinY);
-    path.lineTo(slitCx + sw, slitTopY);
+    path.moveTo(slitCx, slitTopY);
+    path.lineTo(slitCx, keyholeTopY);
     slits.push(path.toString());
   }
   return slits;
@@ -1075,11 +1079,11 @@ export class CapeStandard extends Template {
     const h = length;
     const refH = REF_H;
 
-    // Use refH for the neck/slit so the top stays fixed regardless of length
-    path.moveTo(w / 2 - w * REF_SLIT_HW, refH * 0.04778);
-    const { sw, cx, arcJoinY } = drawRefNeckAndSlit(path, w, refH);
+    // Use refH for the neck so the top stays fixed regardless of length
+    path.moveTo(w / 2, refH * 0.04778);
+    drawRefNeck(path, w, refH);
     drawModifiedOutline(path, w, h, params);
-    closeRefNeckAndSlit(path, w, refH, sw, cx, arcJoinY);
+    closeRefNeck(path, w, refH);
     return path.toString();
   }
 
@@ -1087,6 +1091,9 @@ export class CapeStandard extends Template {
     const { width, length, holeRadius } = params;
     // Holes use REF_H so they stay in the same position regardless of length
     const paths = [this.generateCutPath(params), ...generateRefHoles(width, REF_H, holeRadius, 2, params)];
+    // Center slit (single line) and keyhole circle
+    paths.push(generateCenterSlit(width, REF_H));
+    paths.push(generateCenterKeyhole(width, REF_H));
     if (params.swordSlit) {
       paths.push(generateSwordSlit(
         width, length,
@@ -1103,8 +1110,8 @@ export class CapeStandard extends Template {
         (params.seed as number) || 12345,
         params
       );
-      // Merge worn holes as subpaths of the main outline for boolean subtraction
-      paths[0] = paths[0] + ' ' + holePaths.join(' ');
+      // Add worn holes as separate cut paths for boolean subtraction via evenodd
+      paths.push(...holePaths);
     }
     if (params.armSlits) {
       paths.push(...generateArmSlits(
@@ -1190,10 +1197,10 @@ export class CapeShort extends Template {
     const w = width;
     const h = length * 0.6;
 
-    path.moveTo(w / 2 - w * REF_SLIT_HW, h * 0.04778);
-    const { sw, cx, arcJoinY } = drawRefNeckAndSlit(path, w, h);
+    path.moveTo(w / 2, h * 0.04778);
+    drawRefNeck(path, w, h);
     drawRefOutline(path, w, h);
-    closeRefNeckAndSlit(path, w, h, sw, cx, arcJoinY);
+    closeRefNeck(path, w, h);
     return path.toString();
   }
 
@@ -1201,6 +1208,8 @@ export class CapeShort extends Template {
     const { width, length, holeRadius } = params;
     const h = length * 0.6;
     const paths = [this.generateCutPath(params), ...generateRefHoles(width, h, holeRadius)];
+    paths.push(generateCenterSlit(width, h));
+    paths.push(generateCenterKeyhole(width, h));
     if (params.swordSlit) {
       paths.push(generateSwordSlit(
         width, h,
@@ -1241,12 +1250,13 @@ export class CapeLong extends Template {
     const w = width;
     const h = length * 1.4;
 
-    path.moveTo(w / 2 - w * REF_SLIT_HW, h * 0.04778);
-    const { sw, cx, arcJoinY } = drawRefNeckAndSlit(path, w, h);
+    path.moveTo(w / 2, h * 0.04778);
+    drawRefNeck(path, w, h);
 
     if (split) {
       const splitY = h * 0.65;
       const splitGap = w * 0.03;
+      const cx = w / 2;
 
       // Left side: 12 reference beziers (shoulder → ~0.612h)
       path.cubicBezierTo(w * 0.34058, h * 0.01217, w * 0.31290, h * 0.01849, w * 0.30793, h * 0.02040);
@@ -1290,7 +1300,7 @@ export class CapeLong extends Template {
       drawRefOutline(path, w, h);
     }
 
-    closeRefNeckAndSlit(path, w, h, sw, cx, arcJoinY);
+    closeRefNeck(path, w, h);
     return path.toString();
   }
 
@@ -1298,6 +1308,8 @@ export class CapeLong extends Template {
     const { width, length, holeRadius } = params;
     const h = length * 1.4;
     const paths = [this.generateCutPath(params), ...generateRefHoles(width, h, holeRadius)];
+    paths.push(generateCenterSlit(width, h));
+    paths.push(generateCenterKeyhole(width, h));
     if (params.swordSlit) {
       paths.push(generateSwordSlit(
         width, h,
@@ -1338,8 +1350,8 @@ export class CapeTattered extends Template {
     const w = width;
     const h = length;
 
-    path.moveTo(w / 2 - w * REF_SLIT_HW, h * 0.04778);
-    const { sw, cx, arcJoinY } = drawRefNeckAndSlit(path, w, h);
+    path.moveTo(w / 2, h * 0.04778);
+    drawRefNeck(path, w, h);
 
     // Reference left side: 21 beziers (shoulder → y ≈ 0.897h)
     drawRefLeftSide(path, w, h);
@@ -1363,13 +1375,15 @@ export class CapeTattered extends Template {
     // Reference right side: 21 mirrored beziers (y ≈ 0.897h → shoulder)
     drawRefRightSide(path, w, h);
 
-    closeRefNeckAndSlit(path, w, h, sw, cx, arcJoinY);
+    closeRefNeck(path, w, h);
     return path.toString();
   }
 
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length, holeRadius } = params;
     const paths = [this.generateCutPath(params), ...generateRefHoles(width, length, holeRadius)];
+    paths.push(generateCenterSlit(width, length));
+    paths.push(generateCenterKeyhole(width, length));
     if (params.swordSlit) {
       paths.push(generateSwordSlit(
         width, length,
@@ -1410,15 +1424,14 @@ export class CapeTattered extends Template {
  * is perfectly symmetric about x = w/2.
  *
  * Path topology (single closed path):
- *   moveTo  → neck-opening bottom-left
+ *   moveTo  → neck-opening bottom (center)
  *   3 cubics → neck left arm up to left shoulder peak
  *  25 cubics → left side down to bottom-center
  *   lineTo  → bottom-center bridge to mirrored start
  *  25 cubics → right side up (mirrored left) to right shoulder peak
- *   3 cubics → neck right arm down to neck-opening bottom-right
- *   lineTo  → right slit wall down to keyhole join
- *   arc     → keyhole stress-relief circle
- *   close   → left slit wall back up to start
+ *   3 cubics → neck right arm down to neck-opening bottom (center)
+ *   close   → back to start
+ * Slit + keyhole rendered as separate cut paths.
  */
 export class CapeReferenceTest extends Template {
   generateCutPath(params: TemplateParams): string {
@@ -1427,19 +1440,10 @@ export class CapeReferenceTest extends Template {
     const w = width;
     const h = length;
 
-    // Half-width of the slit / neck opening at its narrowest center point
-    // Reference SVG: left wall x ≈ 0.492w, right wall x ≈ 0.508w → half-width ≈ 0.008w
-    const sw = w * 0.008;
     const cx = w / 2;
-    const slitR = 1.3; // stress-relief keyhole radius (mm), from reference inline hole span
-    const holeCenterY = h * 0.295; // inline hole Y center from reference (slit extends to ~0.26h)
 
-    // Keyhole arc join point
-    const dy = Math.sqrt(slitR * slitR - sw * sw);
-    const arcJoinY = holeCenterY - dy;
-
-    // --- Start at neck-opening bottom-left ---
-    path.moveTo(cx - sw, h * 0.04778);
+    // --- Start at neck-opening bottom (center) ---
+    path.moveTo(cx, h * 0.04778);
 
     // --- Neck left arm: 3 reversed cubics → left shoulder peak ---
     path.cubicBezierTo(w * 0.46734, h * 0.04666, w * 0.46423, h * 0.04467, w * 0.44870, h * 0.02594);
@@ -1503,14 +1507,10 @@ export class CapeReferenceTest extends Template {
     path.cubicBezierTo(w * 0.71624, h * 0.03298, w * 0.70298, h * 0.02459, w * 0.69207, h * 0.02040);
     path.cubicBezierTo(w * 0.68710, h * 0.01849, w * 0.65942, h * 0.01217, w * 0.64415, h * 0.00946);
 
-    // --- Neck right arm: 3 cubics from right shoulder peak to neck-opening bottom-right ---
+    // --- Neck right arm: 3 cubics from right shoulder peak to neck-opening bottom (center) ---
     path.cubicBezierTo(w * 0.61770, h * 0.00476, w * 0.58634, h * 0.00000, w * 0.58184, h * 0.00000);
     path.cubicBezierTo(w * 0.57500, h * 0.00000, w * 0.56764, h * 0.00626, w * 0.55130, h * 0.02594);
-    path.cubicBezierTo(w * 0.53577, h * 0.04467, w * 0.53266, h * 0.04666, cx + sw, h * 0.04778);
-
-    // --- Slit: right wall down → keyhole arc → close back to start ---
-    path.lineTo(cx + sw, arcJoinY);
-    path.arcTo(slitR, slitR, 0, 1, 1, cx - sw, arcJoinY);
+    path.cubicBezierTo(w * 0.53577, h * 0.04467, w * 0.53266, h * 0.04666, cx, h * 0.04778);
 
     path.closePath();
     return path.toString();
@@ -1518,7 +1518,10 @@ export class CapeReferenceTest extends Template {
 
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length, holeRadius } = params;
-    return [this.generateCutPath(params), ...generateRefHoles(width, length, holeRadius)];
+    const paths = [this.generateCutPath(params), ...generateRefHoles(width, length, holeRadius)];
+    paths.push(generateCenterSlit(width, length));
+    paths.push(generateCenterKeyhole(width, length));
+    return paths;
   }
 
   generateScorePaths(params: TemplateParams): string[] {

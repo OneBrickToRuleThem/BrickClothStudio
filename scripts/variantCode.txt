@@ -1,0 +1,520 @@
+// ΓòÉΓòÉΓòÉ AsymetricCapeTemplate.svg ΓòÉΓòÉΓòÉ
+// Original: 47.3 x 50.7 mm
+// Head holes: (0.5967, 0.3365), (0.3441, 0.2359)
+// Decorative sub-paths: 0
+
+  generateCutPath(params: TemplateParams): string {
+    const w = params.width;
+    const h = params.length;
+    const path = new SVGPath();
+    path.moveTo(w * 0.5309, h * 0.9989);
+    path.cubicBezierTo(w * 0.5307, h * 0.9987, w * 0.5071, h * 0.9979, w * 0.4786, h * 0.9970);
+    path.cubicBezierTo(w * 0.4500, h * 0.9962, w * 0.4214, h * 0.9950, w * 0.4149, h * 0.9944);
+    path.cubicBezierTo(w * 0.3902, h * 0.9922, w * 0.3138, h * 0.9808, w * 0.3017, h * 0.9776);
+    path.cubicBezierTo(w * 0.2947, h * 0.9757, w * 0.2837, h * 0.9735, w * 0.2773, h * 0.9726);
+    path.cubicBezierTo(w * 0.2621, h * 0.9706, w * 0.2150, h * 0.9588, w * 0.1838, h * 0.9491);
+    path.cubicBezierTo(w * 0.1702, h * 0.9449, w * 0.1551, h * 0.9407, w * 0.1501, h * 0.9397);
+    path.cubicBezierTo(w * 0.1358, h * 0.9368, w * 0.0665, h * 0.9138, w * 0.0635, h * 0.9110);
+    path.cubicBezierTo(w * 0.0620, h * 0.9096, w * 0.0582, h * 0.9084, w * 0.0550, h * 0.9084);
+    path.cubicBezierTo(w * 0.0519, h * 0.9084, w * 0.0393, h * 0.9046, w * 0.0271, h * 0.8998);
+    path.cubicBezierTo(w * 0.0026, h * 0.8902, w * 0.0000, h * 0.8868, w * 0.0034, h * 0.8681);
+    path.cubicBezierTo(w * 0.0072, h * 0.8475, w * 0.0294, h * 0.7855, w * 0.0422, h * 0.7598);
+    path.cubicBezierTo(w * 0.0456, h * 0.7530, w * 0.0509, h * 0.7421, w * 0.0540, h * 0.7354);
+    path.cubicBezierTo(w * 0.0674, h * 0.7072, w * 0.0883, h * 0.6699, w * 0.0930, h * 0.6658);
+    path.cubicBezierTo(w * 0.0958, h * 0.6634, w * 0.0981, h * 0.6603, w * 0.0981, h * 0.6590);
+    path.cubicBezierTo(w * 0.0981, h * 0.6577, w * 0.1045, h * 0.6468, w * 0.1123, h * 0.6347);
+    path.cubicBezierTo(w * 0.1201, h * 0.6227, w * 0.1272, h * 0.6107, w * 0.1280, h * 0.6082);
+    path.cubicBezierTo(w * 0.1289, h * 0.6056, w * 0.1306, h * 0.6035, w * 0.1317, h * 0.6035);
+    path.cubicBezierTo(w * 0.1361, h * 0.6035, w * 0.1677, h * 0.5292, w * 0.1660, h * 0.5228);
+    path.cubicBezierTo(w * 0.1657, h * 0.5216, w * 0.1672, h * 0.5162, w * 0.1693, h * 0.5107);
+    path.cubicBezierTo(w * 0.1713, h * 0.5052, w * 0.1731, h * 0.4990, w * 0.1732, h * 0.4970);
+    path.cubicBezierTo(w * 0.1733, h * 0.4923, w * 0.1809, h * 0.4584, w * 0.1823, h * 0.4562);
+    path.cubicBezierTo(w * 0.1880, h * 0.4476, w * 0.1896, h * 0.3184, w * 0.1843, h * 0.2910);
+    path.cubicBezierTo(w * 0.1826, h * 0.2821, w * 0.1806, h * 0.2614, w * 0.1800, h * 0.2450);
+    path.cubicBezierTo(w * 0.1785, h * 0.2063, w * 0.1837, h * 0.1843, w * 0.2036, h * 0.1468);
+    path.cubicBezierTo(w * 0.2115, h * 0.1318, w * 0.2190, h * 0.1195, w * 0.2202, h * 0.1195);
+    path.cubicBezierTo(w * 0.2214, h * 0.1195, w * 0.2250, h * 0.1154, w * 0.2281, h * 0.1105);
+    path.cubicBezierTo(w * 0.2313, h * 0.1055, w * 0.2357, h * 0.1001, w * 0.2378, h * 0.0985);
+    path.cubicBezierTo(w * 0.2399, h * 0.0969, w * 0.2478, h * 0.0900, w * 0.2554, h * 0.0833);
+    path.cubicBezierTo(w * 0.2629, h * 0.0766, w * 0.2704, h * 0.0711, w * 0.2720, h * 0.0711);
+    path.cubicBezierTo(w * 0.2736, h * 0.0711, w * 0.2755, h * 0.0695, w * 0.2764, h * 0.0675);
+    path.cubicBezierTo(w * 0.2790, h * 0.0612, w * 0.3285, h * 0.0297, w * 0.3526, h * 0.0190);
+    path.cubicBezierTo(w * 0.3908, h * 0.0021, w * 0.3992, h * 0.0002, w * 0.4344, h * 0.0001);
+    path.cubicBezierTo(w * 0.4684, h * 0.0000, w * 0.4852, h * 0.0041, w * 0.5082, h * 0.0179);
+    path.cubicBezierTo(w * 0.5363, h * 0.0349, w * 0.5508, h * 0.0550, w * 0.5602, h * 0.0904);
+    path.cubicBezierTo(w * 0.5654, h * 0.1099, w * 0.5670, h * 0.1199, w * 0.5692, h * 0.1478);
+    path.lineTo(w * 0.5701, h * 0.1604);
+    path.lineTo(w * 0.5555, h * 0.1724);
+    path.cubicBezierTo(w * 0.5475, h * 0.1789, w * 0.5350, h * 0.1889, w * 0.5279, h * 0.1945);
+    path.cubicBezierTo(w * 0.5001, h * 0.2164, w * 0.4513, h * 0.2711, w * 0.4513, h * 0.2804);
+    path.cubicBezierTo(w * 0.4513, h * 0.2824, w * 0.4503, h * 0.2841, w * 0.4492, h * 0.2841);
+    path.cubicBezierTo(w * 0.4480, h * 0.2841, w * 0.4443, h * 0.2887, w * 0.4409, h * 0.2944);
+    path.cubicBezierTo(w * 0.4376, h * 0.3000, w * 0.4321, h * 0.3080, w * 0.4288, h * 0.3121);
+    path.cubicBezierTo(w * 0.4254, h * 0.3163, w * 0.4227, h * 0.3205, w * 0.4227, h * 0.3216);
+    path.cubicBezierTo(w * 0.4227, h * 0.3227, w * 0.4212, h * 0.3254, w * 0.4192, h * 0.3275);
+    path.cubicBezierTo(w * 0.4127, h * 0.3346, w * 0.4064, h * 0.3530, w * 0.4055, h * 0.3676);
+    path.cubicBezierTo(w * 0.4040, h * 0.3912, w * 0.4142, h * 0.4051, w * 0.4331, h * 0.4051);
+    path.cubicBezierTo(w * 0.4452, h * 0.4051, w * 0.4533, h * 0.3995, w * 0.4593, h * 0.3872);
+    path.cubicBezierTo(w * 0.4652, h * 0.3752, w * 0.4654, h * 0.3636, w * 0.4601, h * 0.3506);
+    path.cubicBezierTo(w * 0.4520, h * 0.3311, w * 0.4516, h * 0.3235, w * 0.4576, h * 0.3100);
+    path.cubicBezierTo(w * 0.4681, h * 0.2864, w * 0.4850, h * 0.2604, w * 0.4980, h * 0.2477);
+    path.cubicBezierTo(w * 0.5002, h * 0.2456, w * 0.5066, h * 0.2387, w * 0.5123, h * 0.2324);
+    path.cubicBezierTo(w * 0.5246, h * 0.2187, w * 0.5541, h * 0.1999, w * 0.5704, h * 0.1954);
+    path.cubicBezierTo(w * 0.5827, h * 0.1919, w * 0.6025, h * 0.1910, w * 0.6054, h * 0.1938);
+    path.cubicBezierTo(w * 0.6064, h * 0.1947, w * 0.6092, h * 0.1956, w * 0.6117, h * 0.1958);
+    path.cubicBezierTo(w * 0.6346, h * 0.1976, w * 0.6568, h * 0.2042, w * 0.6857, h * 0.2178);
+    path.cubicBezierTo(w * 0.6981, h * 0.2237, w * 0.7302, h * 0.2517, w * 0.7478, h * 0.2720);
+    path.cubicBezierTo(w * 0.7665, h * 0.2934, w * 0.7873, h * 0.3341, w * 0.7939, h * 0.3615);
+    path.cubicBezierTo(w * 0.7953, h * 0.3675, w * 0.7981, h * 0.3768, w * 0.8001, h * 0.3821);
+    path.cubicBezierTo(w * 0.8021, h * 0.3874, w * 0.8052, h * 0.3994, w * 0.8070, h * 0.4087);
+    path.cubicBezierTo(w * 0.8088, h * 0.4180, w * 0.8138, h * 0.4376, w * 0.8181, h * 0.4523);
+    path.cubicBezierTo(w * 0.8223, h * 0.4669, w * 0.8273, h * 0.4865, w * 0.8292, h * 0.4958);
+    path.cubicBezierTo(w * 0.8310, h * 0.5052, w * 0.8339, h * 0.5177, w * 0.8355, h * 0.5237);
+    path.cubicBezierTo(w * 0.8372, h * 0.5297, w * 0.8401, h * 0.5424, w * 0.8420, h * 0.5520);
+    path.cubicBezierTo(w * 0.8440, h * 0.5616, w * 0.8479, h * 0.5741, w * 0.8507, h * 0.5798);
+    path.cubicBezierTo(w * 0.8536, h * 0.5855, w * 0.8574, h * 0.5951, w * 0.8593, h * 0.6011);
+    path.cubicBezierTo(w * 0.8612, h * 0.6071, w * 0.8672, h * 0.6217, w * 0.8726, h * 0.6336);
+    path.cubicBezierTo(w * 0.8780, h * 0.6455, w * 0.8824, h * 0.6565, w * 0.8824, h * 0.6581);
+    path.cubicBezierTo(w * 0.8824, h * 0.6596, w * 0.8875, h * 0.6718, w * 0.8938, h * 0.6851);
+    path.cubicBezierTo(w * 0.9000, h * 0.6985, w * 0.9066, h * 0.7136, w * 0.9084, h * 0.7188);
+    path.cubicBezierTo(w * 0.9101, h * 0.7239, w * 0.9138, h * 0.7320, w * 0.9165, h * 0.7366);
+    path.cubicBezierTo(w * 0.9193, h * 0.7413, w * 0.9254, h * 0.7554, w * 0.9302, h * 0.7681);
+    path.cubicBezierTo(w * 0.9398, h * 0.7933, w * 0.9696, h * 0.8575, w * 0.9735, h * 0.8611);
+    path.cubicBezierTo(w * 0.9748, h * 0.8624, w * 0.9759, h * 0.8651, w * 0.9759, h * 0.8672);
+    path.cubicBezierTo(w * 0.9759, h * 0.8693, w * 0.9813, h * 0.8784, w * 0.9879, h * 0.8874);
+    path.lineTo(w * 1.0000, h * 0.9039);
+    path.lineTo(w * 0.9943, h * 0.9076);
+    path.cubicBezierTo(w * 0.9752, h * 0.9200, w * 0.9128, h * 0.9428, w * 0.8647, h * 0.9549);
+    path.cubicBezierTo(w * 0.8537, h * 0.9576, w * 0.8342, h * 0.9626, w * 0.8214, h * 0.9659);
+    path.cubicBezierTo(w * 0.8085, h * 0.9692, w * 0.7910, h * 0.9729, w * 0.7824, h * 0.9740);
+    path.cubicBezierTo(w * 0.7738, h * 0.9752, w * 0.7616, h * 0.9771, w * 0.7551, h * 0.9783);
+    path.cubicBezierTo(w * 0.7374, h * 0.9817, w * 0.6787, h * 0.9902, w * 0.6539, h * 0.9930);
+    path.cubicBezierTo(w * 0.6360, h * 0.9951, w * 0.5325, h * 1.0000, w * 0.5309, h * 0.9989);
+    path.closePath();
+    return path.toString();
+  }
+
+  // Hole positions (relative to width/height)
+  // hole1: relX=0.5967, relY=0.3365
+  // hole2: relX=0.3441, relY=0.2359
+
+
+// ΓòÉΓòÉΓòÉ WraithRing.svg ΓòÉΓòÉΓòÉ
+// Original: 47.7 x 50.9 mm
+// Head holes: (0.6451, 0.1211), (0.3205, 0.1341)
+// Decorative sub-paths: 7
+
+  generateCutPath(params: TemplateParams): string {
+    const w = params.width;
+    const h = params.length;
+    const path = new SVGPath();
+    path.moveTo(w * 0.6447, h * 0.0001);
+    path.cubicBezierTo(w * 0.6354, h * 0.0000, w * 0.6262, h * 0.0019, w * 0.6185, h * 0.0059);
+    path.cubicBezierTo(w * 0.6002, h * 0.0152, w * 0.5413, h * 0.0659, w * 0.5327, h * 0.0797);
+    path.cubicBezierTo(w * 0.5285, h * 0.0865, w * 0.5239, h * 0.1007, w * 0.5226, h * 0.1111);
+    path.cubicBezierTo(w * 0.5214, h * 0.1208, w * 0.5224, h * 0.1307, w * 0.5254, h * 0.1403);
+    path.lineTo(w * 0.5259, h * 0.1398);
+    path.lineTo(w * 0.6476, h * 0.2530);
+    path.cubicBezierTo(w * 0.6479, h * 0.2529, w * 0.6483, h * 0.2527, w * 0.6486, h * 0.2526);
+    path.cubicBezierTo(w * 0.6512, h * 0.2517, w * 0.6538, h * 0.2512, w * 0.6563, h * 0.2510);
+    path.cubicBezierTo(w * 0.6739, h * 0.2501, w * 0.6869, h * 0.2675, w * 0.6743, h * 0.2805);
+    path.cubicBezierTo(w * 0.6611, h * 0.2941, w * 0.6394, h * 0.2846, w * 0.6394, h * 0.2652);
+    path.cubicBezierTo(w * 0.6394, h * 0.2645, w * 0.6394, h * 0.2638, w * 0.6395, h * 0.2631);
+    path.cubicBezierTo(w * 0.6395, h * 0.2631, w * 0.6395, h * 0.2631, w * 0.6395, h * 0.2631);
+    path.lineTo(w * 0.5563, h * 0.1858);
+    path.lineTo(w * 0.5166, h * 0.1879);
+    path.cubicBezierTo(w * 0.4798, h * 0.1899, w * 0.4361, h * 0.1906, w * 0.4126, h * 0.1899);
+    path.lineTo(w * 0.4126, h * 0.1899);
+    path.lineTo(w * 0.3259, h * 0.2679);
+    path.cubicBezierTo(w * 0.3262, h * 0.2688, w * 0.3265, h * 0.2698, w * 0.3267, h * 0.2708);
+    path.cubicBezierTo(w * 0.3283, h * 0.2782, w * 0.3271, h * 0.2834, w * 0.3228, h * 0.2878);
+    path.cubicBezierTo(w * 0.3102, h * 0.3009, w * 0.2883, h * 0.2913, w * 0.2883, h * 0.2726);
+    path.cubicBezierTo(w * 0.2883, h * 0.2659, w * 0.2909, h * 0.2628, w * 0.2991, h * 0.2601);
+    path.cubicBezierTo(w * 0.3053, h * 0.2581, w * 0.3104, h * 0.2574, w * 0.3145, h * 0.2580);
+    path.lineTo(w * 0.4029, h * 0.1785);
+    path.cubicBezierTo(w * 0.4029, h * 0.1785, w * 0.4029, h * 0.1785, w * 0.4029, h * 0.1785);
+    path.cubicBezierTo(w * 0.4050, h * 0.1762, w * 0.4074, h * 0.1736, w * 0.4100, h * 0.1710);
+    path.cubicBezierTo(w * 0.4320, h * 0.1487, w * 0.4380, h * 0.1203, w * 0.4265, h * 0.0934);
+    path.cubicBezierTo(w * 0.4205, h * 0.0794, w * 0.4048, h * 0.0653, w * 0.3573, h * 0.0315);
+    path.cubicBezierTo(w * 0.3341, h * 0.0149, w * 0.3306, h * 0.0135, w * 0.3118, h * 0.0135);
+    path.cubicBezierTo(w * 0.3006, h * 0.0135, w * 0.2883, h * 0.0151, w * 0.2845, h * 0.0170);
+    path.cubicBezierTo(w * 0.2784, h * 0.0201, w * 0.1949, h * 0.1058, w * 0.1312, h * 0.1745);
+    path.cubicBezierTo(w * 0.1190, h * 0.1877, w * 0.1001, h * 0.2079, w * 0.0892, h * 0.2195);
+    path.cubicBezierTo(w * 0.0526, h * 0.2582, w * 0.0288, h * 0.2992, w * 0.0145, h * 0.3482);
+    path.cubicBezierTo(w * 0.0064, h * 0.3756, w * 0.0064, h * 0.3821, w * 0.0132, h * 0.4669);
+    path.cubicBezierTo(w * 0.0151, h * 0.4899, w * 0.0142, h * 0.4997, w * 0.0088, h * 0.5154);
+    path.cubicBezierTo(w * 0.0000, h * 0.5406, w * 0.0002, h * 0.6007, w * 0.0092, h * 0.6494);
+    path.cubicBezierTo(w * 0.0142, h * 0.6759, w * 0.0149, h * 0.6901, w * 0.0125, h * 0.7100);
+    path.cubicBezierTo(w * 0.0108, h * 0.7243, w * 0.0093, h * 0.7510, w * 0.0094, h * 0.7693);
+    path.cubicBezierTo(w * 0.0094, h * 0.7994, w * 0.0105, h * 0.8046, w * 0.0204, h * 0.8229);
+    path.cubicBezierTo(w * 0.0324, h * 0.8448, w * 0.0576, h * 0.8659, w * 0.0717, h * 0.8659);
+    path.cubicBezierTo(w * 0.0763, h * 0.8659, w * 0.0839, h * 0.8620, w * 0.0887, h * 0.8573);
+    path.cubicBezierTo(w * 0.0950, h * 0.8510, w * 0.1012, h * 0.8486, w * 0.1112, h * 0.8486);
+    path.cubicBezierTo(w * 0.1279, h * 0.8486, w * 0.1367, h * 0.8559, w * 0.1367, h * 0.8695);
+    path.cubicBezierTo(w * 0.1367, h * 0.8750, w * 0.1388, h * 0.8811, w * 0.1414, h * 0.8831);
+    path.cubicBezierTo(w * 0.1439, h * 0.8850, w * 0.1516, h * 0.8908, w * 0.1584, h * 0.8960);
+    path.cubicBezierTo(w * 0.1706, h * 0.9051, w * 0.1708, h * 0.9057, w * 0.1684, h * 0.9254);
+    path.cubicBezierTo(w * 0.1650, h * 0.9530, w * 0.1693, h * 0.9595, w * 0.1906, h * 0.9595);
+    path.cubicBezierTo(w * 0.1997, h * 0.9595, w * 0.2132, h * 0.9571, w * 0.2205, h * 0.9543);
+    path.cubicBezierTo(w * 0.2461, h * 0.9442, w * 0.2639, h * 0.9477, w * 0.2881, h * 0.9674);
+    path.cubicBezierTo(w * 0.3044, h * 0.9807, w * 0.3290, h * 0.9909, w * 0.3388, h * 0.9885);
+    path.cubicBezierTo(w * 0.3502, h * 0.9857, w * 0.3609, h * 0.9646, w * 0.3675, h * 0.9318);
+    path.cubicBezierTo(w * 0.3830, h * 0.8543, w * 0.3842, h * 0.8521, w * 0.4066, h * 0.8521);
+    path.cubicBezierTo(w * 0.4185, h * 0.8521, w * 0.4244, h * 0.8548, w * 0.4394, h * 0.8673);
+    path.cubicBezierTo(w * 0.4542, h * 0.8797, w * 0.4613, h * 0.8830, w * 0.4773, h * 0.8850);
+    path.cubicBezierTo(w * 0.4997, h * 0.8879, w * 0.5189, h * 0.9026, w * 0.5231, h * 0.9200);
+    path.cubicBezierTo(w * 0.5299, h * 0.9479, w * 0.5329, h * 0.9559, w * 0.5406, h * 0.9667);
+    path.cubicBezierTo(w * 0.5452, h * 0.9732, w * 0.5556, h * 0.9819, w * 0.5637, h * 0.9862);
+    path.cubicBezierTo(w * 0.5896, h * 1.0000, w * 0.6346, h * 0.9956, w * 0.6516, h * 0.9776);
+    path.cubicBezierTo(w * 0.6553, h * 0.9737, w * 0.6629, h * 0.9622, w * 0.6685, h * 0.9520);
+    path.cubicBezierTo(w * 0.6785, h * 0.9337, w * 0.6806, h * 0.9322, w * 0.7166, h * 0.9165);
+    path.cubicBezierTo(w * 0.7214, h * 0.9144, w * 0.7298, h * 0.9050, w * 0.7351, h * 0.8957);
+    path.cubicBezierTo(w * 0.7454, h * 0.8774, w * 0.7587, h * 0.8702, w * 0.7828, h * 0.8697);
+    path.cubicBezierTo(w * 0.8011, h * 0.8693, w * 0.8077, h * 0.8741, w * 0.8225, h * 0.8989);
+    path.cubicBezierTo(w * 0.8391, h * 0.9267, w * 0.8501, h * 0.9352, w * 0.8694, h * 0.9352);
+    path.cubicBezierTo(w * 0.8890, h * 0.9352, w * 0.9111, h * 0.9157, w * 0.9146, h * 0.8952);
+    path.cubicBezierTo(w * 0.9187, h * 0.8720, w * 0.9226, h * 0.8665, w * 0.9379, h * 0.8627);
+    path.cubicBezierTo(w * 0.9566, h * 0.8580, w * 0.9775, h * 0.8380, w * 0.9847, h * 0.8181);
+    path.cubicBezierTo(w * 0.9913, h * 0.8001, w * 0.9922, h * 0.7694, w * 0.9868, h * 0.7516);
+    path.cubicBezierTo(w * 0.9839, h * 0.7421, w * 0.9847, h * 0.7336, w * 0.9905, h * 0.7127);
+    path.cubicBezierTo(w * 0.9987, h * 0.6829, w * 1.0000, h * 0.6531, w * 0.9937, h * 0.6383);
+    path.cubicBezierTo(w * 0.9849, h * 0.6177, w * 0.9836, h * 0.6010, w * 0.9889, h * 0.5749);
+    path.cubicBezierTo(w * 0.9962, h * 0.5387, w * 0.9955, h * 0.5078, w * 0.9864, h * 0.4720);
+    path.cubicBezierTo(w * 0.9801, h * 0.4471, w * 0.9791, h * 0.4357, w * 0.9811, h * 0.4103);
+    path.cubicBezierTo(w * 0.9854, h * 0.3560, w * 0.9701, h * 0.3101, w * 0.9275, h * 0.2500);
+    path.cubicBezierTo(w * 0.9051, h * 0.2183, w * 0.6940, h * 0.0171, w * 0.6719, h * 0.0063);
+    path.cubicBezierTo(w * 0.6635, h * 0.0022, w * 0.6540, h * 0.0002, w * 0.6447, h * 0.0001);
+    path.closePath();
+    return path.toString();
+  }
+
+  // Decorative cut-through features (part of the design)
+  private generateDecorativePaths(params: TemplateParams): string[] {
+    const w = params.width;
+    const h = params.length;
+    const paths: string[] = [];
+    const p0 = new SVGPath();
+    path.moveTo(w * 0.4847, h * 0.2426);
+    path.cubicBezierTo(w * 0.5028, h * 0.2437, w * 0.5167, h * 0.2526, w * 0.5282, h * 0.2703);
+    path.cubicBezierTo(w * 0.5432, h * 0.2933, w * 0.5344, h * 0.3221, w * 0.5090, h * 0.3335);
+    path.cubicBezierTo(w * 0.4951, h * 0.3396, w * 0.4725, h * 0.3407, w * 0.4598, h * 0.3359);
+    path.cubicBezierTo(w * 0.4409, h * 0.3287, w * 0.4238, h * 0.2982, w * 0.4277, h * 0.2788);
+    path.cubicBezierTo(w * 0.4306, h * 0.2647, w * 0.4507, h * 0.2467, w * 0.4667, h * 0.2439);
+    path.cubicBezierTo(w * 0.4701, h * 0.2433, w * 0.4734, h * 0.2429, w * 0.4766, h * 0.2427);
+    path.cubicBezierTo(w * 0.4794, h * 0.2425, w * 0.4821, h * 0.2425, w * 0.4847, h * 0.2426);
+    path.closePath();
+    paths.push(p0.toString());
+    const p1 = new SVGPath();
+    path.moveTo(w * 0.9107, h * 0.4016);
+    path.cubicBezierTo(w * 0.9270, h * 0.4016, w * 0.9350, h * 0.4116, w * 0.9350, h * 0.4322);
+    path.cubicBezierTo(w * 0.9350, h * 0.4447, w * 0.9330, h * 0.4491, w * 0.9235, h * 0.4574);
+    path.cubicBezierTo(w * 0.9172, h * 0.4629, w * 0.9097, h * 0.4674, w * 0.9067, h * 0.4674);
+    path.cubicBezierTo(w * 0.8946, h * 0.4674, w * 0.8864, h * 0.4299, w * 0.8943, h * 0.4105);
+    path.cubicBezierTo(w * 0.8972, h * 0.4033, w * 0.9003, h * 0.4016, w * 0.9107, h * 0.4016);
+    path.closePath();
+    paths.push(p1.toString());
+    const p2 = new SVGPath();
+    path.moveTo(w * 0.0718, h * 0.5264);
+    path.cubicBezierTo(w * 0.0869, h * 0.5264, w * 0.0924, h * 0.5333, w * 0.0924, h * 0.5523);
+    path.cubicBezierTo(w * 0.0924, h * 0.5614, w * 0.0897, h * 0.5671, w * 0.0826, h * 0.5733);
+    path.cubicBezierTo(w * 0.0772, h * 0.5780, w * 0.0706, h * 0.5818, w * 0.0679, h * 0.5818);
+    path.cubicBezierTo(w * 0.0574, h * 0.5818, w * 0.0488, h * 0.5512, w * 0.0551, h * 0.5359);
+    path.cubicBezierTo(w * 0.0583, h * 0.5280, w * 0.0612, h * 0.5264, w * 0.0718, h * 0.5264);
+    path.closePath();
+    paths.push(p2.toString());
+    const p3 = new SVGPath();
+    path.moveTo(w * 0.8627, h * 0.6788);
+    path.cubicBezierTo(w * 0.8748, h * 0.6788, w * 0.8825, h * 0.6868, w * 0.8853, h * 0.7023);
+    path.cubicBezierTo(w * 0.8866, h * 0.7094, w * 0.8934, h * 0.7242, w * 0.9005, h * 0.7351);
+    path.cubicBezierTo(w * 0.9155, h * 0.7585, w * 0.9163, h * 0.7635, w * 0.9093, h * 0.7923);
+    path.cubicBezierTo(w * 0.9034, h * 0.8163, w * 0.8981, h * 0.8192, w * 0.8836, h * 0.8065);
+    path.cubicBezierTo(w * 0.8704, h * 0.7951, w * 0.8656, h * 0.7805, w * 0.8594, h * 0.7333);
+    path.cubicBezierTo(w * 0.8520, h * 0.6772, w * 0.8520, h * 0.6788, w * 0.8627, h * 0.6788);
+    path.closePath();
+    paths.push(p3.toString());
+    const p4 = new SVGPath();
+    path.moveTo(w * 0.1072, h * 0.7320);
+    path.cubicBezierTo(w * 0.1099, h * 0.7321, w * 0.1132, h * 0.7336, w * 0.1173, h * 0.7365);
+    path.cubicBezierTo(w * 0.1240, h * 0.7411, w * 0.1307, h * 0.7518, w * 0.1367, h * 0.7675);
+    path.cubicBezierTo(w * 0.1418, h * 0.7807, w * 0.1482, h * 0.7950, w * 0.1508, h * 0.7994);
+    path.cubicBezierTo(w * 0.1535, h * 0.8037, w * 0.1546, h * 0.8103, w * 0.1533, h * 0.8141);
+    path.cubicBezierTo(w * 0.1509, h * 0.8212, w * 0.1388, h * 0.8234, w * 0.1349, h * 0.8174);
+    path.cubicBezierTo(w * 0.1336, h * 0.8155, w * 0.1269, h * 0.8140, w * 0.1200, h * 0.8140);
+    path.cubicBezierTo(w * 0.1014, h * 0.8140, w * 0.0949, h * 0.8005, w * 0.0966, h * 0.7651);
+    path.cubicBezierTo(w * 0.0978, h * 0.7416, w * 0.1004, h * 0.7319, w * 0.1072, h * 0.7320);
+    path.closePath();
+    paths.push(p4.toString());
+    const p5 = new SVGPath();
+    path.moveTo(w * 0.4203, h * 0.7732);
+    path.cubicBezierTo(w * 0.4350, h * 0.7725, w * 0.4497, h * 0.7838, w * 0.4455, h * 0.7961);
+    path.cubicBezierTo(w * 0.4443, h * 0.7995, w * 0.4376, h * 0.8049, w * 0.4305, h * 0.8081);
+    path.cubicBezierTo(w * 0.4181, h * 0.8136, w * 0.4172, h * 0.8136, w * 0.4102, h * 0.8070);
+    path.cubicBezierTo(w * 0.4003, h * 0.7978, w * 0.4005, h * 0.7807, w * 0.4104, h * 0.7757);
+    path.cubicBezierTo(w * 0.4136, h * 0.7742, w * 0.4169, h * 0.7734, w * 0.4203, h * 0.7732);
+    path.closePath();
+    paths.push(p5.toString());
+    const p6 = new SVGPath();
+    path.moveTo(w * 0.7425, h * 0.7762);
+    path.cubicBezierTo(w * 0.7472, h * 0.7762, w * 0.7515, h * 0.7784, w * 0.7556, h * 0.7826);
+    path.cubicBezierTo(w * 0.7611, h * 0.7883, w * 0.7615, h * 0.7912, w * 0.7580, h * 0.8006);
+    path.cubicBezierTo(w * 0.7557, h * 0.8067, w * 0.7511, h * 0.8146, w * 0.7478, h * 0.8181);
+    path.cubicBezierTo(w * 0.7398, h * 0.8263, w * 0.7262, h * 0.8261, w * 0.7170, h * 0.8174);
+    path.cubicBezierTo(w * 0.7065, h * 0.8076, w * 0.7078, h * 0.7996, w * 0.7218, h * 0.7869);
+    path.cubicBezierTo(w * 0.7296, h * 0.7798, w * 0.7364, h * 0.7762, w * 0.7425, h * 0.7762);
+    path.closePath();
+    paths.push(p6.toString());
+    return paths;
+  }
+
+  // Hole positions (relative to width/height)
+  // hole1: relX=0.6451, relY=0.1211
+  // hole2: relX=0.3205, relY=0.1341
+
+
+// ΓòÉΓòÉΓòÉ 7Point.svg ΓòÉΓòÉΓòÉ
+// Original: 52.4 x 40.4 mm
+// Head holes: (0.6058, 0.1586), (0.3995, 0.1449)
+// Decorative sub-paths: 1
+
+  generateCutPath(params: TemplateParams): string {
+    const w = params.width;
+    const h = params.length;
+    const path = new SVGPath();
+    path.moveTo(w * 0.4558, h * 0.9949);
+    path.cubicBezierTo(w * 0.4532, h * 0.9909, w * 0.4529, h * 0.9639, w * 0.4542, h * 0.8637);
+    path.cubicBezierTo(w * 0.4552, h * 0.7943, w * 0.4570, h * 0.7222, w * 0.4584, h * 0.7034);
+    path.cubicBezierTo(w * 0.4597, h * 0.6847, w * 0.4616, h * 0.6341, w * 0.4626, h * 0.5911);
+    path.cubicBezierTo(w * 0.4654, h * 0.4625, w * 0.4654, h * 0.4614, w * 0.4604, h * 0.4573);
+    path.cubicBezierTo(w * 0.4526, h * 0.4508, w * 0.4501, h * 0.4599, w * 0.4454, h * 0.5120);
+    path.cubicBezierTo(w * 0.4429, h * 0.5398, w * 0.4402, h * 0.5684, w * 0.4394, h * 0.5757);
+    path.cubicBezierTo(w * 0.4386, h * 0.5830, w * 0.4362, h * 0.6082, w * 0.4341, h * 0.6318);
+    path.cubicBezierTo(w * 0.4252, h * 0.7322, w * 0.4143, h * 0.8201, w * 0.4071, h * 0.8514);
+    path.cubicBezierTo(w * 0.4056, h * 0.8578, w * 0.3978, h * 0.8719, w * 0.3898, h * 0.8828);
+    path.cubicBezierTo(w * 0.3727, h * 0.9060, w * 0.3544, h * 0.9376, w * 0.3448, h * 0.9605);
+    path.cubicBezierTo(w * 0.3411, h * 0.9694, w * 0.3361, h * 0.9775, w * 0.3339, h * 0.9784);
+    path.cubicBezierTo(w * 0.3287, h * 0.9805, w * 0.3010, h * 0.9722, w * 0.2973, h * 0.9674);
+    path.cubicBezierTo(w * 0.2953, h * 0.9649, w * 0.2997, h * 0.9440, w * 0.3126, h * 0.8936);
+    path.cubicBezierTo(w * 0.3397, h * 0.7885, w * 0.3499, h * 0.7289, w * 0.3527, h * 0.6599);
+    path.cubicBezierTo(w * 0.3561, h * 0.5769, w * 0.3588, h * 0.5501, w * 0.3710, h * 0.4809);
+    path.cubicBezierTo(w * 0.3765, h * 0.4491, w * 0.3772, h * 0.4414, w * 0.3745, h * 0.4372);
+    path.cubicBezierTo(w * 0.3698, h * 0.4299, w * 0.3645, h * 0.4309, w * 0.3618, h * 0.4395);
+    path.cubicBezierTo(w * 0.3605, h * 0.4436, w * 0.3549, h * 0.4677, w * 0.3493, h * 0.4931);
+    path.cubicBezierTo(w * 0.3437, h * 0.5186, w * 0.3356, h * 0.5546, w * 0.3312, h * 0.5732);
+    path.cubicBezierTo(w * 0.3268, h * 0.5919, w * 0.3192, h * 0.6298, w * 0.3144, h * 0.6574);
+    path.cubicBezierTo(w * 0.3095, h * 0.6851, w * 0.3037, h * 0.7152, w * 0.3014, h * 0.7243);
+    path.cubicBezierTo(w * 0.2957, h * 0.7474, w * 0.2737, h * 0.8156, w * 0.2634, h * 0.8420);
+    path.lineTo(w * 0.2548, h * 0.8641);
+    path.lineTo(w * 0.2350, h * 0.8639);
+    path.cubicBezierTo(w * 0.2186, h * 0.8637, w * 0.2106, h * 0.8657, w * 0.1876, h * 0.8759);
+    path.cubicBezierTo(w * 0.1659, h * 0.8855, w * 0.1593, h * 0.8873, w * 0.1564, h * 0.8842);
+    path.cubicBezierTo(w * 0.1509, h * 0.8783, w * 0.1517, h * 0.8746, w * 0.1666, h * 0.8359);
+    path.cubicBezierTo(w * 0.2086, h * 0.7263, w * 0.2250, h * 0.6745, w * 0.2368, h * 0.6140);
+    path.cubicBezierTo(w * 0.2443, h * 0.5758, w * 0.2510, h * 0.5501, w * 0.2735, h * 0.4728);
+    path.cubicBezierTo(w * 0.2842, h * 0.4362, w * 0.2929, h * 0.4031, w * 0.2929, h * 0.3992);
+    path.cubicBezierTo(w * 0.2929, h * 0.3895, w * 0.2858, h * 0.3869, w * 0.2802, h * 0.3944);
+    path.cubicBezierTo(w * 0.2776, h * 0.3979, w * 0.2707, h * 0.4155, w * 0.2648, h * 0.4337);
+    path.cubicBezierTo(w * 0.2543, h * 0.4659, w * 0.2098, h * 0.5839, w * 0.1994, h * 0.6071);
+    path.cubicBezierTo(w * 0.1966, h * 0.6134, w * 0.1899, h * 0.6283, w * 0.1847, h * 0.6401);
+    path.cubicBezierTo(w * 0.1654, h * 0.6832, w * 0.1366, h * 0.7410, w * 0.1301, h * 0.7494);
+    path.cubicBezierTo(w * 0.1262, h * 0.7545, w * 0.1140, h * 0.7622, w * 0.0998, h * 0.7685);
+    path.cubicBezierTo(w * 0.0791, h * 0.7777, w * 0.0340, h * 0.8067, w * 0.0269, h * 0.8154);
+    path.cubicBezierTo(w * 0.0202, h * 0.8235, w * 0.0000, h * 0.8133, w * 0.0000, h * 0.8018);
+    path.cubicBezierTo(w * 0.0000, h * 0.7969, w * 0.0061, h * 0.7850, w * 0.0280, h * 0.7474);
+    path.cubicBezierTo(w * 0.0608, h * 0.6911, w * 0.0930, h * 0.6331, w * 0.1076, h * 0.6038);
+    path.cubicBezierTo(w * 0.1277, h * 0.5635, w * 0.1596, h * 0.4823, w * 0.1809, h * 0.4172);
+    path.cubicBezierTo(w * 0.1910, h * 0.3863, w * 0.2047, h * 0.3477, w * 0.2114, h * 0.3313);
+    path.cubicBezierTo(w * 0.2181, h * 0.3150, w * 0.2282, h * 0.2905, w * 0.2337, h * 0.2769);
+    path.cubicBezierTo(w * 0.2471, h * 0.2438, w * 0.2788, h * 0.1706, w * 0.2866, h * 0.1545);
+    path.cubicBezierTo(w * 0.2901, h * 0.1474, w * 0.2929, h * 0.1408, w * 0.2929, h * 0.1397);
+    path.cubicBezierTo(w * 0.2929, h * 0.1387, w * 0.2967, h * 0.1301, w * 0.3013, h * 0.1207);
+    path.cubicBezierTo(w * 0.3060, h * 0.1112, w * 0.3124, h * 0.0967, w * 0.3156, h * 0.0883);
+    path.cubicBezierTo(w * 0.3256, h * 0.0624, w * 0.3390, h * 0.0451, w * 0.3605, h * 0.0309);
+    path.cubicBezierTo(w * 0.3798, h * 0.0180, w * 0.3811, h * 0.0176, w * 0.4060, h * 0.0176);
+    path.cubicBezierTo(w * 0.4297, h * 0.0176, w * 0.4331, h * 0.0185, w * 0.4490, h * 0.0283);
+    path.cubicBezierTo(w * 0.4700, h * 0.0412, w * 0.4877, h * 0.0636, w * 0.4974, h * 0.0895);
+    path.cubicBezierTo(w * 0.5013, h * 0.0999, w * 0.5053, h * 0.1084, w * 0.5063, h * 0.1084);
+    path.cubicBezierTo(w * 0.5073, h * 0.1084, w * 0.5118, h * 0.0991, w * 0.5164, h * 0.0876);
+    path.cubicBezierTo(w * 0.5267, h * 0.0618, w * 0.5391, h * 0.0460, w * 0.5595, h * 0.0327);
+    path.cubicBezierTo(w * 0.6096, h * 0.0000, w * 0.6703, h * 0.0255, w * 0.6957, h * 0.0899);
+    path.cubicBezierTo(w * 0.6999, h * 0.1005, w * 0.7183, h * 0.1444, w * 0.7366, h * 0.1873);
+    path.cubicBezierTo(w * 0.7814, h * 0.2923, w * 0.7791, h * 0.2867, w * 0.8073, h * 0.3578);
+    path.cubicBezierTo(w * 0.8210, h * 0.3923, w * 0.8366, h * 0.4354, w * 0.8418, h * 0.4535);
+    path.cubicBezierTo(w * 0.8587, h * 0.5117, w * 0.8599, h * 0.5156, w * 0.8721, h * 0.5542);
+    path.cubicBezierTo(w * 0.8927, h * 0.6195, w * 0.9160, h * 0.6703, w * 0.9574, h * 0.7405);
+    path.cubicBezierTo(w * 0.9681, h * 0.7584, w * 0.9804, h * 0.7795, w * 0.9849, h * 0.7872);
+    path.cubicBezierTo(w * 0.9893, h * 0.7949, w * 0.9942, h * 0.8022, w * 0.9957, h * 0.8034);
+    path.cubicBezierTo(w * 1.0000, h * 0.8069, w * 0.9988, h * 0.8212, w * 0.9939, h * 0.8245);
+    path.cubicBezierTo(w * 0.9915, h * 0.8261, w * 0.9702, h * 0.8282, w * 0.9467, h * 0.8291);
+    path.cubicBezierTo(w * 0.9097, h * 0.8305, w * 0.9032, h * 0.8300, w * 0.8992, h * 0.8254);
+    path.cubicBezierTo(w * 0.8941, h * 0.8196, w * 0.8479, h * 0.7320, w * 0.8303, h * 0.6946);
+    path.cubicBezierTo(w * 0.7976, h * 0.6255, w * 0.7577, h * 0.5128, w * 0.7375, h * 0.4329);
+    path.cubicBezierTo(w * 0.7296, h * 0.4020, w * 0.7237, h * 0.3903, w * 0.7173, h * 0.3934);
+    path.cubicBezierTo(w * 0.7113, h * 0.3964, w * 0.7121, h * 0.4073, w * 0.7210, h * 0.4423);
+    path.cubicBezierTo(w * 0.7254, h * 0.4594, w * 0.7357, h * 0.5041, w * 0.7439, h * 0.5417);
+    path.cubicBezierTo(w * 0.7665, h * 0.6449, w * 0.7798, h * 0.6892, w * 0.8334, h * 0.8399);
+    path.cubicBezierTo(w * 0.8574, h * 0.9072, w * 0.8572, h * 0.9066, w * 0.8518, h * 0.9143);
+    path.cubicBezierTo(w * 0.8460, h * 0.9226, w * 0.8292, h * 0.9286, w * 0.8213, h * 0.9251);
+    path.cubicBezierTo(w * 0.8180, h * 0.9236, w * 0.8080, h * 0.9134, w * 0.7992, h * 0.9024);
+    path.cubicBezierTo(w * 0.7904, h * 0.8914, w * 0.7721, h * 0.8702, w * 0.7587, h * 0.8554);
+    path.lineTo(w * 0.7341, h * 0.8284);
+    path.lineTo(w * 0.7209, h * 0.7846);
+    path.cubicBezierTo(w * 0.7137, h * 0.7605, w * 0.7050, h * 0.7296, w * 0.7017, h * 0.7160);
+    path.cubicBezierTo(w * 0.6984, h * 0.7024, w * 0.6908, h * 0.6712, w * 0.6849, h * 0.6467);
+    path.cubicBezierTo(w * 0.6789, h * 0.6222, w * 0.6738, h * 0.6006, w * 0.6734, h * 0.5988);
+    path.cubicBezierTo(w * 0.6731, h * 0.5970, w * 0.6700, h * 0.5814, w * 0.6665, h * 0.5641);
+    path.cubicBezierTo(w * 0.6604, h * 0.5342, w * 0.6515, h * 0.4832, w * 0.6480, h * 0.4585);
+    path.cubicBezierTo(w * 0.6448, h * 0.4351, w * 0.6334, h * 0.4234, w * 0.6302, h * 0.4400);
+    path.cubicBezierTo(w * 0.6294, h * 0.4443, w * 0.6317, h * 0.4714, w * 0.6353, h * 0.5002);
+    path.cubicBezierTo(w * 0.6464, h * 0.5869, w * 0.6489, h * 0.6102, w * 0.6520, h * 0.6516);
+    path.cubicBezierTo(w * 0.6553, h * 0.6973, w * 0.6614, h * 0.7413, w * 0.6735, h * 0.8068);
+    path.cubicBezierTo(w * 0.6926, h * 0.9102, w * 0.7005, h * 0.9559, w * 0.7004, h * 0.9641);
+    path.cubicBezierTo(w * 0.7004, h * 0.9735, w * 0.6943, h * 0.9781, w * 0.6775, h * 0.9815);
+    path.cubicBezierTo(w * 0.6668, h * 0.9836, w * 0.6642, h * 0.9813, w * 0.6479, h * 0.9551);
+    path.cubicBezierTo(w * 0.6411, h * 0.9441, w * 0.6255, h * 0.9213, w * 0.6134, h * 0.9045);
+    path.cubicBezierTo(w * 0.5936, h * 0.8771, w * 0.5910, h * 0.8719, w * 0.5875, h * 0.8536);
+    path.cubicBezierTo(w * 0.5828, h * 0.8291, w * 0.5740, h * 0.7643, w * 0.5719, h * 0.7391);
+    path.cubicBezierTo(w * 0.5710, h * 0.7292, w * 0.5699, h * 0.7158, w * 0.5693, h * 0.7094);
+    path.cubicBezierTo(w * 0.5687, h * 0.7031, w * 0.5675, h * 0.6860, w * 0.5668, h * 0.6714);
+    path.cubicBezierTo(w * 0.5660, h * 0.6569, w * 0.5647, h * 0.6369, w * 0.5640, h * 0.6269);
+    path.cubicBezierTo(w * 0.5633, h * 0.6169, w * 0.5611, h * 0.5747, w * 0.5592, h * 0.5332);
+    path.cubicBezierTo(w * 0.5572, h * 0.4917, w * 0.5545, h * 0.4563, w * 0.5532, h * 0.4545);
+    path.cubicBezierTo(w * 0.5518, h * 0.4527, w * 0.5485, h * 0.4518, w * 0.5459, h * 0.4524);
+    path.cubicBezierTo(w * 0.5420, h * 0.4534, w * 0.5413, h * 0.4566, w * 0.5415, h * 0.4701);
+    path.cubicBezierTo(w * 0.5433, h * 0.5817, w * 0.5428, h * 0.6443, w * 0.5399, h * 0.6632);
+    path.cubicBezierTo(w * 0.5374, h * 0.6803, w * 0.5354, h * 0.7546, w * 0.5349, h * 0.8571);
+    path.cubicBezierTo(w * 0.5349, h * 0.8593, w * 0.5316, h * 0.8660, w * 0.5276, h * 0.8719);
+    path.cubicBezierTo(w * 0.5111, h * 0.8967, w * 0.4992, h * 0.9388, w * 0.4992, h * 0.9724);
+    path.cubicBezierTo(w * 0.4992, h * 0.9994, w * 0.4987, h * 1.0000, w * 0.4776, h * 1.0000);
+    path.cubicBezierTo(w * 0.4640, h * 1.0000, w * 0.4582, h * 0.9986, w * 0.4558, h * 0.9949);
+    path.closePath();
+    return path.toString();
+  }
+
+  // Decorative cut-through features (part of the design)
+  private generateDecorativePaths(params: TemplateParams): string[] {
+    const w = params.width;
+    const h = params.length;
+    const paths: string[] = [];
+    const p0 = new SVGPath();
+    path.moveTo(w * 0.5192, h * 0.3286);
+    path.cubicBezierTo(w * 0.5227, h * 0.3237, w * 0.5249, h * 0.3162, w * 0.5252, h * 0.3082);
+    path.cubicBezierTo(w * 0.5258, h * 0.2843, w * 0.5044, h * 0.2716, w * 0.4904, h * 0.2876);
+    path.cubicBezierTo(w * 0.4804, h * 0.2990, w * 0.4795, h * 0.3130, w * 0.4877, h * 0.3258);
+    path.cubicBezierTo(w * 0.4965, h * 0.3392, w * 0.5105, h * 0.3405, w * 0.5192, h * 0.3286);
+    path.closePath();
+    paths.push(p0.toString());
+    return paths;
+  }
+
+  // Hole positions (relative to width/height)
+  // hole1: relX=0.6058, relY=0.1586
+  // hole2: relX=0.3995, relY=0.1449
+
+
+// ΓòÉΓòÉΓòÉ HighCollarTemplate.svg ΓòÉΓòÉΓòÉ
+// Original: 31.7 x 18.1 mm
+// Head holes: (0.6694, 0.2669), (0.3413, 0.2573)
+// Decorative sub-paths: 0
+
+  generateCutPath(params: TemplateParams): string {
+    const w = params.width;
+    const h = params.length;
+    const path = new SVGPath();
+    path.moveTo(w * 0.4493, h * 0.9987);
+    path.cubicBezierTo(w * 0.4492, h * 0.9985, w * 0.4420, h * 0.9978, w * 0.4332, h * 0.9970);
+    path.cubicBezierTo(w * 0.4245, h * 0.9962, w * 0.4122, h * 0.9951, w * 0.4059, h * 0.9945);
+    path.cubicBezierTo(w * 0.3996, h * 0.9939, w * 0.3891, h * 0.9929, w * 0.3824, h * 0.9923);
+    path.cubicBezierTo(w * 0.3651, h * 0.9908, w * 0.3539, h * 0.9895, w * 0.3043, h * 0.9831);
+    path.cubicBezierTo(w * 0.2808, h * 0.9801, w * 0.2198, h * 0.9669, w * 0.1937, h * 0.9591);
+    path.cubicBezierTo(w * 0.1874, h * 0.9573, w * 0.1768, h * 0.9541, w * 0.1702, h * 0.9521);
+    path.cubicBezierTo(w * 0.1635, h * 0.9502, w * 0.1518, h * 0.9461, w * 0.1441, h * 0.9432);
+    path.cubicBezierTo(w * 0.1364, h * 0.9403, w * 0.1292, h * 0.9379, w * 0.1281, h * 0.9379);
+    path.cubicBezierTo(w * 0.1270, h * 0.9379, w * 0.1201, h * 0.9349, w * 0.1129, h * 0.9311);
+    path.cubicBezierTo(w * 0.1056, h * 0.9274, w * 0.0957, h * 0.9223, w * 0.0908, h * 0.9199);
+    path.cubicBezierTo(w * 0.0707, h * 0.9099, w * 0.0431, h * 0.8925, w * 0.0337, h * 0.8839);
+    path.cubicBezierTo(w * 0.0115, h * 0.8635, w * 0.0000, h * 0.8348, w * 0.0036, h * 0.8092);
+    path.cubicBezierTo(w * 0.0060, h * 0.7927, w * 0.0139, h * 0.7492, w * 0.0189, h * 0.7248);
+    path.cubicBezierTo(w * 0.0219, h * 0.7108, w * 0.0248, h * 0.6958, w * 0.0256, h * 0.6915);
+    path.cubicBezierTo(w * 0.0263, h * 0.6873, w * 0.0273, h * 0.6828, w * 0.0278, h * 0.6815);
+    path.cubicBezierTo(w * 0.0283, h * 0.6803, w * 0.0310, h * 0.6683, w * 0.0336, h * 0.6549);
+    path.cubicBezierTo(w * 0.0363, h * 0.6415, w * 0.0393, h * 0.6280, w * 0.0402, h * 0.6249);
+    path.cubicBezierTo(w * 0.0411, h * 0.6219, w * 0.0418, h * 0.6183, w * 0.0418, h * 0.6169);
+    path.cubicBezierTo(w * 0.0418, h * 0.6146, w * 0.0458, h * 0.5979, w * 0.0501, h * 0.5817);
+    path.cubicBezierTo(w * 0.0511, h * 0.5780, w * 0.0541, h * 0.5650, w * 0.0569, h * 0.5528);
+    path.cubicBezierTo(w * 0.0596, h * 0.5406, w * 0.0651, h * 0.5188, w * 0.0690, h * 0.5044);
+    path.cubicBezierTo(w * 0.0729, h * 0.4900, w * 0.0761, h * 0.4778, w * 0.0761, h * 0.4773);
+    path.cubicBezierTo(w * 0.0761, h * 0.4759, w * 0.0850, h * 0.4452, w * 0.0926, h * 0.4196);
+    path.cubicBezierTo(w * 0.1040, h * 0.3821, w * 0.1053, h * 0.3776, w * 0.1070, h * 0.3731);
+    path.cubicBezierTo(w * 0.1124, h * 0.3584, w * 0.1168, h * 0.3453, w * 0.1168, h * 0.3439);
+    path.cubicBezierTo(w * 0.1168, h * 0.3431, w * 0.1181, h * 0.3393, w * 0.1197, h * 0.3355);
+    path.cubicBezierTo(w * 0.1214, h * 0.3317, w * 0.1248, h * 0.3217, w * 0.1275, h * 0.3132);
+    path.cubicBezierTo(w * 0.1301, h * 0.3047, w * 0.1340, h * 0.2943, w * 0.1360, h * 0.2900);
+    path.cubicBezierTo(w * 0.1380, h * 0.2856, w * 0.1397, h * 0.2813, w * 0.1397, h * 0.2802);
+    path.cubicBezierTo(w * 0.1397, h * 0.2792, w * 0.1411, h * 0.2751, w * 0.1429, h * 0.2711);
+    path.cubicBezierTo(w * 0.1446, h * 0.2671, w * 0.1460, h * 0.2629, w * 0.1460, h * 0.2617);
+    path.cubicBezierTo(w * 0.1460, h * 0.2605, w * 0.1475, h * 0.2571, w * 0.1492, h * 0.2543);
+    path.cubicBezierTo(w * 0.1510, h * 0.2514, w * 0.1524, h * 0.2483, w * 0.1524, h * 0.2475);
+    path.cubicBezierTo(w * 0.1524, h * 0.2459, w * 0.1596, h * 0.2271, w * 0.1729, h * 0.1937);
+    path.cubicBezierTo(w * 0.1766, h * 0.1842, w * 0.1806, h * 0.1741, w * 0.1816, h * 0.1713);
+    path.cubicBezierTo(w * 0.1882, h * 0.1534, w * 0.2209, h * 0.0883, w * 0.2283, h * 0.0783);
+    path.cubicBezierTo(w * 0.2302, h * 0.0756, w * 0.2320, h * 0.0727, w * 0.2323, h * 0.0718);
+    path.cubicBezierTo(w * 0.2325, h * 0.0708, w * 0.2373, h * 0.0642, w * 0.2431, h * 0.0570);
+    path.cubicBezierTo(w * 0.2596, h * 0.0362, w * 0.2748, h * 0.0241, w * 0.3024, h * 0.0097);
+    path.cubicBezierTo(w * 0.3208, h * 0.0000, w * 0.3573, h * 0.0003, w * 0.3786, h * 0.0103);
+    path.cubicBezierTo(w * 0.3907, h * 0.0159, w * 0.4074, h * 0.0285, w * 0.4180, h * 0.0400);
+    path.cubicBezierTo(w * 0.4293, h * 0.0522, w * 0.4395, h * 0.0661, w * 0.4395, h * 0.0695);
+    path.cubicBezierTo(w * 0.4396, h * 0.0710, w * 0.4404, h * 0.0723, w * 0.4414, h * 0.0723);
+    path.cubicBezierTo(w * 0.4424, h * 0.0723, w * 0.4463, h * 0.0785, w * 0.4500, h * 0.0861);
+    path.cubicBezierTo(w * 0.4606, h * 0.1076, w * 0.4623, h * 0.1119, w * 0.4736, h * 0.1477);
+    path.cubicBezierTo(w * 0.4773, h * 0.1594, w * 0.4841, h * 0.1966, w * 0.4861, h * 0.2160);
+    path.cubicBezierTo(w * 0.4870, h * 0.2254, w * 0.4878, h * 0.2442, w * 0.4879, h * 0.2576);
+    path.cubicBezierTo(w * 0.4879, h * 0.2710, w * 0.4885, h * 0.2928, w * 0.4892, h * 0.3061);
+    path.cubicBezierTo(w * 0.4905, h * 0.3289, w * 0.4901, h * 0.3372, w * 0.4871, h * 0.3641);
+    path.cubicBezierTo(w * 0.4866, h * 0.3684, w * 0.4831, h * 0.3762, w * 0.4771, h * 0.3863);
+    path.cubicBezierTo(w * 0.4657, h * 0.4058, w * 0.4622, h * 0.4195, w * 0.4620, h * 0.4463);
+    path.cubicBezierTo(w * 0.4619, h * 0.4617, w * 0.4623, h * 0.4657, w * 0.4656, h * 0.4773);
+    path.cubicBezierTo(w * 0.4771, h * 0.5183, w * 0.5037, h * 0.5336, w * 0.5273, h * 0.5127);
+    path.cubicBezierTo(w * 0.5339, h * 0.5069, w * 0.5452, h * 0.4853, w * 0.5482, h * 0.4728);
+    path.cubicBezierTo(w * 0.5515, h * 0.4592, w * 0.5520, h * 0.4414, w * 0.5497, h * 0.4256);
+    path.cubicBezierTo(w * 0.5474, h * 0.4096, w * 0.5430, h * 0.3977, w * 0.5337, h * 0.3819);
+    path.cubicBezierTo(w * 0.5247, h * 0.3665, w * 0.5242, h * 0.3620, w * 0.5245, h * 0.3064);
+    path.cubicBezierTo(w * 0.5248, h * 0.2553, w * 0.5263, h * 0.2267, w * 0.5300, h * 0.2005);
+    path.cubicBezierTo(w * 0.5400, h * 0.1300, w * 0.5670, h * 0.0711, w * 0.6042, h * 0.0384);
+    path.cubicBezierTo(w * 0.6403, h * 0.0067, w * 0.6744, h * 0.0021, w * 0.7173, h * 0.0232);
+    path.cubicBezierTo(w * 0.7262, h * 0.0276, w * 0.7406, h * 0.0371, w * 0.7451, h * 0.0415);
+    path.cubicBezierTo(w * 0.7536, h * 0.0498, w * 0.7564, h * 0.0527, w * 0.7649, h * 0.0624);
+    path.cubicBezierTo(w * 0.7751, h * 0.0738, w * 0.7933, h * 0.1046, w * 0.8054, h * 0.1307);
+    path.cubicBezierTo(w * 0.8212, h * 0.1649, w * 0.8479, h * 0.2317, w * 0.8570, h * 0.2598);
+    path.cubicBezierTo(w * 0.8590, h * 0.2659, w * 0.8616, h * 0.2729, w * 0.8627, h * 0.2753);
+    path.cubicBezierTo(w * 0.8652, h * 0.2805, w * 0.8718, h * 0.2997, w * 0.8787, h * 0.3220);
+    path.cubicBezierTo(w * 0.8814, h * 0.3305, w * 0.8852, h * 0.3417, w * 0.8872, h * 0.3468);
+    path.cubicBezierTo(w * 0.8891, h * 0.3519, w * 0.8908, h * 0.3567, w * 0.8908, h * 0.3574);
+    path.cubicBezierTo(w * 0.8908, h * 0.3582, w * 0.8944, h * 0.3705, w * 0.8989, h * 0.3848);
+    path.cubicBezierTo(w * 0.9361, h * 0.5038, w * 0.9653, h * 0.6283, w * 0.9881, h * 0.7641);
+    path.cubicBezierTo(w * 0.9994, h * 0.8318, w * 1.0000, h * 0.8375, w * 0.9970, h * 0.8499);
+    path.cubicBezierTo(w * 0.9949, h * 0.8588, w * 0.9820, h * 0.8814, w * 0.9759, h * 0.8869);
+    path.cubicBezierTo(w * 0.9734, h * 0.8891, w * 0.9681, h * 0.8945, w * 0.9639, h * 0.8989);
+    path.cubicBezierTo(w * 0.9597, h * 0.9032, w * 0.9552, h * 0.9068, w * 0.9537, h * 0.9068);
+    path.cubicBezierTo(w * 0.9508, h * 0.9068, w * 0.9330, h * 0.9164, w * 0.9270, h * 0.9212);
+    path.cubicBezierTo(w * 0.9230, h * 0.9243, w * 0.9079, h * 0.9322, w * 0.8901, h * 0.9402);
+    path.cubicBezierTo(w * 0.8845, h * 0.9427, w * 0.8762, h * 0.9468, w * 0.8717, h * 0.9492);
+    path.cubicBezierTo(w * 0.8671, h * 0.9517, w * 0.8591, h * 0.9546, w * 0.8539, h * 0.9558);
+    path.cubicBezierTo(w * 0.8487, h * 0.9571, w * 0.8409, h * 0.9595, w * 0.8367, h * 0.9612);
+    path.cubicBezierTo(w * 0.8326, h * 0.9629, w * 0.8260, h * 0.9649, w * 0.8222, h * 0.9657);
+    path.cubicBezierTo(w * 0.8184, h * 0.9664, w * 0.8150, h * 0.9674, w * 0.8145, h * 0.9678);
+    path.cubicBezierTo(w * 0.8141, h * 0.9683, w * 0.8075, h * 0.9699, w * 0.7998, h * 0.9713);
+    path.cubicBezierTo(w * 0.7922, h * 0.9727, w * 0.7850, h * 0.9747, w * 0.7840, h * 0.9757);
+    path.cubicBezierTo(w * 0.7829, h * 0.9767, w * 0.7715, h * 0.9791, w * 0.7586, h * 0.9811);
+    path.cubicBezierTo(w * 0.7457, h * 0.9831, w * 0.7225, h * 0.9867, w * 0.7071, h * 0.9891);
+    path.cubicBezierTo(w * 0.6917, h * 0.9915, w * 0.6717, h * 0.9940, w * 0.6626, h * 0.9947);
+    path.cubicBezierTo(w * 0.6536, h * 0.9954, w * 0.6353, h * 0.9968, w * 0.6220, h * 0.9978);
+    path.cubicBezierTo(w * 0.6035, h * 0.9992, w * 0.4504, h * 1.0000, w * 0.4494, h * 0.9987);
+    path.closePath();
+    return path.toString();
+  }
+
+  // Hole positions (relative to width/height)
+  // hole1: relX=0.6694, relY=0.2669
+  // hole2: relX=0.3413, relY=0.2573
+
+
