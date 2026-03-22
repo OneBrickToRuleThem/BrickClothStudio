@@ -154,47 +154,10 @@ export default function ParameterPanel() {
           )}
         </section>
 
-        {/* Attachment Hole Section */}
-        <section className="panel-section border-t pt-4">
-          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('attachment')}>
-            <h3 className="panel-section-title">Attachment Hole</h3>
-            <span className="text-gray-400 text-xs">{openSections.attachment ? '▾' : '▸'}</span>
-          </button>
-          {openSections.attachment && (
-          <div className="space-y-2 mt-2">
-            {/* Hole Type Selector */}
-            <div className="form-group">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hole Type
-              </label>
-              <select
-                value={parameters.holeType as string || DEFAULT_HOLE_TYPE}
-                onChange={(e) => {
-                  const holeType = e.target.value as keyof typeof HOLE_STANDARDS;
-                  setParameter('holeType', holeType);
-                  setParameter('holeRadius', HOLE_STANDARDS[holeType].radius);
-                }}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-              >
-                {Object.entries(HOLE_STANDARDS).map(([key, standard]) => (
-                  <option key={key} value={key} title={standard.description}>
-                    {standard.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {HOLE_STANDARDS[parameters.holeType as keyof typeof HOLE_STANDARDS || 'minifigure']?.description}
-              </p>
-            </div>
-
-          </div>
-          )}
-        </section>
-
-        {/* Hem Style Section — only one can be active */}
+        {/* Bottom Edge — only one can be active */}
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('hemStyle')}>
-            <h3 className="panel-section-title">Hem Style</h3>
+            <h3 className="panel-section-title">Bottom Edge</h3>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">{activeHem}</span>
               <span className="text-gray-400 text-xs">{openSections.hemStyle ? '▾' : '▸'}</span>
@@ -202,7 +165,7 @@ export default function ParameterPanel() {
           </button>
           {openSections.hemStyle && (
           <div className="mt-2">
-          <p className="text-xs text-gray-500 mb-2">Choose one hem modification</p>
+          <p className="text-xs text-gray-500 mb-2">Choose one bottom edge style</p>
           <div className="space-y-3">
 
             {/* None */}
@@ -466,10 +429,10 @@ export default function ParameterPanel() {
           )}
         </section>
 
-        {/* Side Style Section */}
+        {/* Side Edges Section */}
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('sideStyle')}>
-            <h3 className="panel-section-title">Side Style</h3>
+            <h3 className="panel-section-title">Side Edges</h3>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500 capitalize">{activeSide}</span>
               <span className="text-gray-400 text-xs">{openSections.sideStyle ? '▾' : '▸'}</span>
@@ -611,17 +574,47 @@ export default function ParameterPanel() {
         </>
         )}
 
-        {/* --- Kama / Pauldron Edge Style --- */}
+        {/* --- Pauldron Transformations --- */}
+        {elementType === 'pauldron' && (
+        <section className="panel-section border-t pt-4">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('transformations')}>
+            <h3 className="panel-section-title">Transformations</h3>
+            <span className="text-gray-400 text-xs">{openSections.transformations ? '▾' : '▸'}</span>
+          </button>
+          {openSections.transformations && (
+          <div className="space-y-3 mt-2">
+            <div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={parameters.pauldronRounding as boolean || false}
+                  onChange={(e) => setParameter('pauldronRounding', e.target.checked)} className="w-4 h-4" />
+                <span>Rounding</span>
+              </label>
+              <p className="text-[10px] text-gray-500 ml-6">Curve the bottom rim into a U-shape</p>
+              {parameters.pauldronRounding && (
+                <div className="ml-6 mt-1">
+                  <ParameterSlider label="Amount" name="pauldronRoundingAmount"
+                    min={0.1} max={1.0} step={0.05}
+                    value={(parameters.pauldronRoundingAmount as number) || 0.5}
+                    onChange={(v) => setParameter('pauldronRoundingAmount', v)} />
+                </div>
+              )}
+            </div>
+          </div>
+          )}
+        </section>
+        )}
+
+        {/* --- Kama / Pauldron Bottom Edge --- */}
         {(elementType === 'kama' || elementType === 'pauldron') && (
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('edgeStyles')}>
-            <h3 className="panel-section-title">Edge Style</h3>
+            <h3 className="panel-section-title">Bottom Edge</h3>
             <span className="text-gray-400 text-xs">{openSections.edgeStyles ? '▾' : '▸'}</span>
           </button>
           {openSections.edgeStyles && (
           <div className="mt-2 space-y-3">
             <div>
-              <label className="text-xs font-medium text-gray-700">Hem Style</label>
+              <label className="text-xs font-medium text-gray-700">Style</label>
               <select className="w-full mt-1 text-xs border rounded px-2 py-1"
                 value={(parameters[`${elementType}EdgeStyle`] as string) || 'none'}
                 onChange={(e) => {
@@ -654,45 +647,41 @@ export default function ParameterPanel() {
         </section>
         )}
 
-        {/* --- Pauldron Transformations --- */}
-        {elementType === 'pauldron' && (
-        <section className="panel-section border-t pt-4">
-          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('transformations')}>
-            <h3 className="panel-section-title">Transformations</h3>
-            <span className="text-gray-400 text-xs">{openSections.transformations ? '▾' : '▸'}</span>
-          </button>
-          {openSections.transformations && (
-          <div className="space-y-3 mt-2">
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={parameters.pauldronRounding as boolean || false}
-                  onChange={(e) => setParameter('pauldronRounding', e.target.checked)} className="w-4 h-4" />
-                <span>Rounding</span>
-              </label>
-              <p className="text-[10px] text-gray-500 ml-6">Curve the bottom rim into a U-shape</p>
-              {parameters.pauldronRounding && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Amount" name="pauldronRoundingAmount"
-                    min={0.1} max={1.0} step={0.05}
-                    value={(parameters.pauldronRoundingAmount as number) || 0.5}
-                    onChange={(v) => setParameter('pauldronRoundingAmount', v)} />
-                </div>
-              )}
-            </div>
-          </div>
-          )}
-        </section>
-        )}
-
         {/* --- Attachment Hole (all non-sail elements) --- */}
         {elementType !== 'sail' && (
         <section className="panel-section border-t pt-4">
-          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('holeOverride')}>
-            <h3 className="panel-section-title">Hole Override</h3>
-            <span className="text-gray-400 text-xs">{openSections.holeOverride ? '▾' : '▸'}</span>
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('attachment')}>
+            <h3 className="panel-section-title">Attachment Hole</h3>
+            <span className="text-gray-400 text-xs">{openSections.attachment ? '▾' : '▸'}</span>
           </button>
-          {openSections.holeOverride && (
-          <div className="mt-2 space-y-2">
+          {openSections.attachment && (
+          <div className="mt-2 space-y-3">
+            {/* Hole Type Selector — cape only */}
+            {elementType === 'cape' && (
+            <div className="form-group">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hole Type</label>
+              <select
+                value={parameters.holeType as string || DEFAULT_HOLE_TYPE}
+                onChange={(e) => {
+                  const holeType = e.target.value as keyof typeof HOLE_STANDARDS;
+                  setParameter('holeType', holeType);
+                  setParameter('holeRadius', HOLE_STANDARDS[holeType].radius);
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                {Object.entries(HOLE_STANDARDS).map(([key, standard]) => (
+                  <option key={key} value={key} title={standard.description}>
+                    {standard.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {HOLE_STANDARDS[parameters.holeType as keyof typeof HOLE_STANDARDS || 'minifigure']?.description}
+              </p>
+            </div>
+            )}
+
+            {/* Custom hole shape override — all non-sail */}
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={parameters.holeOverride as boolean || false}
                 onChange={(e) => setParameter('holeOverride', e.target.checked)} className="w-4 h-4" />

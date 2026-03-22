@@ -70,8 +70,8 @@ export default function Editor() {
           {/* Panel tabs */}
           <div className="flex border-b border-gray-200 flex-shrink-0">
             {([
-              { key: 'parameters' as RightPanel, label: 'Params' },
-              { key: 'decorations' as RightPanel, label: 'Decor' },
+              { key: 'parameters' as RightPanel, label: 'Adjust' },
+              { key: 'decorations' as RightPanel, label: 'Design' },
               { key: 'export' as RightPanel, label: 'Export' },
             ]).map(tab => (
               <button
@@ -114,8 +114,8 @@ export default function Editor() {
             {/* Panel tabs */}
             <div className="flex border-b border-gray-200 flex-shrink-0">
               {([
-                { key: 'parameters' as RightPanel, label: 'Params' },
-                { key: 'decorations' as RightPanel, label: 'Decor' },
+                { key: 'parameters' as RightPanel, label: 'Adjust' },
+                { key: 'decorations' as RightPanel, label: 'Design' },
                 { key: 'export' as RightPanel, label: 'Export' },
               ]).map(tab => (
                 <button
