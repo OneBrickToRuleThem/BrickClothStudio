@@ -82,8 +82,9 @@ function drawRefOutline(path: SVGPath, w: number, h: number) {
  * Shoulder peak → left side down to y ≈ 0.897h.
  * Used by CapeTattered to replace the bottom hem with jitter.
  */
-function drawRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0) {
+function drawRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0, shoulderH?: number) {
   const cx = w / 2;
+  const sh = shoulderH ?? h;
   // Progressively adjust X from center: at y=0 no adjustment, at y=0.897h full hemWidth
   function xAdj(xFrac: number, yFrac: number): number {
     const x = w * xFrac;
@@ -92,9 +93,16 @@ function drawRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: number =
     const adjusted = cx + (x - cx) * hemWidth;
     return x + (adjusted - x) * t;
   }
-  path.cubicBezierTo(xAdj(0.34058, 0.01217), h * 0.01217, xAdj(0.31290, 0.01849), h * 0.01849, xAdj(0.30793, 0.02040), h * 0.02040);
-  path.cubicBezierTo(xAdj(0.29702, 0.02459), h * 0.02459, xAdj(0.28376, 0.03298), h * 0.03298, xAdj(0.27895, 0.03873), h * 0.03873);
-  path.cubicBezierTo(xAdj(0.27002, 0.04942), h * 0.04942, xAdj(0.25938, 0.06828), h * 0.06828, xAdj(0.23779, 0.11174), h * 0.11174);
+  // Smoothly blend Y from shoulderH at yFrac=0 to h at yFrac=0.12
+  function yAt(yFrac: number): number {
+    if (sh === h) return h * yFrac;
+    const blend = Math.min(1, yFrac / 0.12);
+    const t = blend * blend * (3 - 2 * blend); // smoothstep
+    return (sh + (h - sh) * t) * yFrac;
+  }
+  path.cubicBezierTo(xAdj(0.34058, 0.01217), yAt(0.01217), xAdj(0.31290, 0.01849), yAt(0.01849), xAdj(0.30793, 0.02040), yAt(0.02040));
+  path.cubicBezierTo(xAdj(0.29702, 0.02459), yAt(0.02459), xAdj(0.28376, 0.03298), yAt(0.03298), xAdj(0.27895, 0.03873), yAt(0.03873));
+  path.cubicBezierTo(xAdj(0.27002, 0.04942), yAt(0.04942), xAdj(0.25938, 0.06828), yAt(0.06828), xAdj(0.23779, 0.11174), yAt(0.11174));
   path.cubicBezierTo(xAdj(0.22615, 0.13518), h * 0.13518, xAdj(0.21624, 0.15492), h * 0.15492, xAdj(0.21578, 0.15561), h * 0.15561);
   path.cubicBezierTo(xAdj(0.21459, 0.15739), h * 0.15739, xAdj(0.19440, 0.20213), h * 0.20213, xAdj(0.18948, 0.21389), h * 0.21389);
   path.cubicBezierTo(xAdj(0.18724, 0.21926), h * 0.21926, xAdj(0.17947, 0.23755), h * 0.23755, xAdj(0.17222, 0.25453), h * 0.25453);
@@ -120,14 +128,22 @@ function drawRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: number =
  * From y ≈ 0.897h up to right shoulder peak.
  * Mirror of drawRefLeftSide. Used by CapeTattered.
  */
-function drawRefRightSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0) {
+function drawRefRightSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0, shoulderH?: number) {
   const cx = w / 2;
+  const sh = shoulderH ?? h;
   function xAdj(xFrac: number, yFrac: number): number {
     const x = w * xFrac;
     if (hemWidth === 1.0) return x;
     const t = Math.max(0, yFrac / 0.89712);
     const adjusted = cx + (x - cx) * hemWidth;
     return x + (adjusted - x) * t;
+  }
+  // Smoothly blend Y from shoulderH at yFrac=0 to h at yFrac=0.12
+  function yAt(yFrac: number): number {
+    if (sh === h) return h * yFrac;
+    const blend = Math.min(1, yFrac / 0.12);
+    const t = blend * blend * (3 - 2 * blend); // smoothstep
+    return (sh + (h - sh) * t) * yFrac;
   }
   path.cubicBezierTo(xAdj(1.00065, 0.89219), h * 0.89219, xAdj(1.00063, 0.87357), h * 0.87357, xAdj(0.99809, 0.85304), h * 0.85304);
   path.cubicBezierTo(xAdj(0.99667, 0.84161), h * 0.84161, xAdj(0.99527, 0.83140), h * 0.83140, xAdj(0.99497, 0.83036), h * 0.83036);
@@ -146,10 +162,10 @@ function drawRefRightSide(path: SVGPath, w: number, h: number, hemWidth: number 
   path.cubicBezierTo(xAdj(0.85305, 0.31696), h * 0.31696, xAdj(0.83895, 0.28069), h * 0.28069, xAdj(0.82778, 0.25453), h * 0.25453);
   path.cubicBezierTo(xAdj(0.82053, 0.23755), h * 0.23755, xAdj(0.81276, 0.21926), h * 0.21926, xAdj(0.81052, 0.21389), h * 0.21389);
   path.cubicBezierTo(xAdj(0.80560, 0.20213), h * 0.20213, xAdj(0.78541, 0.15739), h * 0.15739, xAdj(0.78422, 0.15561), h * 0.15561);
-  path.cubicBezierTo(xAdj(0.78376, 0.15492), h * 0.15492, xAdj(0.77385, 0.13518), h * 0.13518, xAdj(0.76221, 0.11174), h * 0.11174);
-  path.cubicBezierTo(xAdj(0.74062, 0.06828), h * 0.06828, xAdj(0.72998, 0.04942), h * 0.04942, xAdj(0.72105, 0.03873), h * 0.03873);
-  path.cubicBezierTo(xAdj(0.71624, 0.03298), h * 0.03298, xAdj(0.70298, 0.02459), h * 0.02459, xAdj(0.69207, 0.02040), h * 0.02040);
-  path.cubicBezierTo(xAdj(0.68710, 0.01849), h * 0.01849, xAdj(0.65942, 0.01217), h * 0.01217, xAdj(0.64415, 0.00946), h * 0.00946);
+  path.cubicBezierTo(xAdj(0.78376, 0.15492), h * 0.15492, xAdj(0.77385, 0.13518), h * 0.13518, xAdj(0.76221, 0.11174), yAt(0.11174));
+  path.cubicBezierTo(xAdj(0.74062, 0.06828), yAt(0.06828), xAdj(0.72998, 0.04942), yAt(0.04942), xAdj(0.72105, 0.03873), yAt(0.03873));
+  path.cubicBezierTo(xAdj(0.71624, 0.03298), yAt(0.03298), xAdj(0.70298, 0.02459), yAt(0.02459), xAdj(0.69207, 0.02040), yAt(0.02040));
+  path.cubicBezierTo(xAdj(0.68710, 0.01849), yAt(0.01849), xAdj(0.65942, 0.01217), yAt(0.01217), xAdj(0.64415, 0.00946), yAt(0.00946));
 }
 
 /**
@@ -252,10 +268,13 @@ function drawRoundedHem(path: SVGPath, w: number, h: number, hemWidth: number, r
   const bottomY = sideY + depth;
   // Kappa for cubic bezier quarter-circle approximation
   const k = 0.5522847498;
-  // Left quarter-arc: tangent at start is vertical, tangent at bottom is horizontal
-  path.cubicBezierTo(leftX, sideY + depth * k, cx - halfW * k, bottomY, cx, bottomY);
-  // Right quarter-arc: tangent at bottom is horizontal, tangent at end is vertical
-  path.cubicBezierTo(cx + halfW * k, bottomY, rightX, sideY + depth * k, rightX, sideY);
+  // Tangent bias: match the slight horizontal component of the side edges
+  // to avoid a visible bump at the junction between side and rounded hem
+  const tangentBias = depth * 0.15;
+  // Left quarter-arc
+  path.cubicBezierTo(leftX + tangentBias, sideY + depth * k, cx - halfW * k, bottomY, cx, bottomY);
+  // Right quarter-arc
+  path.cubicBezierTo(cx + halfW * k, bottomY, rightX - tangentBias, sideY + depth * k, rightX, sideY);
 }
 
 // Key sample points from the left side bezier chain: [yFrac, xFrac]
@@ -294,13 +313,22 @@ function leftSideXFrac(yFrac: number): number {
  */
 function drawStyledLeftSide(
   path: SVGPath, w: number, h: number, hemWidth: number,
-  style: string, depth: number, count: number, seed: number
+  style: string, depth: number, count: number, seed: number,
+  shoulderH?: number
 ) {
   const cx = w / 2;
+  const sh = shoulderH ?? h;
   const topYFrac = 0.02040;
   const botYFrac = 0.89712;
   const range = botYFrac - topYFrac;
   const segments = Math.max(count * 4, 40);
+
+  function yAt(yFrac: number): number {
+    if (sh === h) return h * yFrac;
+    const blend = Math.min(1, yFrac / 0.12);
+    const t = blend * blend * (3 - 2 * blend);
+    return (sh + (h - sh) * t) * yFrac;
+  }
 
   for (let i = 1; i <= segments; i++) {
     const t = i / segments;
@@ -310,7 +338,7 @@ function drawStyledLeftSide(
     const rawX = w * refXFrac;
     const taper = Math.max(0, yFrac / 0.89712);
     const adjustedX = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
-    const y = h * yFrac;
+    const y = yAt(yFrac);
 
     // Compute outward offset (negative X = outward for left side)
     let offset = 0;
@@ -361,13 +389,22 @@ function drawStyledLeftSide(
  */
 function drawStyledRightSide(
   path: SVGPath, w: number, h: number, hemWidth: number,
-  style: string, depth: number, count: number, seed: number
+  style: string, depth: number, count: number, seed: number,
+  shoulderH?: number
 ) {
   const cx = w / 2;
+  const sh = shoulderH ?? h;
   const topYFrac = 0.02040;
   const botYFrac = 0.89712;
   const range = botYFrac - topYFrac;
   const segments = Math.max(count * 4, 40);
+
+  function yAt(yFrac: number): number {
+    if (sh === h) return h * yFrac;
+    const blend = Math.min(1, yFrac / 0.12);
+    const t = blend * blend * (3 - 2 * blend);
+    return (sh + (h - sh) * t) * yFrac;
+  }
 
   for (let i = 0; i <= segments; i++) {
     // Right side goes from bottom to top
@@ -377,7 +414,7 @@ function drawStyledRightSide(
     const rawX = w * refXFrac;
     const taper = Math.max(0, yFrac / 0.89712);
     const adjustedX = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
-    const y = h * yFrac;
+    const y = yAt(yFrac);
 
     let offset = 0;
     const st = t;
@@ -444,12 +481,12 @@ function drawModifiedOutline(
   const sideSeed = (params.seed as number) || 12345;
 
   function drawLeft() {
-    if (sideStyle !== 'none') drawStyledLeftSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed);
-    else drawRefLeftSide(path, w, h, hemW);
+    if (sideStyle !== 'none') drawStyledLeftSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH);
+    else drawRefLeftSide(path, w, h, hemW, refH);
   }
   function drawRight() {
-    if (sideStyle !== 'none') drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed);
-    else drawRefRightSide(path, w, h, hemW);
+    if (sideStyle !== 'none') drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH);
+    else drawRefRightSide(path, w, h, hemW, refH);
   }
 
   // If no hem modifier, draw full outline at actual length h with hemWidth taper
@@ -648,27 +685,56 @@ function drawModifiedOutline(
     const count = (params.castellatedCount as number) || 8;
     const depth = (params.castellatedDepth as number) || 3;
     const segW = hemSpan / count;
-    // Determine merlon/crenel by distance from center for perfect symmetry
-    for (let i = 0; i < count; i++) {
-      const startX = leftX + segW * i;
-      const endX = leftX + segW * (i + 1);
-      const tS = (startX - leftX) / hemSpan;
-      const tE = (endX - leftX) / hemSpan;
-      const bYS = baseY(tS);
-      const bYE = baseY(tE);
-      const segCenter = (i + 0.5) - count / 2;
-      const isMerlon = Math.floor(Math.abs(segCenter)) % 2 === 0;
-      if (isMerlon) {
-        // Merlon (raised) — offset outward
-        const topL = offsetPoint(startX, bYS, depth);
-        const topR = offsetPoint(endX, bYE, depth);
-        path.lineTo(topL.x, topL.y);
-        path.lineTo(topR.x, topR.y);
-        path.lineTo(endX, bYE);
-      } else {
-        // Crenel (gap) — stay on baseline
-        path.lineTo(endX, bYE);
+    if (count % 2 === 1) {
+      // Odd count: simple alternation is already symmetric (M C M C M)
+      for (let i = 0; i < count; i++) {
+        const startX = leftX + segW * i;
+        const endX = leftX + segW * (i + 1);
+        const tS = (startX - leftX) / hemSpan;
+        const tE = (endX - leftX) / hemSpan;
+        const bYS = baseY(tS);
+        const bYE = baseY(tE);
+        const isMerlon = i % 2 === 0;
+        if (isMerlon) {
+          const topL = offsetPoint(startX, bYS, depth);
+          const topR = offsetPoint(endX, bYE, depth);
+          path.lineTo(topL.x, topL.y);
+          path.lineTo(topR.x, topR.y);
+          path.lineTo(endX, bYE);
+        } else {
+          path.lineTo(endX, bYE);
+        }
       }
+    } else {
+      // Even count: half-width crenel at each end for symmetry (½C M C M … C M ½C)
+      const halfW = segW / 2;
+      // First half-crenel
+      {
+        const endX = leftX + halfW;
+        const tE = halfW / hemSpan;
+        path.lineTo(endX, baseY(tE));
+      }
+      // Middle full segments
+      for (let i = 1; i < count; i++) {
+        const startX = leftX + halfW + segW * (i - 1);
+        const endX = startX + segW;
+        const tS = (startX - leftX) / hemSpan;
+        const tE = (endX - leftX) / hemSpan;
+        const bYS = baseY(tS);
+        const bYE = baseY(tE);
+        const isMerlon = i % 2 !== 0;
+        if (isMerlon) {
+          const topL = offsetPoint(startX, bYS, depth);
+          const topR = offsetPoint(endX, bYE, depth);
+          path.lineTo(topL.x, topL.y);
+          path.lineTo(topR.x, topR.y);
+          path.lineTo(endX, bYE);
+        } else {
+          path.lineTo(endX, bYE);
+        }
+      }
+      // Last half-crenel
+      path.lineTo(rightX, baseY(1));
     }
   } else if (dovetail) {
     const depthFrac = (params.dovetailDepth as number) || 0.25;
@@ -1079,10 +1145,12 @@ export class CapeStandard extends Template {
     const h = length;
     const refH = REF_H;
 
-    // Use refH for the neck so the top stays fixed regardless of length
+    // Neck uses fixed refH so it stays in place; body uses actual h so bottom extends
     path.moveTo(w / 2, refH * 0.04778);
     drawRefNeck(path, w, refH);
+
     drawModifiedOutline(path, w, h, params);
+
     closeRefNeck(path, w, refH);
     return path.toString();
   }

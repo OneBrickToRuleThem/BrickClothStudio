@@ -27,7 +27,7 @@ const MM_TO_UNIT: Record<MeasurementUnit, number> = {
 };
 
 export default function ParameterPanel() {
-  const { parameters, setParameter, resetToDefaults, elementType } = useEditorStore();
+  const { parameters, setParameter, resetToDefaults, elementType, templateVariant } = useEditorStore();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     transformations: false,
     attachment: false,
@@ -111,7 +111,7 @@ export default function ParameterPanel() {
               label="Length"
               unit={measureUnit}
               min={elementType === 'flag' ? 15 : 20}
-              max={elementType === 'flag' ? 80 : 200}
+              max={elementType === 'flag' ? 160 : elementType === 'mantle' ? 60 : 80}
               value={parameters.length as number}
               onChange={(value) => {
                 const oldLen = parameters.length as number;
@@ -126,7 +126,7 @@ export default function ParameterPanel() {
               label="Width"
               unit={measureUnit}
               min={elementType === 'flag' ? 10 : 20}
-              max={elementType === 'flag' ? 60 : 150}
+              max={elementType === 'flag' ? 60 : elementType === 'mantle' ? 60 : 80}
               value={parameters.width as number}
               onChange={(value) => {
                 const oldW = parameters.width as number;
@@ -164,8 +164,8 @@ export default function ParameterPanel() {
           <SailParameterPanel parameters={parameters} setParameter={setParameter} />
         )}
 
-        {/* --- Attachment Hole (all non-sail elements) --- */}
-        {elementType !== 'sail' && (
+        {/* --- Attachment Hole (all non-sail, non-flag elements) --- */}
+        {elementType !== 'sail' && elementType !== 'flag' && (
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('attachment')}>
             <h3 className="panel-section-title">Attachment Hole</h3>
@@ -704,6 +704,23 @@ export default function ParameterPanel() {
           <p>• Minidoll: {HOLE_STANDARDS.minidoll.diameter}mm hole</p>
           <p className="font-semibold mb-1 mt-2">Scale Reference:</p>
           <p>• Stud: 4.8 mm diameter</p>
+          {elementType === 'flag' && (
+          <>
+            <p className="font-semibold mb-1 mt-2">Flag Template:</p>
+            {templateVariant === 'custom-flag' ? (
+              <>
+                <p>• Rectangular body with customizable edges</p>
+                <p>• Configurable hole count (1-6)</p>
+              </>
+            ) : (
+              <>
+                <p>• Based on cloth banner shape</p>
+                <p>• Two clip holes for bar attachment</p>
+                <p>• Bottom edge from banner template</p>
+              </>
+            )}
+          </>
+          )}
         </section>
         )}
       </div>
@@ -1236,22 +1253,6 @@ function FlagParameterPanel({ parameters, setParameter }: {
       </section>
       )}
 
-      {/* Flag Info */}
-      <section className="panel-section border-t pt-4 text-xs text-gray-600">
-        <p className="font-semibold mb-1">Flag Template:</p>
-        {isCustom ? (
-          <>
-            <p>• Rectangular body with customizable edges</p>
-            <p>• Configurable hole count (1-6)</p>
-          </>
-        ) : (
-          <>
-            <p>• Based on cloth banner shape</p>
-            <p>• Two clip holes for bar attachment</p>
-            <p>• Bottom edge from banner template</p>
-          </>
-        )}
-      </section>
     </>
   );
 }

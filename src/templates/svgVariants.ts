@@ -422,7 +422,7 @@ const KAMA_FULL_OUTLINE: FracCmd[] = [
   [2, 0.3164, 0.2713],
   [3, 0.3157, 0.0681, 0.3166, 0.0586, 0.3383, 0.0232],
   [3, 0.3487, 0.0063, 0.3528, 0.0053, 0.4396, 0.0042],
-  [3, 0.4698, 0.0000, 0.5302, 0.0000, 0.5604, 0.0042],
+  [2, 0.5604, 0.0042],
   [3, 0.6472, 0.0053, 0.6513, 0.0063, 0.6617, 0.0232],
   [3, 0.6834, 0.0586, 0.6843, 0.0681, 0.6836, 0.2713],
   [2, 0.6832, 0.4556],
@@ -688,6 +688,72 @@ export class MantleHighCollar extends Template {
 
   export(id: string, name: string, elementType: string, variantName: string, params: TemplateParams) {
     const p = { ...params, width: params.width || 32, length: params.length || 18 };
+    return super.export(id, name, elementType, variantName, p);
+  }
+}
+
+// ─── Shoulder Armor (mantle variant) ───────────────────────────────────
+// Traced from ShoulderArmor_template.svg (23×26mm default)
+// Outline includes integrated neck slit with circle (evenodd fill)
+
+const SHOULDER_ARMOR_OUTLINE: FracCmd[] = [
+  [1, 0.50000, 0.44038],
+  [2, 0.47261, 0.44731],
+  [3, 0.44217, 0.46038, 0.42957, 0.49346, 0.44435, 0.52115],
+  [3, 0.46609, 0.56231, 0.53391, 0.56231, 0.55565, 0.52115],
+  [3, 0.57043, 0.49346, 0.55783, 0.46038, 0.52739, 0.44731],
+  [2, 0.50000, 0.44038],
+  [2, 0.50000, 0.09154],
+  [3, 0.48696, 0.06615, 0.44261, 0.04615, 0.40261, 0.02846],
+  [3, 0.34957, 0.00500, 0.32565, 0.00038, 0.26043, 0.00000],
+  [3, 0.20652, 0.00000, 0.20391, 0.00038, 0.17435, 0.00962],
+  [3, 0.11565, 0.02808, 0.06913, 0.06115, 0.04174, 0.10385],
+  [3, 0.00043, 0.16769, 0.00000, 0.25808, 0.04043, 0.32692],
+  [3, 0.04652, 0.33769, 0.06609, 0.36000, 0.08696, 0.38038],
+  [3, 0.14478, 0.43577, 0.15435, 0.46038, 0.15478, 0.54692],
+  [3, 0.15478, 0.62038, 0.14261, 0.67692, 0.10957, 0.75808],
+  [3, 0.08826, 0.81000, 0.08609, 0.82308, 0.09565, 0.84231],
+  [3, 0.10478, 0.86038, 0.15261, 0.90423, 0.18478, 0.92346],
+  [3, 0.24435, 0.95923, 0.31522, 0.98308, 0.39391, 0.99423],
+  [3, 0.46478, 1.00000, 0.53522, 1.00000, 0.60609, 0.99423],
+  [3, 0.68478, 0.98308, 0.75565, 0.95923, 0.81478, 0.92346],
+  [3, 0.84739, 0.90423, 0.89522, 0.86038, 0.90435, 0.84231],
+  [3, 0.91391, 0.82308, 0.91174, 0.81000, 0.89043, 0.75808],
+  [3, 0.85739, 0.67692, 0.84522, 0.62038, 0.84522, 0.54692],
+  [3, 0.84565, 0.46038, 0.85522, 0.43577, 0.91304, 0.38038],
+  [3, 0.93391, 0.36000, 0.95348, 0.33769, 0.95957, 0.32692],
+  [3, 1.00000, 0.25808, 0.99957, 0.16769, 0.95826, 0.10385],
+  [3, 0.93087, 0.06115, 0.88435, 0.02808, 0.82565, 0.00962],
+  [3, 0.79609, 0.00038, 0.79348, 0.00000, 0.73957, 0.00000],
+  [3, 0.67435, 0.00038, 0.65043, 0.00500, 0.59739, 0.02846],
+  [3, 0.55739, 0.04615, 0.51304, 0.06615, 0.50000, 0.09154],
+  [0],
+];
+
+const SHOULDER_ARMOR_HOLES = [
+  { relX: 0.24826, relY: 0.26808 },
+  { relX: 0.75174, relY: 0.26808 },
+];
+
+export class MantleShoulderArmor extends Template {
+  generateCutPath(params: TemplateParams): string {
+    return renderFracPath(SHOULDER_ARMOR_OUTLINE, params.width, params.length);
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length } = params;
+    const paths = [this.generateCutPath(params)];
+    for (const hole of SHOULDER_ARMOR_HOLES) {
+      paths.push(generateAttachmentHole(width * hole.relX, length * hole.relY, 2.5, 0, 0, false, params));
+    }
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+
+  export(id: string, name: string, elementType: string, variantName: string, params: TemplateParams) {
+    const p = { ...params, width: params.width || 23, length: params.length || 26 };
     return super.export(id, name, elementType, variantName, p);
   }
 }

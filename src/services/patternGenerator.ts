@@ -18,7 +18,6 @@ import {
   FlagCustom,
   Wings,
   Kama,
-  Pauldron,
   SailSquare,
   SailTriangular,
   SailPolygon,
@@ -29,6 +28,7 @@ import {
   CapeSevenPoints,
   KamaFullSkirt,
   MantleHighCollar,
+  MantleShoulderArmor,
 } from '../templates/svgVariants';
 
 /**
@@ -119,7 +119,7 @@ export function generatePattern(
         name = 'High Collar';
         break;
       default:
-        template = new Pauldron();
+        template = new MantleShoulderArmor();
         name = 'Shoulder Armor';
     }
   } else if (elementType === 'sail') {

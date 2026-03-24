@@ -731,8 +731,8 @@ export class Kama extends Template {
     path.cubicBezierTo(w * 0.31582, h * 0.06918, w * 0.31669, h * 0.05933, w * 0.33835, h * 0.02399);
     path.cubicBezierTo(w * 0.34862, h * 0.00724, w * 0.35285, h * 0.00646, w * 0.43961, h * 0.00537);
 
-    // Center top
-    path.cubicBezierTo(w * 0.46980, h * 0.00103, w * 0.53020, h * 0.00103, w * 0.56039, h * 0.00537);
+    // Center top — straight line
+    path.lineTo(w * 0.56039, h * 0.00537);
 
     // RIGHT HALF
     path.cubicBezierTo(w * 0.64715, h * 0.00646, w * 0.65138, h * 0.00724, w * 0.66165, h * 0.02399);
@@ -889,7 +889,7 @@ export class Pauldron extends Template {
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length } = params;
     const paths = [this.generateCutPath(params)];
-    const holeR = width * 0.1070;
+    const holeR = 2.5; // fixed 5mm diameter hole
     const holeCx = width * 0.2482;
     const holeCy = length * 0.2680;
     paths.push(generateAttachmentHole(width - holeCx, holeCy, holeR, 0, 0, false, params));
@@ -1074,7 +1074,7 @@ export class PauldronSingle extends Template {
     const { width, length } = params;
     const paths = [this.generateCutPath(params)];
     // Single head pin hole
-    const holeR = width * 0.10;
+    const holeR = 2.5; // fixed 5mm diameter hole
     const holeCx = width * 0.60;
     const holeCy = length * 0.22;
     const hole = new SVGPath();
@@ -1109,17 +1109,8 @@ export class PauldronWide extends Template {
     path.cubicBezierTo(w * 0.02, h * 0.74, w * 0.00, h * 0.60, w * 0.01, h * 0.46);
     path.cubicBezierTo(w * 0.03, h * 0.32, w * 0.08, h * 0.20, w * 0.16, h * 0.10);
     path.cubicBezierTo(w * 0.22, h * 0.04, w * 0.30, h * 0.01, w * 0.38, h * 0.003);
-    // Top to neck channel (left)
+    // Top to neck (left) — straight line across
     path.cubicBezierTo(w * 0.42, h * 0.00, w * 0.44, h * 0.00, w * 0.46, h * 0.005);
-    // Neck channel left wall down
-    path.lineTo(w * 0.46, h * 0.12);
-    path.cubicBezierTo(w * 0.46, h * 0.28, w * 0.44, h * 0.38, w * 0.43, h * 0.44);
-    path.cubicBezierTo(w * 0.42, h * 0.49, w * 0.43, h * 0.53, w * 0.45, h * 0.55);
-    // Channel U-turn
-    path.cubicBezierTo(w * 0.47, h * 0.58, w * 0.53, h * 0.58, w * 0.55, h * 0.55);
-    // Neck channel right wall up
-    path.cubicBezierTo(w * 0.57, h * 0.53, w * 0.58, h * 0.49, w * 0.57, h * 0.44);
-    path.cubicBezierTo(w * 0.56, h * 0.38, w * 0.54, h * 0.28, w * 0.54, h * 0.12);
     path.lineTo(w * 0.54, h * 0.005);
     // Top to right shoulder
     path.cubicBezierTo(w * 0.56, h * 0.00, w * 0.58, h * 0.00, w * 0.62, h * 0.003);
@@ -1143,7 +1134,7 @@ export class PauldronWide extends Template {
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length } = params;
     const paths = [this.generateCutPath(params)];
-    const holeR = width * 0.085;
+    const holeR = 2.5; // fixed 5mm diameter hole
     const holeCx = width * 0.26;
     const holeCy = length * 0.24;
     const hole1 = new SVGPath();
