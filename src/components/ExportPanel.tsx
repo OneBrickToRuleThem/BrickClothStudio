@@ -3,12 +3,14 @@
  * Handles single pattern export, print sheet generation, and calibration tests
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useEditorStore } from '../store/editor';
 import { generatePattern } from '../services/patternGenerator';
 import { exportSinglePatternSVG, exportPrintSheetSVG, downloadSVG } from '../export/svg';
 import type { ColorDesignParams } from '../export/svg';
 import { generateStandardCalibration } from '../templates/calibration';
+import { downloadPreset, loadPresetFromFile } from '../utils/presets';
+import type { DesignPreset } from '../utils/types';
 
 export default function ExportPanel() {
   const {
@@ -20,7 +22,9 @@ export default function ExportPanel() {
     exportOptions,
     setExportOptions,
     decorations,
+    loadPreset,
   } = useEditorStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pattern = useMemo(() => {
     return generatePattern(elementType, templateVariant, parameters);
@@ -72,12 +76,76 @@ export default function ExportPanel() {
     downloadSVG(svg, `${pattern.name}-x${copies}.svg`);
   };
 
+  const handleSaveDesign = () => {
+    const name = pattern?.name || 'design';
+    downloadPreset(
+      { elementType, templateVariant, parameters, decorations, selectedDecorationId: null },
+      name,
+      `${name} design specification`
+    );
+  };
+
+  const handleLoadDesign = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    loadPresetFromFile(
+      file,
+      (preset: DesignPreset) => {
+        loadPreset({
+          elementType: preset.elementType,
+          templateVariant: preset.templateVariant,
+          parameters: preset.parameters,
+          decorations: preset.decorations || [],
+          selectedDecorationId: null,
+        });
+      },
+      (error: string) => {
+        alert(`Failed to load design: ${error}`);
+      }
+    );
+    // Reset input so same file can be reloaded
+    e.target.value = '';
+  };
+
   if (!pattern) {
     return <div className="p-4 text-gray-500">Loading export options...</div>;
   }
 
   return (
     <div className="p-4 h-full overflow-y-auto space-y-4">
+      {/* Save / Load Design Spec */}
+      <section className="panel-section bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-4">
+        <h3 className="panel-section-title mb-2">Design Specification</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSaveDesign}
+            className="btn bg-green-600 hover:bg-green-700 text-white font-semibold flex-1 text-sm py-2 rounded-lg"
+          >
+            💾 Save Design
+          </button>
+          <button
+            onClick={handleLoadDesign}
+            className="btn bg-gray-600 hover:bg-gray-700 text-white font-semibold flex-1 text-sm py-2 rounded-lg"
+          >
+            📂 Load Design
+          </button>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleFileSelected}
+          className="hidden"
+        />
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+          Save/load all parameters, decorations, and settings as a .json design file
+        </p>
+      </section>
+
       {/* Quick Download Button */}
       <section className="panel-section bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <button 

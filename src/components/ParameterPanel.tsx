@@ -183,6 +183,7 @@ export default function ParameterPanel() {
                   const holeType = e.target.value as keyof typeof HOLE_STANDARDS;
                   setParameter('holeType', holeType);
                   setParameter('holeRadius', HOLE_STANDARDS[holeType].radius);
+                  setParameter('holeOverrideDiameter', HOLE_STANDARDS[holeType].diameter);
                 }}
                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
               >
@@ -214,9 +215,10 @@ export default function ParameterPanel() {
                   <option value="round">Round</option>
                   <option value="square">Square</option>
                   <option value="oval">Oval</option>
+                  <option value="pill">Pill / Stadium</option>
                 </select>
               </div>
-              {(parameters.holeOverrideShape as string || 'round') !== 'oval' ? (
+              {((parameters.holeOverrideShape as string || 'round') === 'round' || (parameters.holeOverrideShape as string || 'round') === 'square') ? (
                 <ParameterSlider label="Diameter (mm)" name="holeOverrideDiameter"
                   min={1} max={10} step={0.1}
                   value={(parameters.holeOverrideDiameter as number) || 5.0}
@@ -740,6 +742,7 @@ function SailParameterPanel({ parameters, setParameter }: {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     edgeStyles: true,
     grommets: false,
+    extraGrommets: false,
   });
 
   function toggleSection(key: string) {
@@ -793,11 +796,15 @@ function SailParameterPanel({ parameters, setParameter }: {
               onChange={(v) => {
                 setParameter('sailSides', v);
                 setParameter('sailPolygonGrommetMask', '');
+                setParameter('sailPolygonGrommetPositions', '[]');
               }} />
             <ParameterSlider label="Grommet inset (mm)" name="sailPolygonInset"
               min={1} max={20} step={0.5}
               value={(parameters.sailPolygonInset as number) ?? 4}
-              onChange={(v) => setParameter('sailPolygonInset', v)} />
+              onChange={(v) => {
+                setParameter('sailPolygonInset', v);
+                setParameter('sailPolygonGrommetPositions', '[]');
+              }} />
             <div>
               <p className="text-xs text-gray-600 mb-1">Vertex grommets</p>
               <div className="flex flex-wrap gap-1">
@@ -820,6 +827,11 @@ function SailParameterPanel({ parameters, setParameter }: {
                 })}
               </div>
             </div>
+            <button type="button"
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+              onClick={() => setParameter('sailPolygonGrommetPositions', '[]')}
+            >Reset grommet positions</button>
+            <p className="text-[10px] text-gray-500">Drag grommets in the preview to reposition them</p>
           </div>
         </section>
       )}
@@ -1071,6 +1083,67 @@ function SailParameterPanel({ parameters, setParameter }: {
       </section>
       )}
 
+      {/* Extra Grommets (all sail types) */}
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('extraGrommets')}>
+          <h3 className="panel-section-title">Extra Grommets</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">{(() => { try { return JSON.parse((parameters.sailExtraGrommets as string) || '[]').length; } catch { return 0; } })()} added</span>
+            <span className="text-gray-400 text-xs">{openSections.extraGrommets ? '▾' : '▸'}</span>
+          </div>
+        </button>
+        {openSections.extraGrommets && (
+        <div className="mt-2 space-y-2">
+          <p className="text-[10px] text-gray-500">Additional holes independent of corner grommets. Click Add to place, then edit coordinates.</p>
+          {(() => {
+            let extras: Array<{x: number; y: number}> = [];
+            try { extras = JSON.parse((parameters.sailExtraGrommets as string) || '[]'); } catch { extras = []; }
+            const w = (parameters.width as number) || 60;
+            const h = (parameters.length as number) || 60;
+            return (
+              <>
+                {extras.map((g: {x: number; y: number}, i: number) => (
+                  <div key={i} className="flex items-center gap-1 text-xs">
+                    <span className="text-gray-500 w-5">#{i + 1}</span>
+                    <label className="text-gray-600">X</label>
+                    <input type="number" min={2} max={w - 2} step={0.5}
+                      value={g.x} className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const updated = [...extras];
+                        updated[i] = { ...updated[i], x: val };
+                        setParameter('sailExtraGrommets', JSON.stringify(updated));
+                      }} />
+                    <label className="text-gray-600">Y</label>
+                    <input type="number" min={2} max={h - 2} step={0.5}
+                      value={g.y} className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const updated = [...extras];
+                        updated[i] = { ...updated[i], y: val };
+                        setParameter('sailExtraGrommets', JSON.stringify(updated));
+                      }} />
+                    <button type="button" className="text-red-500 hover:text-red-700 text-xs px-1"
+                      onClick={() => {
+                        const updated = extras.filter((_: {x: number; y: number}, j: number) => j !== i);
+                        setParameter('sailExtraGrommets', JSON.stringify(updated));
+                      }}>✕</button>
+                  </div>
+                ))}
+                <button type="button" className="text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-2 py-1"
+                  onClick={() => {
+                    const updated = [...extras, { x: Math.round(w / 2), y: Math.round(h / 2) }];
+                    setParameter('sailExtraGrommets', JSON.stringify(updated));
+                  }}>
+                  + Add Grommet
+                </button>
+              </>
+            );
+          })()}
+        </div>
+        )}
+      </section>
+
       {/* Sail Info */}
       <section className="panel-section border-t pt-4 text-xs text-gray-600">
         <p className="font-semibold mb-1">Sail Info:</p>
@@ -1111,11 +1184,87 @@ function FlagParameterPanel({ parameters, setParameter }: {
 
   return (
     <>
-      {/* Non-custom: info note */}
+      {/* Non-custom: info note + hole options */}
       {!isCustom && (
+        <>
         <section className="panel-section border-t pt-4 text-xs text-gray-500">
           <p>This flag uses a fixed shape. Select <strong>Custom</strong> for edge styling and hole options.</p>
         </section>
+        <section className="panel-section border-t pt-4">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('flagHoles')}>
+            <h3 className="panel-section-title">Attachment Holes</h3>
+            <span className="text-gray-400 text-xs">{openSections.flagHoles ? '▾' : '▸'}</span>
+          </button>
+          {openSections.flagHoles && (
+          <div className="mt-2 space-y-2">
+            <div className="form-group">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hole Type</label>
+              <select
+                value={parameters.holeType as string || DEFAULT_HOLE_TYPE}
+                onChange={(e) => {
+                  const holeType = e.target.value as keyof typeof HOLE_STANDARDS;
+                  setParameter('holeType', holeType);
+                  setParameter('holeRadius', HOLE_STANDARDS[holeType].radius);
+                  setParameter('holeOverrideDiameter', HOLE_STANDARDS[holeType].diameter);
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                {Object.entries(HOLE_STANDARDS).map(([key, standard]) => (
+                  <option key={key} value={key} title={standard.description}>
+                    {standard.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={parameters.holeOverride as boolean || false}
+                onChange={(e) => setParameter('holeOverride', e.target.checked)} className="w-4 h-4" />
+              <span>Override hole options</span>
+            </label>
+            {parameters.holeOverride && (
+            <div className="ml-2 space-y-2">
+              <div>
+                <label className="text-xs font-medium text-gray-700">Shape</label>
+                <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                  value={(parameters.holeOverrideShape as string) || 'round'}
+                  onChange={(e) => setParameter('holeOverrideShape', e.target.value)}>
+                  <option value="round">Round</option>
+                  <option value="square">Square</option>
+                  <option value="oval">Oval</option>
+                  <option value="pill">Pill / Stadium</option>
+                </select>
+              </div>
+              {((parameters.holeOverrideShape as string || 'round') === 'round' || (parameters.holeOverrideShape as string || 'round') === 'square') ? (
+                <ParameterSlider label="Diameter (mm)" name="holeOverrideDiameter"
+                  min={1} max={10} step={0.1}
+                  value={(parameters.holeOverrideDiameter as number) || 5.0}
+                  onChange={(v) => setParameter('holeOverrideDiameter', v)} />
+              ) : (
+                <>
+                  <ParameterSlider label="Width (mm)" name="holeOverrideWidth"
+                    min={1} max={12} step={0.1}
+                    value={(parameters.holeOverrideWidth as number) || 5.0}
+                    onChange={(v) => setParameter('holeOverrideWidth', v)} />
+                  <ParameterSlider label="Height (mm)" name="holeOverrideHeight"
+                    min={1} max={12} step={0.1}
+                    value={(parameters.holeOverrideHeight as number) || 3.5}
+                    onChange={(v) => setParameter('holeOverrideHeight', v)} />
+                </>
+              )}
+              <ParameterSlider label="Horizontal offset (mm)" name="holeOverrideOffsetX"
+                min={-5} max={5} step={0.1}
+                value={(parameters.holeOverrideOffsetX as number) || 0}
+                onChange={(v) => setParameter('holeOverrideOffsetX', v)} />
+              <ParameterSlider label="Vertical offset (mm)" name="holeOverrideOffsetY"
+                min={-5} max={5} step={0.1}
+                value={(parameters.holeOverrideOffsetY as number) || 0}
+                onChange={(v) => setParameter('holeOverrideOffsetY', v)} />
+            </div>
+            )}
+          </div>
+          )}
+        </section>
+        </>
       )}
 
       {/* Custom flag: hole count */}
@@ -1134,6 +1283,74 @@ function FlagParameterPanel({ parameters, setParameter }: {
               min={1} max={6} step={1}
               value={(parameters.flagCustomHoleCount as number) || 2}
               onChange={(v) => setParameter('flagCustomHoleCount', v)} />
+
+            {/* Hole Type Selector */}
+            <div className="form-group">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hole Type</label>
+              <select
+                value={parameters.holeType as string || DEFAULT_HOLE_TYPE}
+                onChange={(e) => {
+                  const holeType = e.target.value as keyof typeof HOLE_STANDARDS;
+                  setParameter('holeType', holeType);
+                  setParameter('holeRadius', HOLE_STANDARDS[holeType].radius);
+                  setParameter('holeOverrideDiameter', HOLE_STANDARDS[holeType].diameter);
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                {Object.entries(HOLE_STANDARDS).map(([key, standard]) => (
+                  <option key={key} value={key} title={standard.description}>
+                    {standard.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Custom hole shape override */}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={parameters.holeOverride as boolean || false}
+                onChange={(e) => setParameter('holeOverride', e.target.checked)} className="w-4 h-4" />
+              <span>Override hole options</span>
+            </label>
+            {parameters.holeOverride && (
+            <div className="ml-2 space-y-2">
+              <div>
+                <label className="text-xs font-medium text-gray-700">Shape</label>
+                <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+                  value={(parameters.holeOverrideShape as string) || 'round'}
+                  onChange={(e) => setParameter('holeOverrideShape', e.target.value)}>
+                  <option value="round">Round</option>
+                  <option value="square">Square</option>
+                  <option value="oval">Oval</option>
+                  <option value="pill">Pill / Stadium</option>
+                </select>
+              </div>
+              {((parameters.holeOverrideShape as string || 'round') === 'round' || (parameters.holeOverrideShape as string || 'round') === 'square') ? (
+                <ParameterSlider label="Diameter (mm)" name="holeOverrideDiameter"
+                  min={1} max={10} step={0.1}
+                  value={(parameters.holeOverrideDiameter as number) || 5.0}
+                  onChange={(v) => setParameter('holeOverrideDiameter', v)} />
+              ) : (
+                <>
+                  <ParameterSlider label="Width (mm)" name="holeOverrideWidth"
+                    min={1} max={12} step={0.1}
+                    value={(parameters.holeOverrideWidth as number) || 5.0}
+                    onChange={(v) => setParameter('holeOverrideWidth', v)} />
+                  <ParameterSlider label="Height (mm)" name="holeOverrideHeight"
+                    min={1} max={12} step={0.1}
+                    value={(parameters.holeOverrideHeight as number) || 3.5}
+                    onChange={(v) => setParameter('holeOverrideHeight', v)} />
+                </>
+              )}
+              <ParameterSlider label="Horizontal offset (mm)" name="holeOverrideOffsetX"
+                min={-5} max={5} step={0.1}
+                value={(parameters.holeOverrideOffsetX as number) || 0}
+                onChange={(v) => setParameter('holeOverrideOffsetX', v)} />
+              <ParameterSlider label="Vertical offset (mm)" name="holeOverrideOffsetY"
+                min={-5} max={5} step={0.1}
+                value={(parameters.holeOverrideOffsetY as number) || 0}
+                onChange={(v) => setParameter('holeOverrideOffsetY', v)} />
+            </div>
+            )}
           </div>
         )}
       </section>

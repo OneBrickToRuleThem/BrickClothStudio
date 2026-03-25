@@ -17,9 +17,9 @@
 
 | Element | Variants | Default Size | Notes |
 |---------|----------|-------------|-------|
-| **Cape** | Standard | 40×39 mm | Attachment holes, edge styles, sword/arm slits, worn holes, rounding |
+| **Cape** | Standard, Short, Long, Tattered, Narrow, Top, Stepped, Wind-Swept, Phantom Shroud, Seven Points | 40×39 mm | Attachment holes, edge styles, sword/arm slits, worn holes, rounding |
 | **Flag/Banner** | Small, Large, Custom | 22×60 / 40×64 / 30×60 mm | Custom has configurable edges and 1–6 clip holes |
-| **Sail** | Square, Triangular, Polygon | 60×60 mm | Grommets (4 types), per-edge styling, stud-based sizing, 5–12 sided polygon |
+| **Sail** | Square, Triangular, Polygon | 60×60 mm | Draggable grommets (4 types + extra), per-edge styling, stud-based sizing, 5–12 sided polygon |
 | **Kama/Skirt** | Wrap Skirt, Split Skirt, Waist Cape | 47×19 / 50×22 / 44×16 mm | 2–4 attachment holes, bottom hem edge styles |
 | **Pauldron** | Shoulder Armor, Single Shoulder, Double Wide | 23×26 / 20×24 / 28×24 mm | Head pin holes, bottom rim rounding, edge styles |
 | **Wing** | Dragon Wing *(in development)* | 45×25 mm | Membrane score lines, attachment hole |
@@ -35,13 +35,20 @@ Different elements support different edge style options:
 - **Flag Custom** sides: Scalloped, zigzag, wavy, castellated
 - **Kama / Pauldron** bottom: Scalloped, zigzag, wavy, castellated, torn
 
+### Save & Load Designs
+- **Export design spec** — save all parameters to a JSON file
+- **Import design spec** — reload any saved design with full parameter restoration
+- **Preset sharing** — share design files with other users
+
 ### LEGO-Accurate Geometry
 - **Hole types**: Minifigure (5.3 mm) or Minidoll (4.8 mm) with adjustable clearance
-- **Override hole options**: Custom shape (round, square, oval), size, and mirrored XY position offset
+- **Override hole options**: Custom shape (round, square, oval, pill), size, and mirrored XY position offset
 - **Keyhole slit**: Single-line cut with stress-relief circle — laser/knife kerf creates the physical opening
 - **Calibration test strip**: Hole sizes 4.8–5.2 mm to verify fit with your equipment and fabric
 - **Stud-based sizing**: Sail dimensions can be set in LEGO stud units (8 mm grid)
 - **Measurement units**: Display dimensions in mm, studs, LDU, plates, or inches
+- **Extra grommets**: Add configurable extra grommet points on sails
+- **Draggable polygon grommets**: Drag individual grommet positions on polygon sails
 
 ### Decorations
 - **Color Fill**: Single color, split color, edge color band, or multi-color stripes (2–4 colors)
@@ -165,6 +172,7 @@ Use the **Calibration Test Strip** before cutting final designs:
 - **Tailwind CSS** for styling
 - **Zustand** for state management
 - **Vite 5** for build tooling
+- **Vitest** for unit testing (symmetry verification, geometry, packing)
 - **jszip** for multi-file downloads
 - Custom **SVGPath** geometry builder
 - **SeededRNG** for reproducible torn/tattered edges
@@ -187,6 +195,7 @@ src/
 │   ├── base.ts          # Base Template class
 │   ├── cape.ts          # Cape + edge styles
 │   ├── other.ts         # Flag, Sail, Kama, Pauldron, Wings
+│   ├── svgVariants.ts   # SVG-traced outlines (single-hole capes)
 │   └── calibration.ts   # Test strip
 ├── export/              # SVG/ZIP export
 │   ├── svg.ts
@@ -196,11 +205,26 @@ src/
 │   └── patternGenerator.ts
 ├── store/
 │   └── editor.ts        # Zustand store + defaults
+├── test/                # Unit tests
+│   ├── symmetry.test.ts # Symmetry verification (222 tests)
+│   ├── geometry.test.ts # Geometry primitives
+│   └── packing.test.ts  # Print sheet packing
 └── utils/
     ├── constants.ts
     ├── types.ts
     └── rng.ts           # Seeded RNG
 ```
+
+---
+
+## Testing
+
+```bash
+npm test              # Run all tests in watch mode
+npm run test:symmetry  # Watch symmetry tests only
+```
+
+The **symmetry test suite** (222 tests) automatically verifies that all symmetric element variants remain symmetric when parameters are adjusted, and that intentionally asymmetric variants are correctly identified. Tests run in watch mode during development — any change to template or geometry files triggers an immediate re-run.
 
 ---
 
@@ -235,4 +259,4 @@ Built for the LEGO minifigure customization community.
 
 Not affiliated with the LEGO® Group. For personal use only.
 
-**Version**: 1.0.0
+**Version**: 1.1.0

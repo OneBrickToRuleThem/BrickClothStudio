@@ -11,6 +11,7 @@ import {
   CapeShort,
   CapeLong,
   CapeTattered,
+  CapeNarrowSingleHole,
 } from '../templates/cape';
 import {
   FlagSmall,
@@ -26,6 +27,8 @@ import {
   CapeWindSwept,
   CapePhantomShroud,
   CapeSevenPoints,
+  CapeTopSingleHole,
+  CapeSteppedSingleHole,
   KamaFullSkirt,
   MantleHighCollar,
   MantleShoulderArmor,
@@ -79,6 +82,18 @@ export function generatePattern(
       case 'seven-points':
         template = new CapeSevenPoints();
         name = 'Seven Points Cape';
+        break;
+      case 'narrow-single-hole':
+        template = new CapeNarrowSingleHole();
+        name = 'Narrow Single Hole Cape';
+        break;
+      case 'top-single-hole':
+        template = new CapeTopSingleHole();
+        name = 'Top Single Hole Cape';
+        break;
+      case 'stepped-single-hole':
+        template = new CapeSteppedSingleHole();
+        name = 'Stepped Single Hole Cape';
         break;
       default:
         template = new CapeStandard();

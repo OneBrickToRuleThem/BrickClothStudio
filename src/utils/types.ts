@@ -11,6 +11,9 @@ export type TemplateVariant =
   | 'wind-swept'
   | 'phantom-shroud'
   | 'seven-points'
+  | 'narrow-single-hole'
+  | 'top-single-hole'
+  | 'stepped-single-hole'
 
   | 'small-flag'
   | 'large-flag'

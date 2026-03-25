@@ -4,7 +4,7 @@
  */
 
 import { PatternExport, BoundingBox } from '../utils/types';
-import { SVGPath, circlePath, keyholeSlitPath, squareHolePath, ovalHolePath, calculateBoundingBox } from '../geometry/primitives';
+import { SVGPath, circlePath, keyholeSlitPath, squareHolePath, ovalHolePath, stadiumPath, calculateBoundingBox } from '../geometry/primitives';
 
 export interface TemplateParams {
   // Common parameters for all templates
@@ -114,6 +114,12 @@ export function generateAttachmentHole(
       const rx = ((params.holeOverrideWidth as number) || 5.0) / 2;
       const ry = ((params.holeOverrideHeight as number) || 3.5) / 2;
       return ovalHolePath(ax, ay, rx, ry);
+    } else if (shape === 'pill') {
+      const pillW = (params.holeOverrideWidth as number) || 3.5;
+      const pillH = (params.holeOverrideHeight as number) || 3.4;
+      const pillR = pillH / 2;
+      const pillHalfFlat = Math.max(0, (pillW - pillH) / 2);
+      return stadiumPath(ax, ay, pillHalfFlat, pillR);
     } else {
       const r = ((params.holeOverrideDiameter as number) || 5.0) / 2;
       return circlePath(ax, ay, r);

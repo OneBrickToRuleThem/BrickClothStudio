@@ -1328,6 +1328,28 @@ function getSailHoleRadius(params: TemplateParams): number {
   return standard ? standard.radius : SAIL_HOLE_STANDARDS.grommet.radius;
 }
 
+/** Parse extra grommet positions from JSON param and generate hole paths. */
+function generateExtraGrommetPaths(params: TemplateParams): string[] {
+  const json = (params.sailExtraGrommets as string) || '[]';
+  const r = getSailHoleRadius(params);
+  try {
+    const extras: Array<{ x: number; y: number }> = JSON.parse(json);
+    if (!Array.isArray(extras)) return [];
+    return extras.map(g => circlePath(g.x, g.y, r));
+  } catch { return []; }
+}
+
+/** Generate crosshair score marks for extra grommets. */
+function generateExtraGrommetCrosshairs(params: TemplateParams): string[] {
+  const json = (params.sailExtraGrommets as string) || '[]';
+  const r = getSailHoleRadius(params);
+  try {
+    const extras: Array<{ x: number; y: number }> = JSON.parse(json);
+    if (!Array.isArray(extras)) return [];
+    return buildGrommetCrosshairs(extras, r);
+  } catch { return []; }
+}
+
 /**
  * Build a sail cut path from a CW polygon of grommet corners.
  * Each corner gets a grommet-radius arc; edges between corners get decorative styles.
@@ -1530,6 +1552,7 @@ export class SailSquare extends Template {
     const r = getSailHoleRadius(params);
     const paths = [this.generateCutPath(params)];
     for (const g of this.getGrommets(params)) paths.push(circlePath(g.x, g.y, r));
+    paths.push(...generateExtraGrommetPaths(params));
     return paths;
   }
 
@@ -1549,6 +1572,7 @@ export class SailSquare extends Template {
 
     // Crosshairs at each grommet center
     scores.push(...buildGrommetCrosshairs(grommets, holeR));
+    scores.push(...generateExtraGrommetCrosshairs(params));
     return scores;
   }
 
@@ -1623,6 +1647,7 @@ export class SailTriangular extends Template {
     const r = getSailHoleRadius(params);
     const paths = [this.generateCutPath(params)];
     for (const g of this.getGrommets(params)) paths.push(circlePath(g.x, g.y, r));
+    paths.push(...generateExtraGrommetPaths(params));
     return paths;
   }
 
@@ -1641,6 +1666,7 @@ export class SailTriangular extends Template {
 
     // Crosshairs at each grommet center
     scores.push(...buildGrommetCrosshairs(grommets, holeR));
+    scores.push(...generateExtraGrommetCrosshairs(params));
     return scores;
   }
 
@@ -1664,16 +1690,27 @@ export class SailPolygon extends Template {
     const cy = h / 2;
     const rx = w / 2 - inset;
     const ry = h / 2 - inset;
-    const grommets: Array<{ x: number; y: number; enabled: boolean }> = [];
     const mask = (params.sailPolygonGrommetMask as string) || '';
+
+    // Check for custom positions
+    let customPositions: Array<{ x: number; y: number }> = [];
+    try {
+      customPositions = JSON.parse((params.sailPolygonGrommetPositions as string) || '[]');
+    } catch { customPositions = []; }
+
+    const grommets: Array<{ x: number; y: number; enabled: boolean }> = [];
     for (let i = 0; i < sides; i++) {
-      const angle = -Math.PI / 2 + (2 * Math.PI * i) / sides;
       const enabled = mask.length >= sides ? mask[i] !== '0' : true;
-      grommets.push({
-        x: cx + rx * Math.cos(angle),
-        y: cy + ry * Math.sin(angle),
-        enabled,
-      });
+      if (customPositions.length === sides && customPositions[i]) {
+        grommets.push({ x: customPositions[i].x, y: customPositions[i].y, enabled });
+      } else {
+        const angle = -Math.PI / 2 + (2 * Math.PI * i) / sides;
+        grommets.push({
+          x: cx + rx * Math.cos(angle),
+          y: cy + ry * Math.sin(angle),
+          enabled,
+        });
+      }
     }
     return grommets;
   }
@@ -1698,6 +1735,7 @@ export class SailPolygon extends Template {
     for (const g of this.getGrommets(params)) {
       if (g.enabled) paths.push(circlePath(g.x, g.y, r));
     }
+    paths.push(...generateExtraGrommetPaths(params));
     return paths;
   }
 
@@ -1715,6 +1753,7 @@ export class SailPolygon extends Template {
     scores.push(inner.toString());
 
     scores.push(...buildGrommetCrosshairs(grommets.filter(g => g.enabled), holeR));
+    scores.push(...generateExtraGrommetCrosshairs(params));
     return scores;
   }
 

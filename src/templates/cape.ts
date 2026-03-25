@@ -12,6 +12,22 @@ import type { PatternExport } from '../utils/types';
 const REF_H = 39;
 
 /**
+ * Profile descriptor for parameterized outline drawing.
+ * Allows the same hem/side style code to work with different cape shapes.
+ */
+interface CapeOutlineProfile {
+  sideTopYFrac: number;
+  sideBotYFrac: number;
+  sideLeftXFrac: number;
+  sideRightXFrac: number;
+  shoulderH?: number;
+  sideProfileFn: (yFrac: number) => number;
+  drawRefLeft: (path: SVGPath, w: number, h: number, hemW: number, shH?: number) => void;
+  drawRefRight: (path: SVGPath, w: number, h: number, hemW: number, shH?: number) => void;
+  drawRefHem: (path: SVGPath, w: number, h: number, hemW: number) => void;
+}
+
+/**
  * Draw the reference cape outline — 25 symmetric cubic beziers per side.
  * Traced from standard-cape.svg, left side as authority, right side mirrored.
  *
@@ -247,15 +263,18 @@ function drawRefStandardHem(path: SVGPath, w: number, h: number, hemWidth: numbe
  * Uses two cubic beziers to approximate an elliptical arc.
  * @param rounding  0-1: 0 = flat straight hem, 1 = full semicircular U
  */
-function drawRoundedHem(path: SVGPath, w: number, h: number, hemWidth: number, rounding: number) {
+function drawRoundedHem(
+  path: SVGPath, w: number, h: number, hemWidth: number, rounding: number,
+  sideBotYFrac = 0.89712, sideLeftXFrac = 0.00193, sideRightXFrac = 0.99807
+) {
   const cx = w / 2;
   function xAdj(xFrac: number): number {
     const x = w * xFrac;
     return cx + (x - cx) * hemWidth;
   }
-  const leftX = xAdj(0.00193);
-  const rightX = xAdj(0.99807);
-  const sideY = h * 0.89712;
+  const leftX = xAdj(sideLeftXFrac);
+  const rightX = xAdj(sideRightXFrac);
+  const sideY = h * sideBotYFrac;
   const halfW = (rightX - leftX) / 2;
   // 0 = flat (zero depth), 1 = full semicircle
   const maxDepth = halfW;
@@ -314,14 +333,18 @@ function leftSideXFrac(yFrac: number): number {
 function drawStyledLeftSide(
   path: SVGPath, w: number, h: number, hemWidth: number,
   style: string, depth: number, count: number, seed: number,
-  shoulderH?: number
+  shoulderH?: number,
+  profileFn?: (yFrac: number) => number,
+  topY?: number,
+  botY?: number
 ) {
   const cx = w / 2;
   const sh = shoulderH ?? h;
-  const topYFrac = 0.02040;
-  const botYFrac = 0.89712;
+  const topYFrac = topY ?? 0.02040;
+  const botYFrac = botY ?? 0.89712;
   const range = botYFrac - topYFrac;
   const segments = Math.max(count * 4, 40);
+  const _profileFn = profileFn ?? leftSideXFrac;
 
   function yAt(yFrac: number): number {
     if (sh === h) return h * yFrac;
@@ -333,10 +356,10 @@ function drawStyledLeftSide(
   for (let i = 1; i <= segments; i++) {
     const t = i / segments;
     const yFrac = topYFrac + range * t;
-    const refXFrac = leftSideXFrac(yFrac);
+    const refXFrac = _profileFn(yFrac);
     // Apply hemWidth taper
     const rawX = w * refXFrac;
-    const taper = Math.max(0, yFrac / 0.89712);
+    const taper = Math.max(0, yFrac / botYFrac);
     const adjustedX = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
     const y = yAt(yFrac);
 
@@ -390,14 +413,18 @@ function drawStyledLeftSide(
 function drawStyledRightSide(
   path: SVGPath, w: number, h: number, hemWidth: number,
   style: string, depth: number, count: number, seed: number,
-  shoulderH?: number
+  shoulderH?: number,
+  profileFn?: (yFrac: number) => number,
+  topY?: number,
+  botY?: number
 ) {
   const cx = w / 2;
   const sh = shoulderH ?? h;
-  const topYFrac = 0.02040;
-  const botYFrac = 0.89712;
+  const topYFrac = topY ?? 0.02040;
+  const botYFrac = botY ?? 0.89712;
   const range = botYFrac - topYFrac;
   const segments = Math.max(count * 4, 40);
+  const _profileFn = profileFn ?? leftSideXFrac;
 
   function yAt(yFrac: number): number {
     if (sh === h) return h * yFrac;
@@ -406,13 +433,13 @@ function drawStyledRightSide(
     return (sh + (h - sh) * t) * yFrac;
   }
 
-  for (let i = 0; i <= segments; i++) {
-    // Right side goes from bottom to top
+  for (let i = 0; i < segments; i++) {
+    // Right side goes from bottom to top — same number of points as left side
     const t = 1 - (i / segments);
     const yFrac = topYFrac + range * t;
-    const refXFrac = 1 - leftSideXFrac(yFrac); // Mirror
+    const refXFrac = 1 - _profileFn(yFrac); // Mirror
     const rawX = w * refXFrac;
-    const taper = Math.max(0, yFrac / 0.89712);
+    const taper = Math.max(0, yFrac / botYFrac);
     const adjustedX = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
     const y = yAt(yFrac);
 
@@ -454,10 +481,128 @@ function drawStyledRightSide(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Narrow cape outline profile — leaf/teardrop shape, no neck opening
+// ---------------------------------------------------------------------------
+
+/** Narrow left side sample points [yFrac, xFrac] from bezier endpoints and control points */
+const NARROW_LEFT_SIDE_SAMPLES: [number, number][] = [
+  [0.0014, 0.4759],
+  [0.0024, 0.3920],
+  [0.0033, 0.3822],
+  [0.0112, 0.3583],
+  [0.0159, 0.3440],
+  [0.0267, 0.3232],
+  [0.0352, 0.3122],
+  [0.0863, 0.2455],
+  [0.3013, 0.1306],
+  [0.4668, 0.0815],
+  [0.6116, 0.0385],
+  [0.7327, 0.0147],
+  [0.8464, 0.0068],
+];
+
+function narrowLeftSideXFrac(yFrac: number): number {
+  if (yFrac <= NARROW_LEFT_SIDE_SAMPLES[0][0]) return NARROW_LEFT_SIDE_SAMPLES[0][1];
+  const last = NARROW_LEFT_SIDE_SAMPLES[NARROW_LEFT_SIDE_SAMPLES.length - 1];
+  if (yFrac >= last[0]) return last[1];
+  for (let i = 0; i < NARROW_LEFT_SIDE_SAMPLES.length - 1; i++) {
+    const [y0, x0] = NARROW_LEFT_SIDE_SAMPLES[i];
+    const [y1, x1] = NARROW_LEFT_SIDE_SAMPLES[i + 1];
+    if (yFrac >= y0 && yFrac <= y1) {
+      const t = (yFrac - y0) / (y1 - y0);
+      return x0 + (x1 - x0) * t;
+    }
+  }
+  return last[1];
+}
+
+/** Draw narrow left side: 4 beziers from top-left (0.4759,0.0014) to (0.0068,0.8464) */
+function drawNarrowRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0) {
+  const cx = w / 2;
+  function xAdj(xFrac: number, yFrac: number): number {
+    const x = w * xFrac;
+    if (hemWidth === 1.0) return x;
+    const t = Math.max(0, yFrac / 0.8464);
+    const adjusted = cx + (x - cx) * hemWidth;
+    return x + (adjusted - x) * t;
+  }
+  // B6 reversed
+  path.cubicBezierTo(xAdj(0.392, 0.0024), h * 0.0024, xAdj(0.3822, 0.0033), h * 0.0033, xAdj(0.3583, 0.0112), h * 0.0112);
+  // B5 reversed
+  path.cubicBezierTo(xAdj(0.344, 0.0159), h * 0.0159, xAdj(0.3232, 0.0267), h * 0.0267, xAdj(0.3122, 0.0352), h * 0.0352);
+  // B4 reversed
+  path.cubicBezierTo(xAdj(0.2455, 0.0863), h * 0.0863, xAdj(0.1306, 0.3013), h * 0.3013, xAdj(0.0815, 0.4668), h * 0.4668);
+  // B3 reversed
+  path.cubicBezierTo(xAdj(0.0385, 0.6116), h * 0.6116, xAdj(0.0147, 0.7327), h * 0.7327, xAdj(0.0068, 0.8464), h * 0.8464);
+}
+
+/** Draw narrow right side: 4 beziers from (0.9932,0.8464) up to start (0.4759,0.0014) */
+function drawNarrowRefRightSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0) {
+  const cx = w / 2;
+  function xAdj(xFrac: number, yFrac: number): number {
+    const x = w * xFrac;
+    if (hemWidth === 1.0) return x;
+    const t = Math.max(0, yFrac / 0.8464);
+    const adjusted = cx + (x - cx) * hemWidth;
+    return x + (adjusted - x) * t;
+  }
+  // B10 reversed
+  path.cubicBezierTo(xAdj(0.9853, 0.7327), h * 0.7327, xAdj(0.9615, 0.6116), h * 0.6116, xAdj(0.9185, 0.4668), h * 0.4668);
+  // B9 reversed
+  path.cubicBezierTo(xAdj(0.8694, 0.3013), h * 0.3013, xAdj(0.7545, 0.0863), h * 0.0863, xAdj(0.6878, 0.0352), h * 0.0352);
+  // B8 reversed
+  path.cubicBezierTo(xAdj(0.6768, 0.0267), h * 0.0267, xAdj(0.656, 0.0159), h * 0.0159, xAdj(0.6417, 0.0112), h * 0.0112);
+  // B7 reversed — closes back to starting point
+  path.cubicBezierTo(xAdj(0.6178, 0.0033), h * 0.0033, xAdj(0.608, 0.0024), h * 0.0024, xAdj(0.4759, 0.0014), h * 0.0014);
+}
+
+/** Draw narrow standard hem: 2 beziers down to bottom, bridge, 2 beziers up */
+function drawNarrowStandardHem(path: SVGPath, w: number, h: number, hemWidth: number) {
+  const cx = w / 2;
+  function xAdj(xFrac: number): number {
+    const x = w * xFrac;
+    return cx + (x - cx) * hemWidth;
+  }
+  // Left hem: from side-bottom (0.0068,0.8464) down to bottom
+  path.cubicBezierTo(xAdj(0), h * 0.9437, xAdj(0.0012), h * 0.9551, xAdj(0.0184), h * 0.9609);
+  path.cubicBezierTo(xAdj(0.0482), h * 0.9708, xAdj(0.1861), h * 0.9847, xAdj(0.3302), h * 0.9923);
+  // Bridge
+  path.lineTo(xAdj(0.6698), h * 0.9923);
+  // Right hem: from bottom back up to side-bottom
+  path.cubicBezierTo(xAdj(0.8139), h * 0.9847, xAdj(0.9518), h * 0.9708, xAdj(0.9816), h * 0.9609);
+  path.cubicBezierTo(xAdj(0.9988), h * 0.9551, xAdj(1.0), h * 0.9437, xAdj(0.9932), h * 0.8464);
+}
+
+const STANDARD_PROFILE: CapeOutlineProfile = {
+  sideTopYFrac: 0.02040,
+  sideBotYFrac: 0.89712,
+  sideLeftXFrac: 0.00193,
+  sideRightXFrac: 0.99807,
+  shoulderH: REF_H,
+  sideProfileFn: leftSideXFrac,
+  drawRefLeft: drawRefLeftSide,
+  drawRefRight: drawRefRightSide,
+  drawRefHem: drawRefStandardHem,
+};
+
+const NARROW_PROFILE: CapeOutlineProfile = {
+  sideTopYFrac: 0.0014,
+  sideBotYFrac: 0.8464,
+  sideLeftXFrac: 0.0068,
+  sideRightXFrac: 0.9932,
+  sideProfileFn: narrowLeftSideXFrac,
+  drawRefLeft: drawNarrowRefLeftSide,
+  drawRefRight: drawNarrowRefRightSide,
+  drawRefHem: drawNarrowStandardHem,
+};
+
 function drawModifiedOutline(
-  path: SVGPath, w: number, h: number, params: TemplateParams
+  path: SVGPath, w: number, h: number, params: TemplateParams,
+  profile?: CapeOutlineProfile
 ) {
-  const refH = REF_H;
+  const p = profile ?? STANDARD_PROFILE;
+  const refH = p.shoulderH ?? h;
   const hemW = (params.hemWidth as number) || 1.0;
   const tattered = params.tattered as boolean;
   const scalloped = params.scalloped as boolean;
@@ -481,21 +626,21 @@ function drawModifiedOutline(
   const sideSeed = (params.seed as number) || 12345;
 
   function drawLeft() {
-    if (sideStyle !== 'none') drawStyledLeftSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH);
-    else drawRefLeftSide(path, w, h, hemW, refH);
+    if (sideStyle !== 'none') drawStyledLeftSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH, p.sideProfileFn, p.sideTopYFrac, p.sideBotYFrac);
+    else p.drawRefLeft(path, w, h, hemW, refH);
   }
   function drawRight() {
-    if (sideStyle !== 'none') drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH);
-    else drawRefRightSide(path, w, h, hemW, refH);
+    if (sideStyle !== 'none') drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH, p.sideProfileFn, p.sideTopYFrac, p.sideBotYFrac);
+    else p.drawRefRight(path, w, h, hemW, refH);
   }
 
   // If no hem modifier, draw full outline at actual length h with hemWidth taper
   if (!hasHemStyle) {
     drawLeft();
     if (rounding) {
-      drawRoundedHem(path, w, h, hemW, roundingAmt);
+      drawRoundedHem(path, w, h, hemW, roundingAmt, p.sideBotYFrac, p.sideLeftXFrac, p.sideRightXFrac);
     } else {
-      drawRefStandardHem(path, w, h, hemW);
+      p.drawRefHem(path, w, h, hemW);
     }
     drawRight();
     return;
@@ -505,9 +650,9 @@ function drawModifiedOutline(
   drawLeft();
   // Side endpoints at actual length
   const cx = w / 2;
-  const leftX = cx + (w * 0.00193 - cx) * hemW;
-  const leftY = h * 0.89712;
-  const rightX = cx + (w * 0.99807 - cx) * hemW;
+  const leftX = cx + (w * p.sideLeftXFrac - cx) * hemW;
+  const leftY = h * p.sideBotYFrac;
+  const rightX = cx + (w * p.sideRightXFrac - cx) * hemW;
   const rightY = leftY;
 
   const halfW = (rightX - leftX) / 2;
@@ -1244,6 +1389,125 @@ export class CapeStandard extends Template {
     }
     // When side styles are active, the left side extends into negative X.
     // Set bb.x to the negative offset so the SVG export can translate accordingly.
+    const sideStyle = (params.sideStyle as string) || 'none';
+    if (sideStyle !== 'none') {
+      const sideDepth = (params.sideStyleDepth as number) || 3;
+      result.boundingBox.x = -sideDepth;
+      result.boundingBox.width = w + sideDepth * 2;
+    }
+    return result;
+  }
+}
+
+/** Standard hole radius for single-hole capes */
+const STD_NARROW_HOLE_R = 2.36;
+
+/**
+ * CapeNarrowSingleHole: Narrow leaf/teardrop cape with single centered hole.
+ * Fully procedural — supports all hem/side/transform features.
+ * Dimensions: ~28mm wide × 36mm tall
+ */
+export class CapeNarrowSingleHole extends Template {
+  generateCutPath(params: TemplateParams): string {
+    const { length, width } = params;
+    const path = new SVGPath();
+    const w = width;
+    const h = length;
+
+    // Start at top-left of leaf shape
+    path.moveTo(w * 0.4759, h * 0.0014);
+
+    drawModifiedOutline(path, w, h, params, NARROW_PROFILE);
+
+    path.closePath();
+    return path.toString();
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length } = params;
+    const paths = [this.generateCutPath(params)];
+    // Single centered attachment hole
+    const holeCx = width * 0.5;
+    const holeCy = length * 0.14;
+    paths.push(generateAttachmentHole(holeCx, holeCy, STD_NARROW_HOLE_R, 0, 0, false, params));
+    if (params.swordSlit) {
+      paths.push(generateSwordSlit(
+        width, length,
+        params.swordSide as string || 'right',
+        params.swordAngle as number || 35,
+        params.swordY as number || 0.45
+      ));
+    }
+    if (params.starHoles) {
+      const holePaths = generateWornHoles(
+        width, length,
+        (params.starHoleCount as number) || 5,
+        (params.starHoleSize as number) || 1.5,
+        (params.seed as number) || 12345,
+        params
+      );
+      paths.push(...holePaths);
+    }
+    if (params.armSlits) {
+      paths.push(...generateArmSlits(
+        width, length,
+        (params.armSlitY as number) || 0.25,
+        (params.armSlitLength as number) || 6
+      ));
+    }
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+
+  export(
+    id: string,
+    name: string,
+    elementType: string,
+    variantName: string,
+    params: TemplateParams
+  ): PatternExport {
+    const result = super.export(id, name, elementType, variantName, params);
+    const w = params.width;
+    const h = params.length;
+    const hemW = (params.hemWidth as number) || 1.0;
+    const cx = w / 2;
+    const leftX = cx + (w * 0.0068 - cx) * hemW;
+    const rightX = cx + (w * 0.9932 - cx) * hemW;
+    const sideY = h * 0.8464;
+    let maxY = h;
+    const halfW = (rightX - leftX) / 2;
+    if (params.rounding) {
+      const roundingAmt = (params.roundingAmount as number) || 0.5;
+      maxY = Math.max(maxY, sideY + roundingAmt * halfW);
+    }
+    if (params.pointed) {
+      const depthFrac = (params.pointedDepth as number) || 0.3;
+      maxY = Math.max(maxY, sideY + (rightX - leftX) * depthFrac);
+    }
+    if (params.zigzag) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.zigzagDepth as number) || 4));
+    }
+    if (params.wavy) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.wavyDepth as number) || 3));
+    }
+    if (params.castellated) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.castellatedDepth as number) || 3));
+    }
+    if (params.dovetail) {
+      const dDepth = ((params.dovetailDepth as number) || 0.25) * (rightX - leftX);
+      maxY = Math.max(maxY, sideY + (h - sideY) + dDepth);
+    }
+    if (params.flame) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.flameDepth as number) || 6));
+    }
+    if (params.stepped) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.steppedDepth as number) || 4));
+    }
+    if (maxY > result.boundingBox.height) {
+      result.boundingBox.height = maxY;
+    }
     const sideStyle = (params.sideStyle as string) || 'none';
     if (sideStyle !== 'none') {
       const sideDepth = (params.sideStyleDepth as number) || 3;

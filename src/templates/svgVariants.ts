@@ -735,6 +735,119 @@ const SHOULDER_ARMOR_HOLES = [
   { relX: 0.75174, relY: 0.26808 },
 ];
 
+// SingleHoleNarrow_Template.svg — narrow teardrop shape, 28×36mm, single center hole
+const SINGLE_HOLE_NARROW_OUTLINE: FracCmd[] = [
+  [1, 0.3302, 0.9923],
+  [3, 0.1861, 0.9847, 0.0482, 0.9708, 0.0184, 0.9609],
+  [3, 0.0012, 0.9551, 0, 0.9437, 0.0068, 0.8464],
+  [3, 0.0147, 0.7327, 0.0385, 0.6116, 0.0815, 0.4668],
+  [3, 0.1306, 0.3013, 0.2455, 0.0863, 0.3122, 0.0352],
+  [3, 0.3232, 0.0267, 0.344, 0.0159, 0.3583, 0.0112],
+  [3, 0.3822, 0.0033, 0.392, 0.0024, 0.4759, 0.0014],
+  [3, 0.608, 0.0024, 0.6178, 0.0033, 0.6417, 0.0112],
+  [3, 0.656, 0.0159, 0.6768, 0.0267, 0.6878, 0.0352],
+  [3, 0.7545, 0.0863, 0.8694, 0.3013, 0.9185, 0.4668],
+  [3, 0.9615, 0.6116, 0.9853, 0.7327, 0.9932, 0.8464],
+  [3, 1, 0.9437, 0.9988, 0.9551, 0.9816, 0.9609],
+  [3, 0.9518, 0.9708, 0.8139, 0.9847, 0.6698, 0.9923],
+  [0],
+];
+const SINGLE_HOLE_NARROW_HOLE = { relX: 0.5, relY: 0.14 };
+
+// SingleHoleTop_template.svg — wide cape with high single hole, 37×37mm
+const SINGLE_HOLE_TOP_OUTLINE: FracCmd[] = [
+  [1, 0.424, 0.9926],
+  [3, 0.2824, 0.9838, 0.0272, 0.9211, 0.0083, 0.9106],
+  [3, 0.0034, 0.9079, 0, 0.9071, 0, 0.9088],
+  [2, 0, 0.887],
+  [3, 0, 0.7612, 0.3339, 0.345, 0.3344, 0.2156],
+  [3, 0.3397, 0.1284, 0.3147, 0.089, 0.3992, 0.0267],
+  [3, 0.4205, 0.0125, 0.4499, 0.0038, 0.482, 0.0019],
+  [3, 0.5501, 0.0038, 0.5795, 0.0125, 0.6008, 0.0267],
+  [3, 0.6853, 0.089, 0.6603, 0.1284, 0.6656, 0.2156],
+  [3, 0.6661, 0.345, 1, 0.7612, 1, 0.887],
+  [2, 1, 0.9088],
+  [3, 1, 0.9071, 0.9966, 0.9079, 0.9917, 0.9106],
+  [3, 0.9728, 0.9211, 0.7176, 0.9838, 0.576, 0.9926],
+  [0],
+];
+const SINGLE_HOLE_TOP_HOLE = { relX: 0.5, relY: 0.1424 };
+
+// SteppedShoulderSingleHole_Template.svg — stepped shoulder cape, 41×37mm
+const SINGLE_HOLE_STEPPED_OUTLINE: FracCmd[] = [
+  [1, 0.4079, 0.9887],
+  [3, 0.372, 0.9864, 0.2658, 0.974, 0.1191, 0.905],
+  [3, 0.1017, 0.8968, 0.076, 0.881, 0.0546, 0.8653],
+  [3, 0.0317, 0.8484, 0.002, 0.8182, 0, 0.8096],
+  [3, 0.0038, 0.7868, 0.0173, 0.7677, 0.027, 0.7474],
+  [3, 0.1419, 0.5026, 0.2066, 0.4251, 0.2746, 0.2835],
+  [3, 0.2765, 0.2787, 0.2847, 0.2656, 0.2928, 0.2544],
+  [3, 0.3039, 0.239, 0.3092, 0.2336, 0.3144, 0.2325],
+  [3, 0.3182, 0.2317, 0.3242, 0.2304, 0.3278, 0.2297],
+  [3, 0.3313, 0.2289, 0.3402, 0.223, 0.3475, 0.2164],
+  [3, 0.3673, 0.1988, 0.3723, 0.1857, 0.3752, 0.1447],
+  [3, 0.3775, 0.1118, 0.3787, 0.1071, 0.3927, 0.0744],
+  [3, 0.4033, 0.05, 0.4206, 0.0348, 0.44, 0.021],
+  [3, 0.4609, 0.0054, 0.4695, 0.0026, 0.499, 0.0014],
+  [3, 0.5305, 0.0026, 0.5391, 0.0054, 0.56, 0.021],
+  [3, 0.5794, 0.0348, 0.5967, 0.05, 0.6073, 0.0744],
+  [3, 0.6213, 0.1071, 0.6225, 0.1118, 0.6248, 0.1447],
+  [3, 0.6277, 0.1857, 0.6327, 0.1988, 0.6525, 0.2164],
+  [3, 0.6598, 0.223, 0.6687, 0.2289, 0.6722, 0.2297],
+  [3, 0.6758, 0.2304, 0.6818, 0.2317, 0.6856, 0.2325],
+  [3, 0.6908, 0.2336, 0.6961, 0.239, 0.7072, 0.2544],
+  [3, 0.7153, 0.2656, 0.7235, 0.2787, 0.7254, 0.2835],
+  [3, 0.7934, 0.4251, 0.8581, 0.5026, 0.973, 0.7474],
+  [3, 0.9827, 0.7677, 0.9962, 0.7868, 1, 0.8096],
+  [3, 0.998, 0.8182, 0.9683, 0.8484, 0.9454, 0.8653],
+  [3, 0.924, 0.881, 0.8983, 0.8968, 0.8809, 0.905],
+  [3, 0.7342, 0.974, 0.628, 0.9864, 0.5921, 0.9887],
+  [0],
+];
+const SINGLE_HOLE_STEPPED_HOLE = { relX: 0.5, relY: 0.1618 };
+
+export class CapeTopSingleHole extends Template {
+  generateCutPath(params: TemplateParams): string {
+    return renderFracPath(SINGLE_HOLE_TOP_OUTLINE, params.width, params.length);
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length } = params;
+    const paths = [this.generateCutPath(params)];
+    paths.push(generateAttachmentHole(width * SINGLE_HOLE_TOP_HOLE.relX, length * SINGLE_HOLE_TOP_HOLE.relY, STD_HOLE_R, 0, 0, false, params));
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+
+  export(id: string, name: string, elementType: string, variantName: string, params: TemplateParams) {
+    const p = { ...params, width: params.width || 37, length: params.length || 37 };
+    return super.export(id, name, elementType, variantName, p);
+  }
+}
+
+export class CapeSteppedSingleHole extends Template {
+  generateCutPath(params: TemplateParams): string {
+    return renderFracPath(SINGLE_HOLE_STEPPED_OUTLINE, params.width, params.length);
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length } = params;
+    const paths = [this.generateCutPath(params)];
+    paths.push(generateAttachmentHole(width * SINGLE_HOLE_STEPPED_HOLE.relX, length * SINGLE_HOLE_STEPPED_HOLE.relY, STD_HOLE_R, 0, 0, false, params));
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+
+  export(id: string, name: string, elementType: string, variantName: string, params: TemplateParams) {
+    const p = { ...params, width: params.width || 41, length: params.length || 37 };
+    return super.export(id, name, elementType, variantName, p);
+  }
+}
+
 export class MantleShoulderArmor extends Template {
   generateCutPath(params: TemplateParams): string {
     return renderFracPath(SHOULDER_ARMOR_OUTLINE, params.width, params.length);

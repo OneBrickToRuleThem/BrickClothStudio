@@ -130,37 +130,69 @@ export default function PreviewCanvas() {
   const isPolygonSail = templateVariant === 'polygon-sail';
 
   const sailGrommets = useMemo(() => {
-    if (!isSail || !pattern || isPolygonSail) return []; // polygon grommets are auto-computed
+    if (!isSail || !pattern) return [];
     const w = (parameters.width as number) || 60;
     const h = (parameters.length as number) || 60;
     const grommets: Array<{ id: string; x: number; y: number; paramX: string; paramY: string; corner: string }> = [];
 
-    grommets.push({
-      id: 'TL', corner: 'Top-Left',
-      x: (parameters.sailGrommetTLx as number) || 4,
-      y: (parameters.sailGrommetTLy as number) || 4,
-      paramX: 'sailGrommetTLx', paramY: 'sailGrommetTLy',
-    });
-    if (isSquareSail) {
+    if (isPolygonSail) {
+      // Polygon sail: compute grommet positions from polygon vertices or custom positions
+      const sides = Math.max(5, Math.min(12, (parameters.sailSides as number) || 6));
+      const inset = (parameters.sailPolygonInset as number) ?? 4;
+      const cx = w / 2;
+      const cy = h / 2;
+      const rx = w / 2 - inset;
+      const ry = h / 2 - inset;
+      const mask = (parameters.sailPolygonGrommetMask as string) || '';
+      let customPositions: Array<{ x: number; y: number }> = [];
+      try { customPositions = JSON.parse((parameters.sailPolygonGrommetPositions as string) || '[]'); } catch { customPositions = []; }
+
+      for (let i = 0; i < sides; i++) {
+        const enabled = mask.length >= sides ? mask[i] !== '0' : true;
+        if (!enabled) continue;
+        let gx: number, gy: number;
+        if (customPositions.length === sides && customPositions[i]) {
+          gx = customPositions[i].x;
+          gy = customPositions[i].y;
+        } else {
+          const angle = -Math.PI / 2 + (2 * Math.PI * i) / sides;
+          gx = cx + rx * Math.cos(angle);
+          gy = cy + ry * Math.sin(angle);
+        }
+        grommets.push({
+          id: `P${i}`, corner: `V${i + 1}`,
+          x: gx, y: gy,
+          paramX: '', paramY: '', // handled via JSON array
+        });
+      }
+    } else {
       grommets.push({
-        id: 'TR', corner: 'Top-Right',
-        x: w - ((parameters.sailGrommetTRx as number) || 4),
-        y: (parameters.sailGrommetTRy as number) || 4,
-        paramX: 'sailGrommetTRx', paramY: 'sailGrommetTRy',
+        id: 'TL', corner: 'Top-Left',
+        x: (parameters.sailGrommetTLx as number) || 4,
+        y: (parameters.sailGrommetTLy as number) || 4,
+        paramX: 'sailGrommetTLx', paramY: 'sailGrommetTLy',
+      });
+      if (isSquareSail) {
+        grommets.push({
+          id: 'TR', corner: 'Top-Right',
+          x: w - ((parameters.sailGrommetTRx as number) || 4),
+          y: (parameters.sailGrommetTRy as number) || 4,
+          paramX: 'sailGrommetTRx', paramY: 'sailGrommetTRy',
+        });
+      }
+      grommets.push({
+        id: 'BL', corner: 'Bottom-Left',
+        x: (parameters.sailGrommetBLx as number) || 4,
+        y: h - ((parameters.sailGrommetBLy as number) || 4),
+        paramX: 'sailGrommetBLx', paramY: 'sailGrommetBLy',
+      });
+      grommets.push({
+        id: 'BR', corner: 'Bottom-Right',
+        x: w - ((parameters.sailGrommetBRx as number) || 4),
+        y: h - ((parameters.sailGrommetBRy as number) || 4),
+        paramX: 'sailGrommetBRx', paramY: 'sailGrommetBRy',
       });
     }
-    grommets.push({
-      id: 'BL', corner: 'Bottom-Left',
-      x: (parameters.sailGrommetBLx as number) || 4,
-      y: h - ((parameters.sailGrommetBLy as number) || 4),
-      paramX: 'sailGrommetBLx', paramY: 'sailGrommetBLy',
-    });
-    grommets.push({
-      id: 'BR', corner: 'Bottom-Right',
-      x: w - ((parameters.sailGrommetBRx as number) || 4),
-      y: h - ((parameters.sailGrommetBRy as number) || 4),
-      paramX: 'sailGrommetBRx', paramY: 'sailGrommetBRy',
-    });
     return grommets;
   }, [isSail, isSquareSail, isPolygonSail, pattern, parameters]);
 
@@ -245,6 +277,33 @@ export default function PreviewCanvas() {
         if (symmetry) {
           setParameter('sailGrommetBLx', ix);
           setParameter('sailGrommetBLy', iy);
+        }
+        break;
+      }
+      default: {
+        // Polygon grommet: P0, P1, P2, ...
+        if (draggingGrommet.startsWith('P')) {
+          const idx = parseInt(draggingGrommet.slice(1), 10);
+          const sides = Math.max(5, Math.min(12, (parameters.sailSides as number) || 6));
+          const inset = (parameters.sailPolygonInset as number) ?? 4;
+          const pcx = w / 2, pcy = h / 2;
+          const prx = w / 2 - inset, pry = h / 2 - inset;
+
+          // Load or initialize custom positions
+          let positions: Array<{ x: number; y: number }> = [];
+          try { positions = JSON.parse((parameters.sailPolygonGrommetPositions as string) || '[]'); } catch { positions = []; }
+          if (positions.length !== sides) {
+            positions = [];
+            for (let i = 0; i < sides; i++) {
+              const angle = -Math.PI / 2 + (2 * Math.PI * i) / sides;
+              positions.push({ x: pcx + prx * Math.cos(angle), y: pcy + pry * Math.sin(angle) });
+            }
+          }
+
+          if (idx >= 0 && idx < sides) {
+            positions[idx] = { x: cx, y: cy };
+            setParameter('sailPolygonGrommetPositions', JSON.stringify(positions));
+          }
         }
         break;
       }

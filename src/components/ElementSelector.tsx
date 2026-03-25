@@ -176,6 +176,9 @@ function ElementVariantSelector() {
       { value: 'wind-swept', label: 'Wind Swept' },
       { value: 'phantom-shroud', label: 'Phantom Shroud' },
       { value: 'seven-points', label: 'Seven Points' },
+      { value: 'narrow-single-hole', label: 'Narrow (Single Hole)' },
+      { value: 'top-single-hole', label: 'Top (Single Hole)' },
+      { value: 'stepped-single-hole', label: 'Stepped (Single Hole)' },
     ],
 
     flag: [

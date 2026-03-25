@@ -123,6 +123,8 @@ const defaultParameters = {
   sailSides: 6,  // polygon sail: number of sides (5-12)
   sailPolygonInset: 4, // polygon grommet inset from bounding box edge (mm)
   sailPolygonGrommetMask: '', // per-vertex enable mask, e.g. '111111' — empty = all enabled
+  sailPolygonGrommetPositions: '[]' as string, // JSON array of {x,y} custom polygon grommet positions — empty = use computed defaults
+  sailExtraGrommets: '[]' as string, // JSON array of {x, y} extra grommet positions
   sailStudWidth: 0,  // LEGO stud-based sizing (0 = manual mm)
   sailStudLength: 0,
   // Kama edge styles
@@ -139,8 +141,8 @@ const defaultParameters = {
   flagCustomHoleCount: 2,
   // Custom hole override (applies to cape, flag, kama, mantle)
   holeOverride: false as boolean,
-  holeOverrideShape: 'round' as string, // round | square | oval
-  holeOverrideDiameter: 5.0,
+  holeOverrideShape: 'round' as string, // round | square | oval | pill
+  holeOverrideDiameter: HOLE_STANDARDS.minifigure.diameter,
   holeOverrideWidth: 5.0,  // for oval/square: horizontal dimension
   holeOverrideHeight: 3.5, // for oval: vertical dimension
   holeOverrideOffsetX: 0,  // mm, mirrored horizontal offset (positive = spread apart)
@@ -184,6 +186,9 @@ const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number
   'cape:wind-swept': { width: 47, length: 51 },
   'cape:phantom-shroud': { width: 48, length: 51 },
   'cape:seven-points': { width: 52, length: 40 },
+  'cape:narrow-single-hole': { width: 28, length: 36 },
+  'cape:top-single-hole': { width: 37, length: 37 },
+  'cape:stepped-single-hole': { width: 41, length: 37 },
   'mantle:high-collar': { width: 32, length: 18 },
   'sail': { width: 60, length: 60 },
   'sail:polygon-sail': { width: 60, length: 60 },
