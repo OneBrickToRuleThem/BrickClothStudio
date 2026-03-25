@@ -2,9 +2,10 @@
  * Element Type Selector Component
  */
 
-import React from 'react';
-import { useEditorStore } from '../store/editor';
+import React, { useMemo } from 'react';
+import { useEditorStore, ELEMENT_DIMENSION_DEFAULTS } from '../store/editor';
 import { ElementType } from '../utils/types';
+import { generatePattern } from '../services/patternGenerator';
 
 /**
  * SVG icon silhouettes derived from the actual template cut paths.
@@ -111,12 +112,10 @@ const ELEMENTS: Array<{ type: ElementType; label: string; wip?: boolean }> = [
 ];
 
 export default function ElementSelector() {
-  const { elementType, setElementType, setTemplateVariant, resetToDefaults } = useEditorStore();
+  const { elementType, switchElement } = useEditorStore();
 
   const handleElementChange = (type: ElementType) => {
-    setElementType(type);
-    
-    // Set appropriate default template variant
+    // Default variant per element type
     const variants: Record<ElementType, string> = {
       cape: 'standard',
       flag: 'small-flag',
@@ -126,14 +125,11 @@ export default function ElementSelector() {
       sail: 'square-sail',
     };
     const variant = variants[type];
-    setTemplateVariant(variant as any);
-    // Reset all parameters to defaults for the new element type,
-    // clearing any stale toggles (hem styles, side styles, etc.)
-    resetToDefaults();
+    switchElement(type, variant as any);
   };
 
   return (
-    <div className="panel h-full">
+    <div className="panel min-h-full">
       <div className="panel-header">Element Type</div>
       <div className="space-y-2">
         {ELEMENTS.map((elem) => (
@@ -142,14 +138,14 @@ export default function ElementSelector() {
             onClick={() => handleElementChange(elem.type)}
             className={`w-full p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${
               elementType === elem.type
-                ? 'bg-blue-100 border-2 border-blue-500 text-blue-900'
+                ? 'bg-blue-100 dark:bg-blue-900/40 border-2 border-blue-500 text-blue-900 dark:text-blue-200'
                 : elem.wip
-                  ? 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 opacity-60'
-                  : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                  ? 'bg-gray-50 dark:bg-gray-700 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-600 opacity-60'
+                  : 'bg-gray-50 dark:bg-gray-700 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-600'
             }`}
           >
             <ElementIcon type={elem.type} className={`w-8 h-8 flex-shrink-0 ${
-              elementType === elem.type ? 'text-blue-700' : 'text-gray-500'
+              elementType === elem.type ? 'text-blue-700 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
             }`} />
             <div className="flex flex-col">
               <span className="font-medium text-sm">{elem.label}</span>
@@ -159,7 +155,7 @@ export default function ElementSelector() {
         ))}
       </div>
 
-      <div className="panel-section mt-6 pt-4 border-t border-gray-200">
+      <div className="panel-section mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
         <div className="panel-section-title">Element Variants</div>
         <ElementVariantSelector />
       </div>
@@ -167,8 +163,53 @@ export default function ElementSelector() {
   );
 }
 
+function VariantThumbnail({ elementType, variant, className }: { elementType: ElementType; variant: string; className?: string }) {
+  const pathData = useMemo(() => {
+    try {
+      const key = `${elementType}:${variant}`;
+      const dims = ELEMENT_DIMENSION_DEFAULTS[key] || ELEMENT_DIMENSION_DEFAULTS[elementType] || { width: 40, length: 40 };
+      const params: Record<string, number | string | boolean> = {
+        width: dims.width,
+        length: dims.length,
+        holeRadius: 2.5,
+        clearance: 0.2,
+        slitWidth: 1.5,
+        enableSlit: false,
+        holeCount: 2,
+        holeType: 'minifigure',
+        sailSides: 6,
+        sailGrommetTLx: 4, sailGrommetTLy: 4,
+        sailGrommetTRx: 4, sailGrommetTRy: 4,
+        sailGrommetBLx: 4, sailGrommetBLy: 4,
+        sailGrommetBRx: 4, sailGrommetBRy: 4,
+        sailPolygonGrommetPositions: '[]',
+        sailPolygonGrommetMask: '',
+        sailExtraGrommets: '[]',
+        colorSplitCount: 0,
+        colorSplitColors: '[]',
+        stripeEnabled: false,
+        stripeColors: '[]',
+      };
+      const pattern = generatePattern(elementType, variant as any, params);
+      if (!pattern.cutPaths.length) return null;
+      const bb = pattern.boundingBox;
+      return { d: pattern.cutPaths[0], viewBox: `${bb.x - 1} ${bb.y - 1} ${bb.width + 2} ${bb.height + 2}` };
+    } catch {
+      return null;
+    }
+  }, [elementType, variant]);
+
+  if (!pathData) return null;
+
+  return (
+    <svg width={28} height={28} viewBox={pathData.viewBox} className={className} style={{ display: 'block' }}>
+      <path d={pathData.d} fill="currentColor" />
+    </svg>
+  );
+}
+
 function ElementVariantSelector() {
-  const { elementType, templateVariant, setTemplateVariant, resetToDefaults } = useEditorStore();
+  const { elementType, templateVariant, switchVariant } = useEditorStore();
 
   const variants: Record<ElementType, Array<{ value: string; label: string }>> = {
     cape: [
@@ -213,16 +254,22 @@ function ElementVariantSelector() {
         <button
           key={variant.value}
           onClick={() => {
-            setTemplateVariant(variant.value as any);
-            resetToDefaults();
+            switchVariant(variant.value as any);
           }}
-          className={`w-full p-2 rounded text-sm transition-colors ${
+          className={`w-full p-2 rounded text-sm transition-colors flex items-center gap-2 ${
             templateVariant === variant.value
               ? 'bg-blue-500 text-white'
-              : 'bg-gray-100 hover:bg-gray-200'
+              : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 dark:text-gray-200'
           }`}
         >
-          {variant.label}
+          <VariantThumbnail
+            elementType={elementType}
+            variant={variant.value}
+            className={`flex-shrink-0 ${
+              templateVariant === variant.value ? 'text-white' : 'text-gray-500 dark:text-gray-400'
+            }`}
+          />
+          <span>{variant.label}</span>
         </button>
       ))}
     </div>

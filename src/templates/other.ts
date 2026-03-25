@@ -187,14 +187,20 @@ class BannerFlag extends Template {
     path.lineTo(w - margin - r, margin);
     path.arcTo(r, r, 0, 0, 1, w - margin, margin + r);
 
-    // Right edge (top to bottom) — ends at bodyBottom
-    this.drawStyledSideEdge(path, w - margin, margin + r, w - margin, bodyBottom, rightStyle, sideDepth, sideCount, 1);
+    // Right edge (top to bottom) — ends at bodyBottom - r for bottom corner arc
+    this.drawStyledSideEdge(path, w - margin, margin + r, w - margin, bodyBottom - r, rightStyle, sideDepth, sideCount, 1);
+
+    // Bottom-right rounded corner
+    path.arcTo(r, r, 0, 0, 1, w - margin - r, bodyBottom);
 
     // Bottom edge — decorations extend from bodyBottom down to h-margin (within bounds)
-    this.drawStyledBottomEdge(path, w, h, margin, bottomStyle, depth, count, bottomExt);
+    this.drawStyledBottomEdge(path, w, h, margin, bottomStyle, depth, count, bottomExt, r);
 
-    // Left edge (bottom to top) — starts from bodyBottom
-    this.drawStyledSideEdge(path, margin, bodyBottom, margin, margin + r, leftStyle, sideDepth, sideCount, -1);
+    // Bottom-left rounded corner
+    path.arcTo(r, r, 0, 0, 1, margin, bodyBottom - r);
+
+    // Left edge (bottom to top) — starts from bodyBottom - r
+    this.drawStyledSideEdge(path, margin, bodyBottom - r, margin, margin + r, leftStyle, sideDepth, sideCount, -1);
     path.arcTo(r, r, 0, 0, 1, margin + r, margin);
     path.closePath();
     return path.toString();
@@ -279,12 +285,13 @@ class BannerFlag extends Template {
 
   private drawStyledBottomEdge(
     path: SVGPath, w: number, h: number, margin: number,
-    style: string, depthParam: number, count: number, bottomExt: number
+    style: string, depthParam: number, count: number, bottomExt: number,
+    cornerRadius: number = 0
   ): void {
     const bottomY = h - margin;           // absolute bottom edge of bounding box
     const bodyBottom = bottomY - bottomExt; // raised baseline where the body ends
-    const leftX = margin;
-    const rightX = w - margin;
+    const leftX = margin + cornerRadius;
+    const rightX = w - margin - cornerRadius;
     const usableW = rightX - leftX;
 
     switch (style) {
@@ -473,7 +480,7 @@ export class FlagCustom extends BannerFlag {
     const leftStyle = (params.flagLeftStyle as string) || 'none';
     const rightStyle = (params.flagRightStyle as string) || 'none';
 
-    // If all styles are 'none', use a simple rectangle with rounded top corners
+    // If all styles are 'none', use a simple rectangle with rounded corners
     if (bottomStyle === 'none' && leftStyle === 'none' && rightStyle === 'none') {
       const w = params.width;
       const h = params.length;
@@ -483,8 +490,10 @@ export class FlagCustom extends BannerFlag {
       path.moveTo(margin + r, margin);
       path.lineTo(w - margin - r, margin);
       path.arcTo(r, r, 0, 0, 1, w - margin, margin + r);
-      path.lineTo(w - margin, h - margin);
-      path.lineTo(margin, h - margin);
+      path.lineTo(w - margin, h - margin - r);
+      path.arcTo(r, r, 0, 0, 1, w - margin - r, h - margin);
+      path.lineTo(margin + r, h - margin);
+      path.arcTo(r, r, 0, 0, 1, margin, h - margin - r);
       path.lineTo(margin, margin + r);
       path.arcTo(r, r, 0, 0, 1, margin + r, margin);
       path.closePath();
@@ -1351,6 +1360,28 @@ function generateExtraGrommetCrosshairs(params: TemplateParams): string[] {
 }
 
 /**
+ * Intersect two finite line segments p1→p2 and p3→p4.
+ * Returns the intersection point if the segments cross strictly within their
+ * interiors (t ∈ (0,1), u ∈ (0,1)), or null if they don't cross.
+ */
+function segmentIntersection(
+  p1: { x: number; y: number }, p2: { x: number; y: number },
+  p3: { x: number; y: number }, p4: { x: number; y: number }
+): { x: number; y: number } | null {
+  const d1x = p2.x - p1.x, d1y = p2.y - p1.y;
+  const d2x = p4.x - p3.x, d2y = p4.y - p3.y;
+  const cross = d1x * d2y - d1y * d2x;
+  if (Math.abs(cross) < 1e-9) return null;
+  const dx = p3.x - p1.x, dy = p3.y - p1.y;
+  const t = (dx * d2y - dy * d2x) / cross;
+  const u = (dx * d1y - dy * d1x) / cross;
+  if (t > 0 && t < 1 && u > 0 && u < 1) {
+    return { x: p1.x + t * d1x, y: p1.y + t * d1y };
+  }
+  return null;
+}
+
+/**
  * Build a sail cut path from a CW polygon of grommet corners.
  * Each corner gets a grommet-radius arc; edges between corners get decorative styles.
  * Outward direction for each edge is computed as the right-perpendicular (CW polygon, Y-down).
@@ -1373,6 +1404,7 @@ function buildSailCutPath(
   // This ensures every point on the outline is exactly r from the nearest corner center.
   const arrivals: Array<{ x: number; y: number }> = [];
   const departures: Array<{ x: number; y: number }> = [];
+  const crossProducts: number[] = [];
 
   for (let i = 0; i < n; i++) {
     const prev = corners[(i - 1 + n) % n];
@@ -1393,6 +1425,9 @@ function buildSailCutPath(
     const outNx = outDy / outLen;
     const outNy = -outDx / outLen;
 
+    // Cross product to detect concave corners (negative = concave for CW, Y-down)
+    crossProducts.push(inDx * outDy - inDy * outDx);
+
     arrivals.push({
       x: curr.x + inNx * r,
       y: curr.y + inNy * r,
@@ -1403,8 +1438,31 @@ function buildSailCutPath(
     });
   }
 
+  // Pre-compute clipping at concave corners: when adjacent offset edge segments
+  // cross each other, clip both at their intersection to prevent self-intersecting paths.
+  const effArrivals = arrivals.map(a => ({ ...a }));
+  const effDepartures = departures.map(d => ({ ...d }));
+  const skipCorner: boolean[] = new Array(n).fill(false);
+
+  for (let ci = 0; ci < n; ci++) {
+    if (crossProducts[ci] >= 0) continue; // convex: no clipping needed
+    // Edge arriving at ci: departures[prev] → arrivals[ci]
+    // Edge departing ci:   departures[ci]   → arrivals[next]
+    const prevEdge = (ci - 1 + n) % n;
+    const nextCorner = (ci + 1) % n;
+    const inter = segmentIntersection(
+      departures[prevEdge], arrivals[ci],
+      departures[ci], arrivals[nextCorner]
+    );
+    if (inter) {
+      effArrivals[ci] = inter;
+      effDepartures[ci] = inter;
+      skipCorner[ci] = true;
+    }
+  }
+
   // Start at departure of first corner
-  path.moveTo(departures[0].x, departures[0].y);
+  path.moveTo(effDepartures[0].x, effDepartures[0].y);
 
   for (let i = 0; i < n; i++) {
     const nextIdx = (i + 1) % n;
@@ -1418,15 +1476,24 @@ function buildSailCutPath(
     const outX = edy / edLen;
     const outY = -edx / edLen;
 
-    // Styled edge from departure[i] to arrival[nextIdx]
+    // Styled edge from effective departure[i] to effective arrival[nextIdx]
     drawStyledEdge(
-      path, departures[i].x, departures[i].y,
-      arrivals[nextIdx].x, arrivals[nextIdx].y,
+      path, effDepartures[i].x, effDepartures[i].y,
+      effArrivals[nextIdx].x, effArrivals[nextIdx].y,
       edgeStyles[i], edgeDepths[i] ?? 3, count, outX, outY, safeInset, tornSeed + i
     );
 
-    // Arc at next corner connecting arrival to departure (centered at corner)
-    path.arcTo(r, r, 0, 0, 1, departures[nextIdx].x, departures[nextIdx].y);
+    // Corner at nextIdx
+    if (skipCorner[nextIdx]) {
+      // Adjacent offset edges already meet at their intersection — no connector needed
+    } else if (crossProducts[nextIdx] >= 0) {
+      // Convex corner: arc connecting arrival to departure
+      path.arcTo(r, r, 0, 0, 1, effDepartures[nextIdx].x, effDepartures[nextIdx].y);
+    } else {
+      // Concave corner, edges don't cross within their segments:
+      // connect with a straight line instead of a deep miter V-notch
+      path.lineTo(effDepartures[nextIdx].x, effDepartures[nextIdx].y);
+    }
   }
 
   path.closePath();

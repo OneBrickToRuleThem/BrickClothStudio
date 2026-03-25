@@ -9,7 +9,7 @@ import { generatePattern } from '../services/patternGenerator';
 import { exportSinglePatternSVG } from '../export/svg';
 import { CANVAS_SCALE_MM_TO_PX, CANVAS_GRID_SPACING, SAIL_HOLE_STANDARDS } from '../utils/constants';
 import type { SailHoleType } from '../utils/constants';
-import minifigUrl from '/lego-man-silhouette.png';
+import minifigUrl from '/Minifig_Reference.svg';
 
 // CSS mm-to-px conversion factor (CSS spec: 1in = 96px, 1in = 25.4mm)
 const CSS_MM_TO_PX = 96 / 25.4; // ~3.7795275591
@@ -33,7 +33,15 @@ export default function PreviewCanvas() {
   const [fillColor, setFillColor] = useState('#d4e6f1');
   const [centered, setCentered] = useState(false);
   const [draggingGrommet, setDraggingGrommet] = useState<string | null>(null);
+  const [showDevMode, setShowDevMode] = useState(false);
+  const [devHoveredPoint, setDevHoveredPoint] = useState<number | null>(null);
+  const [devSelectedPoint, setDevSelectedPoint] = useState<number | null>(null);
+  const [devDraggingPoint, setDevDraggingPoint] = useState<number | null>(null);
+  const [devPointOverrides, setDevPointOverrides] = useState<Record<number, { x: number; y: number }>>({}); 
   const { elementType, templateVariant, parameters, setParameter, decorations, selectedDecorationId, updateDecoration, selectDecoration, removeDecoration } = useEditorStore();
+  const theme = useEditorStore((s) => s.theme);
+  const snapToGrid = useEditorStore((s) => s.snapToGrid);
+  const toggleSnapToGrid = useEditorStore((s) => s.toggleSnapToGrid);
 
   // Generate pattern based on current parameters
   const pattern = useMemo(() => {
@@ -51,6 +59,133 @@ export default function PreviewCanvas() {
     return exportSinglePatternSVG(pattern);
   }, [pattern]);
 
+  // ---------------------------------------------------------------------------
+  // Dev mode: parse outline SVG path into displayable control points
+  // ---------------------------------------------------------------------------
+  interface DevPoint {
+    index: number;        // sequential index
+    x: number;
+    y: number;
+    type: 'M' | 'L' | 'C_cp1' | 'C_cp2' | 'C_end' | 'Q_cp' | 'Q_end' | 'A_end';
+    cmdIndex: number;     // which SVG command this belongs to
+    cmdType: string;      // original command letter
+    arcParams?: { rx: number; ry: number; rot: number; large: number; sweep: number }; // for A commands
+  }
+
+  const devPoints = useMemo((): DevPoint[] => {
+    if (!showDevMode || !pattern || pattern.cutPaths.length === 0) return [];
+    const pathData = pattern.cutPaths[0]; // outline
+    const points: DevPoint[] = [];
+    const cmds = pathData.match(/[MLCQAZHVSTZ]|-?\d+\.?\d*/gi) || [];
+    let ci = 0;
+    let cmd = '';
+    let cmdIdx = 0;
+    let ptIdx = 0;
+
+    while (ci < cmds.length) {
+      const token = cmds[ci];
+      if (/^[A-Za-z]$/.test(token)) {
+        cmd = token.toUpperCase();
+        ci++;
+        if (cmd === 'Z') { cmdIdx++; continue; }
+      } else {
+        switch (cmd) {
+          case 'M': {
+            const x = parseFloat(cmds[ci]), y = parseFloat(cmds[ci + 1]);
+            if (!isNaN(x) && !isNaN(y)) points.push({ index: ptIdx++, x, y, type: 'M', cmdIndex: cmdIdx, cmdType: 'M' });
+            ci += 2; cmdIdx++; break;
+          }
+          case 'L': {
+            const x = parseFloat(cmds[ci]), y = parseFloat(cmds[ci + 1]);
+            if (!isNaN(x) && !isNaN(y)) points.push({ index: ptIdx++, x, y, type: 'L', cmdIndex: cmdIdx, cmdType: 'L' });
+            ci += 2; cmdIdx++; break;
+          }
+          case 'C': {
+            const cp1x = parseFloat(cmds[ci]), cp1y = parseFloat(cmds[ci + 1]);
+            const cp2x = parseFloat(cmds[ci + 2]), cp2y = parseFloat(cmds[ci + 3]);
+            const ex = parseFloat(cmds[ci + 4]), ey = parseFloat(cmds[ci + 5]);
+            points.push({ index: ptIdx++, x: cp1x, y: cp1y, type: 'C_cp1', cmdIndex: cmdIdx, cmdType: 'C' });
+            points.push({ index: ptIdx++, x: cp2x, y: cp2y, type: 'C_cp2', cmdIndex: cmdIdx, cmdType: 'C' });
+            points.push({ index: ptIdx++, x: ex, y: ey, type: 'C_end', cmdIndex: cmdIdx, cmdType: 'C' });
+            ci += 6; cmdIdx++; break;
+          }
+          case 'Q': {
+            const cpx = parseFloat(cmds[ci]), cpy = parseFloat(cmds[ci + 1]);
+            const ex = parseFloat(cmds[ci + 2]), ey = parseFloat(cmds[ci + 3]);
+            points.push({ index: ptIdx++, x: cpx, y: cpy, type: 'Q_cp', cmdIndex: cmdIdx, cmdType: 'Q' });
+            points.push({ index: ptIdx++, x: ex, y: ey, type: 'Q_end', cmdIndex: cmdIdx, cmdType: 'Q' });
+            ci += 4; cmdIdx++; break;
+          }
+          case 'A': {
+            const rx = parseFloat(cmds[ci]), ry = parseFloat(cmds[ci + 1]);
+            const rot = parseFloat(cmds[ci + 2]), large = parseFloat(cmds[ci + 3]), sweep = parseFloat(cmds[ci + 4]);
+            const ex = parseFloat(cmds[ci + 5]), ey = parseFloat(cmds[ci + 6]);
+            if (!isNaN(ex) && !isNaN(ey)) points.push({
+              index: ptIdx++, x: ex, y: ey, type: 'A_end', cmdIndex: cmdIdx, cmdType: 'A',
+              arcParams: { rx, ry, rot, large, sweep },
+            });
+            ci += 7; cmdIdx++; break;
+          }
+          default:
+            ci++; break;
+        }
+      }
+    }
+    return points;
+  }, [showDevMode, pattern]);
+
+  // Clear overrides when the underlying pattern changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => { setDevPointOverrides({}); }, [pattern]);
+
+  // Rebuild SVG path string with dev point overrides applied
+  const devModifiedPath = useMemo((): string | null => {
+    if (!showDevMode || devPoints.length === 0 || Object.keys(devPointOverrides).length === 0) return null;
+    // Group points by cmdIndex
+    const groups = new Map<number, DevPoint[]>();
+    for (const pt of devPoints) {
+      if (!groups.has(pt.cmdIndex)) groups.set(pt.cmdIndex, []);
+      groups.get(pt.cmdIndex)!.push(pt);
+    }
+    const f = (v: number) => v.toFixed(4);
+    const getP = (pt: DevPoint) => devPointOverrides[pt.index] ?? pt;
+    const parts: string[] = [];
+
+    // Find the max cmdIndex and check for Z (the parser increments cmdIdx on Z)
+    const sortedGroups = [...groups.entries()].sort((a, b) => a[0] - b[0]);
+    for (const [, pts] of sortedGroups) {
+      const first = pts[0];
+      switch (first.cmdType) {
+        case 'M': { const p = getP(first); parts.push(`M ${f(p.x)} ${f(p.y)}`); break; }
+        case 'L': { const p = getP(first); parts.push(`L ${f(p.x)} ${f(p.y)}`); break; }
+        case 'C': {
+          const cp1 = pts.find(p => p.type === 'C_cp1')!;
+          const cp2 = pts.find(p => p.type === 'C_cp2')!;
+          const end = pts.find(p => p.type === 'C_end')!;
+          const a = getP(cp1), b = getP(cp2), c = getP(end);
+          parts.push(`C ${f(a.x)} ${f(a.y)} ${f(b.x)} ${f(b.y)} ${f(c.x)} ${f(c.y)}`);
+          break;
+        }
+        case 'Q': {
+          const cp = pts.find(p => p.type === 'Q_cp')!;
+          const end = pts.find(p => p.type === 'Q_end')!;
+          const a = getP(cp), b = getP(end);
+          parts.push(`Q ${f(a.x)} ${f(a.y)} ${f(b.x)} ${f(b.y)}`);
+          break;
+        }
+        case 'A': {
+          const pt = pts[0];
+          const p = getP(pt);
+          const ap = pt.arcParams!;
+          parts.push(`A ${f(ap.rx)} ${f(ap.ry)} ${ap.rot} ${ap.large} ${ap.sweep} ${f(p.x)} ${f(p.y)}`);
+          break;
+        }
+      }
+    }
+    parts.push('Z');
+    return parts.join(' ');
+  }, [showDevMode, devPoints, devPointOverrides]);
+
   // Compute minifigure SVG overlay — locked in the lower-left (-X, +Y) quadrant
   const minifigSvgOverlay = useMemo(() => {
     if (!pattern) return '';
@@ -58,7 +193,7 @@ export default function PreviewCanvas() {
 
     // Fixed position in the -X, +Y quadrant — does not depend on pattern dimensions
     const imgX = -MINIFIG_WIDTH_MM - 5; // left of the Y axis
-    const imgY = 8; // just below the X axis
+    const imgY = 0; // top of minifig aligns with X axis (y=0)
     const opacity = 0.35;
 
     // ViewBox matches the pattern SVG (0 0 ...) so coordinates align with axes origin at (10,10)
@@ -235,8 +370,16 @@ export default function PreviewCanvas() {
     }
 
     // Allow free movement, clamp to stay within bounds
-    const cx = Math.max(minInset, Math.min(w - minInset, mm.x));
-    const cy = Math.max(minInset, Math.min(h - minInset, mm.y));
+    let cx = Math.max(minInset, Math.min(w - minInset, mm.x));
+    let cy = Math.max(minInset, Math.min(h - minInset, mm.y));
+
+    // Snap to grid if enabled
+    if (snapToGrid) {
+      cx = Math.round(cx / CANVAS_GRID_SPACING) * CANVAS_GRID_SPACING;
+      cy = Math.round(cy / CANVAS_GRID_SPACING) * CANVAS_GRID_SPACING;
+      cx = Math.max(minInset, Math.min(w - minInset, cx));
+      cy = Math.max(minInset, Math.min(h - minInset, cy));
+    }
 
     // Bilateral symmetry mirrors left↔right (TL↔TR, BL↔BR)
     switch (draggingGrommet) {
@@ -308,7 +451,7 @@ export default function PreviewCanvas() {
         break;
       }
     }
-  }, [draggingGrommet, screenToMM, parameters, setParameter]);
+  }, [draggingGrommet, screenToMM, parameters, setParameter, snapToGrid]);
 
   const handleGrommetPointerUp = useCallback((e: React.PointerEvent) => {
     if (draggingGrommet) {
@@ -316,6 +459,35 @@ export default function PreviewCanvas() {
       setDraggingGrommet(null);
     }
   }, [draggingGrommet]);
+
+  // Dev mode point dragging handlers
+  const handleDevPointerDown = useCallback((e: React.PointerEvent, ptIndex: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDevDraggingPoint(ptIndex);
+    setDevSelectedPoint(ptIndex);
+  }, []);
+
+  const handleDevPointerMove = useCallback((e: React.PointerEvent) => {
+    if (devDraggingPoint === null) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const mm = screenToMM(e.clientX, e.clientY);
+    const bb = pattern?.boundingBox;
+    const shX = bb ? Math.max(0, -bb.x) : 0;
+    const shY = bb ? Math.max(0, -bb.y) : 0;
+    const x = mm.x - shX;
+    const y = mm.y - shY;
+    setDevPointOverrides(prev => ({ ...prev, [devDraggingPoint]: { x, y } }));
+  }, [devDraggingPoint, screenToMM, pattern]);
+
+  const handleDevPointerUp = useCallback((e: React.PointerEvent) => {
+    if (devDraggingPoint !== null) {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      setDevDraggingPoint(null);
+    }
+  }, [devDraggingPoint]);
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -325,7 +497,7 @@ export default function PreviewCanvas() {
     // Mouse position relative to the canvas container
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const newScale = Math.max(0.5, Math.min(5, scale * factor));
+    const newScale = Math.max(0.5, Math.min(10, scale * factor));
     const ratio = newScale / scale;
     // Adjust pan so the point under the mouse stays fixed
     setPanOffset({
@@ -358,8 +530,8 @@ export default function PreviewCanvas() {
 
   if (!pattern) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-gray-500 text-center">
+      <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-500 dark:text-gray-400 text-center">
           <p className="text-lg font-medium">Loading pattern...</p>
           <p className="text-sm mt-2">Scroll to zoom, drag to pan</p>
         </div>
@@ -390,14 +562,16 @@ export default function PreviewCanvas() {
   const originScreenY = panOffset.y + originOffsetMMY * CSS_MM_TO_PX * scale;
   const gridOffsetX = ((originScreenX % gridSpacingPx) + gridSpacingPx) % gridSpacingPx;
   const gridOffsetY = ((originScreenY % gridSpacingPx) + gridSpacingPx) % gridSpacingPx;
+  const gridLineColor = theme === 'dark' ? '#374151' : '#ccc';
+  const gridStudColor = theme === 'dark' ? '#4b5563' : '#ddd';
   const gridBackground = showGrid
     ? {
         backgroundImage: [
           // Cell border grid
-          `linear-gradient(to right, #ccc ${strokeHalf}px, transparent ${strokeHalf}px)`,
-          `linear-gradient(to bottom, #ccc ${strokeHalf}px, transparent ${strokeHalf}px)`,
+          `linear-gradient(to right, ${gridLineColor} ${strokeHalf}px, transparent ${strokeHalf}px)`,
+          `linear-gradient(to bottom, ${gridLineColor} ${strokeHalf}px, transparent ${strokeHalf}px)`,
           // Stud circle (ring)
-          `radial-gradient(circle ${studRadius}px at ${gridSpacingPx / 2}px ${gridSpacingPx / 2}px, transparent ${studRadius - 1}px, #ddd ${studRadius - 1}px, #ddd ${studRadius}px, transparent ${studRadius}px)`,
+          `radial-gradient(circle ${studRadius}px at ${gridSpacingPx / 2}px ${gridSpacingPx / 2}px, transparent ${studRadius - 1}px, ${gridStudColor} ${studRadius - 1}px, ${gridStudColor} ${studRadius}px, transparent ${studRadius}px)`,
         ].join(', '),
         backgroundSize: `${gridSpacingPx}px ${gridSpacingPx}px`,
         backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
@@ -412,7 +586,7 @@ export default function PreviewCanvas() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      className="w-full h-full bg-white"
+      className="w-full h-full bg-white dark:bg-gray-900"
       style={{ 
         overflow: 'hidden',
         position: 'relative',
@@ -458,7 +632,7 @@ export default function PreviewCanvas() {
 
             {/* Axis labels */}
             <text x={bb.width + 14} y={-2} fontSize="3" fill="#64748b" fontFamily="sans-serif" textAnchor="end">X (mm)</text>
-            <text x={3} y={bb.height + 14} fontSize="3" fill="#64748b" fontFamily="sans-serif">Y (mm)</text>
+            <text x={-14} y={bb.height + 14} fontSize="3" fill="#64748b" fontFamily="sans-serif" textAnchor="start">Y (mm)</text>
 
             {/* Origin label */}
             <text x={-2} y={-3} fontSize="2.5" fill="#94a3b8" fontFamily="sans-serif" textAnchor="end">0</text>
@@ -658,9 +832,15 @@ export default function PreviewCanvas() {
                 const origX = deco.x;
                 const origY = deco.y;
                 const onMove = (ev: MouseEvent) => {
-                  const dx = (ev.clientX - startX) / scale / CSS_MM_TO_PX;
-                  const dy = (ev.clientY - startY) / scale / CSS_MM_TO_PX;
-                  updateDecoration(deco.id, { x: origX + dx, y: origY + dy });
+                  let dx = (ev.clientX - startX) / scale / CSS_MM_TO_PX;
+                  let dy = (ev.clientY - startY) / scale / CSS_MM_TO_PX;
+                  let nx = origX + dx;
+                  let ny = origY + dy;
+                  if (snapToGrid) {
+                    nx = Math.round(nx / CANVAS_GRID_SPACING) * CANVAS_GRID_SPACING;
+                    ny = Math.round(ny / CANVAS_GRID_SPACING) * CANVAS_GRID_SPACING;
+                  }
+                  updateDecoration(deco.id, { x: nx, y: ny });
                 };
                 const onUp = () => {
                   window.removeEventListener('mousemove', onMove);
@@ -744,12 +924,268 @@ export default function PreviewCanvas() {
                 </g>
               );
             })}
+            {/* Smart guides: center axis lines when dragging near center */}
+            {draggingGrommet && (() => {
+              const w = (parameters.width as number) || 60;
+              const h = (parameters.length as number) || 60;
+              const midX = w / 2 + originOffsetMM;
+              const midY = h / 2 + originOffsetMMY;
+              const fullW = shiftX + pattern.boundingBox.width + 20;
+              const fullH = shiftY + pattern.boundingBox.height + 20;
+              // Find the grommet being dragged
+              const g = sailGrommets.find((gr) => gr.id === draggingGrommet);
+              if (!g) return null;
+              const gx = g.x + originOffsetMM;
+              const gy = g.y + originOffsetMMY;
+              const threshold = 1.5; // mm
+              const guides: React.ReactElement[] = [];
+              if (Math.abs(gx - midX) < threshold) {
+                guides.push(<line key="vguide" x1={midX} y1={0} x2={midX} y2={fullH} stroke="#06b6d4" strokeWidth={0.3} strokeDasharray="1,1" />);
+              }
+              if (Math.abs(gy - midY) < threshold) {
+                guides.push(<line key="hguide" x1={0} y1={midY} x2={fullW} y2={midY} stroke="#06b6d4" strokeWidth={0.3} strokeDasharray="1,1" />);
+              }
+              return guides;
+            })()}
+          </svg>
+        )}
+
+        {/* Dev mode: control point overlay */}
+        {showDevMode && pattern && devPoints.length > 0 && (
+          <svg
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              pointerEvents: 'none',
+              overflow: 'visible',
+              zIndex: 5,
+            }}
+            viewBox={`0 0 ${(shiftX + bb.width + 20).toFixed(2)} ${(shiftY + bb.height + 20).toFixed(2)}`}
+            width={`${(shiftX + bb.width + 20).toFixed(2)}mm`}
+            height={`${(shiftY + bb.height + 20).toFixed(2)}mm`}
+          >
+            <g transform={`translate(${originOffsetMM}, ${originOffsetMMY})`}>
+              {/* Scale factor to keep dev annotations constant screen size */}
+              {(() => { const s = 1.5 / scale; return (<>
+              {/* Modified path preview when points have been dragged */}
+              {devModifiedPath && (
+                <path d={devModifiedPath} fill="none" stroke="#f59e0b" strokeWidth={0.4 * s}
+                  strokeDasharray={`${1.5 * s},${0.8 * s}`} opacity={0.7} />
+              )}
+              {/* Ghost lines from original to dragged position */}
+              {Object.entries(devPointOverrides).map(([idx, pos]) => {
+                const pt = devPoints.find(p => p.index === Number(idx));
+                if (!pt) return null;
+                return (
+                  <line key={`ghost-${idx}`}
+                    x1={pt.x} y1={pt.y} x2={pos.x} y2={pos.y}
+                    stroke="#f59e0b" strokeWidth={0.2 * s} strokeDasharray={`${0.4 * s},${0.3 * s}`}
+                    opacity={0.6}
+                  />
+                );
+              })}
+              {/* Draw control point handles connecting cp1/cp2 to their curve endpoints */}
+              {devPoints.map((pt) => {
+                if (pt.type !== 'C_cp1' && pt.type !== 'C_cp2' && pt.type !== 'Q_cp') return null;
+                const pos = devPointOverrides[pt.index] ?? pt;
+                const endPt = devPoints.find(
+                  (p) => p.cmdIndex === pt.cmdIndex && (p.type === 'C_end' || p.type === 'Q_end')
+                );
+                const prevEndIdx = devPoints.findIndex((p) => p.index === pt.index) - 1;
+                const prevEnd = prevEndIdx >= 0 ? devPoints.slice(0, prevEndIdx + 1).reverse().find(
+                  (p) => p.type === 'M' || p.type === 'L' || p.type === 'C_end' || p.type === 'Q_end' || p.type === 'A_end'
+                ) : null;
+                const rawTarget = pt.type === 'C_cp1' ? prevEnd : endPt;
+                if (!rawTarget) return null;
+                const target = devPointOverrides[rawTarget.index] ?? rawTarget;
+                return (
+                  <line key={`handle-${pt.index}`}
+                    x1={pos.x} y1={pos.y} x2={target.x} y2={target.y}
+                    stroke="#ef4444" strokeWidth={0.15 * s} strokeDasharray={`${0.5 * s},${0.3 * s}`}
+                    opacity={0.5}
+                  />
+                );
+              })}
+              {/* Draw the points */}
+              {devPoints.map((pt) => {
+                const pos = devPointOverrides[pt.index] ?? pt;
+                const isCP = pt.type.includes('cp');
+                const isHovered = devHoveredPoint === pt.index;
+                const isSelected = devSelectedPoint === pt.index;
+                const isDragging = devDraggingPoint === pt.index;
+                const hasMoved = !!devPointOverrides[pt.index];
+                const r = (isCP ? 0.6 : 0.8) * s;
+                const fill = isDragging ? '#f59e0b' : isSelected ? '#fbbf24' : isHovered ? '#f97316' : hasMoved ? '#a855f7' : isCP ? '#ef4444' : '#10b981';
+                const stroke = isDragging ? '#92400e' : isSelected ? '#b45309' : isHovered ? '#c2410c' : hasMoved ? '#6b21a8' : isCP ? '#991b1b' : '#065f46';
+                return (
+                  <g key={`pt-${pt.index}`}>
+                    {/* Original position ghost dot for moved points */}
+                    {hasMoved && (
+                      <circle cx={pt.x} cy={pt.y} r={r * 0.6}
+                        fill="none" stroke="#9ca3af" strokeWidth={0.15 * s} strokeDasharray={`${0.3 * s},${0.2 * s}`}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    )}
+                    {/* Invisible hit target for dragging */}
+                    <circle cx={pos.x} cy={pos.y} r={r + 2 * s}
+                      fill="transparent"
+                      style={{ pointerEvents: 'all', cursor: isDragging ? 'grabbing' : 'grab' }}
+                      onMouseEnter={() => { if (devDraggingPoint === null) setDevHoveredPoint(pt.index); }}
+                      onMouseLeave={() => { if (devDraggingPoint === null) setDevHoveredPoint(null); }}
+                      onClick={(e) => { e.stopPropagation(); setDevSelectedPoint(pt.index === devSelectedPoint ? null : pt.index); }}
+                      onPointerDown={(e) => handleDevPointerDown(e, pt.index)}
+                      onPointerMove={handleDevPointerMove}
+                      onPointerUp={handleDevPointerUp}
+                    />
+                    {/* Visible point */}
+                    <circle cx={pos.x} cy={pos.y} r={isHovered || isSelected || isDragging ? r * 1.4 : r}
+                      fill={fill} stroke={stroke} strokeWidth={0.2 * s}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    {/* Index label */}
+                    <text x={pos.x + 1.2 * s} y={pos.y - 1.0 * s}
+                      fontSize={1.6 * s} fill={hasMoved ? '#a855f7' : isCP ? '#dc2626' : '#059669'}
+                      fontFamily="monospace" fontWeight="bold"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {pt.index}
+                    </text>
+                    {/* Tooltip on hover */}
+                    {isHovered && !isDragging && (
+                      <g>
+                        <rect x={pos.x + 2 * s} y={pos.y - 4 * s} width={(hasMoved ? 28 : 18) * s} height={4 * s}
+                          rx={0.5 * s} fill="rgba(0,0,0,0.85)" />
+                        <text x={pos.x + 3 * s} y={pos.y - 1.2 * s}
+                          fontSize={1.8 * s} fill="white" fontFamily="monospace"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          #{pt.index} {pt.type} ({pos.x.toFixed(2)}, {pos.y.toFixed(2)}){hasMoved ? ` ← (${pt.x.toFixed(2)}, ${pt.y.toFixed(2)})` : ''}
+                        </text>
+                      </g>
+                    )}
+                  </g>
+                );
+              })}
+              </>); })()}
+            </g>
           </svg>
         )}
       </div>
 
+      {/* Dev mode info panel */}
+      {showDevMode && pattern && devPoints.length > 0 && (
+        <div className="absolute bottom-4 left-4 bg-gray-900 text-green-400 px-3 py-2 rounded shadow-lg text-xs font-mono border border-gray-700 max-h-72 overflow-auto"
+          style={{ zIndex: 10, minWidth: '340px', maxWidth: '500px' }}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-green-300 font-bold text-sm">Dev Mode — {devPoints.length} points</span>
+            <div className="flex gap-1">
+              {Object.keys(devPointOverrides).length > 0 && (
+                <>
+                  <button
+                    className="text-yellow-400 hover:text-yellow-200 text-xs px-1.5 py-0.5 rounded bg-yellow-900 hover:bg-yellow-800"
+                    onClick={() => {
+                      const changes = Object.entries(devPointOverrides).map(([idx, pos]) => {
+                        const pt = devPoints.find(p => p.index === Number(idx));
+                        if (!pt) return '';
+                        return `#${pt.index} ${pt.type}: (${pt.x.toFixed(2)}, ${pt.y.toFixed(2)}) → (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})  Δ(${(pos.x - pt.x).toFixed(2)}, ${(pos.y - pt.y).toFixed(2)})`;
+                      }).filter(Boolean).join('\n');
+                      navigator.clipboard.writeText(changes);
+                    }}
+                  >
+                    Copy Changes
+                  </button>
+                  <button
+                    className="text-red-400 hover:text-red-200 text-xs px-1.5 py-0.5 rounded bg-red-900 hover:bg-red-800"
+                    onClick={() => setDevPointOverrides({})}
+                  >
+                    Reset
+                  </button>
+                </>
+              )}
+              <button
+                className="text-gray-400 hover:text-white text-xs px-1.5 py-0.5 rounded bg-gray-800 hover:bg-gray-700"
+                onClick={() => {
+                  const summary = devPoints.map(p => {
+                    const ov = devPointOverrides[p.index];
+                    const pos = ov ?? p;
+                    return `#${p.index} ${p.type.padEnd(6)} (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})${ov ? ` ← was (${p.x.toFixed(2)}, ${p.y.toFixed(2)})` : ''} cmd[${p.cmdIndex}] ${p.cmdType}`;
+                  }).join('\n');
+                  navigator.clipboard.writeText(summary);
+                }}
+              >
+                Copy All
+              </button>
+            </div>
+          </div>
+          <div className="text-gray-400 text-[10px] mb-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1" />Endpoint
+            <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1 ml-2" />Control point
+            <span className="inline-block w-2 h-2 rounded-full bg-purple-500 mr-1 ml-2" />Moved
+            <span className="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1 ml-2" />Selected
+          </div>
+          {/* Override summary */}
+          {Object.keys(devPointOverrides).length > 0 && (
+            <div className="bg-yellow-900/30 rounded p-1.5 mb-1 border border-yellow-800 text-[10px]">
+              <div className="text-yellow-300 font-bold mb-0.5">{Object.keys(devPointOverrides).length} point(s) moved:</div>
+              {Object.entries(devPointOverrides).map(([idx, pos]) => {
+                const pt = devPoints.find(p => p.index === Number(idx));
+                if (!pt) return null;
+                return (
+                  <div key={idx} className="text-yellow-200">
+                    #{pt.index} {pt.type}: ({pt.x.toFixed(2)}, {pt.y.toFixed(2)}) → ({pos.x.toFixed(2)}, {pos.y.toFixed(2)})
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {devSelectedPoint !== null && (() => {
+            const pt = devPoints.find(p => p.index === devSelectedPoint);
+            if (!pt) return null;
+            const pos = devPointOverrides[pt.index] ?? pt;
+            const w = parameters.width as number;
+            const h = parameters.length as number;
+            return (
+              <div className="bg-gray-800 rounded p-1.5 mb-1 border border-gray-600">
+                <div className="text-yellow-300">Selected: #{pt.index} ({pt.type})</div>
+                <div>Position: ({pos.x.toFixed(4)}, {pos.y.toFixed(4)}) mm</div>
+                <div>Fraction: ({(pos.x / w).toFixed(5)}, {(pos.y / h).toFixed(5)})</div>
+                {devPointOverrides[pt.index] && (
+                  <div className="text-purple-300">Original: ({pt.x.toFixed(4)}, {pt.y.toFixed(4)}) mm</div>
+                )}
+                <div className="text-gray-500">Command [{pt.cmdIndex}]: {pt.cmdType}</div>
+              </div>
+            );
+          })()}
+          <div className="max-h-32 overflow-auto text-[10px] leading-relaxed">
+            {devPoints.map(pt => {
+              const hasMoved = !!devPointOverrides[pt.index];
+              const pos = devPointOverrides[pt.index] ?? pt;
+              return (
+                <div
+                  key={pt.index}
+                  className={`cursor-pointer px-1 rounded ${
+                    devSelectedPoint === pt.index ? 'bg-yellow-900 text-yellow-200' :
+                    devHoveredPoint === pt.index ? 'bg-gray-800 text-green-300' :
+                    hasMoved ? 'bg-purple-900/30 text-purple-300' : 'hover:bg-gray-800'
+                  }`}
+                  onMouseEnter={() => setDevHoveredPoint(pt.index)}
+                  onMouseLeave={() => setDevHoveredPoint(null)}
+                  onClick={() => setDevSelectedPoint(pt.index === devSelectedPoint ? null : pt.index)}
+                >
+                  <span className="text-gray-500">#{String(pt.index).padStart(3)}</span>{' '}
+                  <span className={hasMoved ? 'text-purple-400' : pt.type.includes('cp') ? 'text-red-400' : 'text-green-400'}>{pt.type.padEnd(6)}</span>{' '}
+                  ({pos.x.toFixed(2)}, {pos.y.toFixed(2)}){hasMoved ? ' ✦' : ''}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Zoom and scale indicator */}
-      <div className="absolute top-4 right-4 bg-white px-3 py-2 rounded shadow text-xs text-gray-700 border-l-4 border-blue-500">
+      <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 px-3 py-2 rounded shadow text-xs text-gray-700 dark:text-gray-300 border-l-4 border-blue-500">
         <div className="font-bold">{Math.round(scale * 100)}% Zoom</div>
         <div className="text-gray-500 mt-1">{svgWidth.toFixed(1)}mm × {svgHeight.toFixed(1)}mm</div>
         <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
@@ -764,10 +1200,18 @@ export default function PreviewCanvas() {
           <input type="checkbox" checked={showXYGrid} onChange={(e) => setShowXYGrid(e.target.checked)} className="w-3 h-3" />
           <span className="text-gray-600">XY axis</span>
         </label>
+        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
+          <input type="checkbox" checked={snapToGrid} onChange={toggleSnapToGrid} className="w-3 h-3" />
+          <span className="text-cyan-600 dark:text-cyan-400">Snap to grid</span>
+        </label>
+        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
+          <input type="checkbox" checked={showDevMode} onChange={(e) => { setShowDevMode(e.target.checked); setDevSelectedPoint(null); setDevHoveredPoint(null); setDevDraggingPoint(null); setDevPointOverrides({}); }} className="w-3 h-3" />
+          <span className="text-orange-600 font-semibold">Dev mode</span>
+        </label>
       </div>
 
       {/* Pattern info */}
-      <div className="absolute top-4 left-4 bg-white px-3 py-2 rounded shadow text-xs border-l-4 border-green-500">
+      <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 px-3 py-2 rounded shadow text-xs border-l-4 border-green-500">
         <div className="font-bold text-gray-900">{pattern.name}</div>
         <div className="text-gray-500">Scroll to zoom · drag to pan</div>
         <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">

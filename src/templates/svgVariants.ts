@@ -6,7 +6,7 @@
  */
 
 import { Template, TemplateParams, generateAttachmentHole } from './base';
-import { SVGPath } from '../geometry/primitives';
+import { SVGPath, circlePath } from '../geometry/primitives';
 import { HOLE_STANDARDS } from '../utils/constants';
 
 type FracCmd = number[];
@@ -697,13 +697,7 @@ export class MantleHighCollar extends Template {
 // Outline includes integrated neck slit with circle (evenodd fill)
 
 const SHOULDER_ARMOR_OUTLINE: FracCmd[] = [
-  [1, 0.50000, 0.44038],
-  [2, 0.47261, 0.44731],
-  [3, 0.44217, 0.46038, 0.42957, 0.49346, 0.44435, 0.52115],
-  [3, 0.46609, 0.56231, 0.53391, 0.56231, 0.55565, 0.52115],
-  [3, 0.57043, 0.49346, 0.55783, 0.46038, 0.52739, 0.44731],
-  [2, 0.50000, 0.44038],
-  [2, 0.50000, 0.09154],
+  [1, 0.50000, 0.09154],
   [3, 0.48696, 0.06615, 0.44261, 0.04615, 0.40261, 0.02846],
   [3, 0.34957, 0.00500, 0.32565, 0.00038, 0.26043, 0.00000],
   [3, 0.20652, 0.00000, 0.20391, 0.00038, 0.17435, 0.00962],
@@ -734,6 +728,9 @@ const SHOULDER_ARMOR_HOLES = [
   { relX: 0.24826, relY: 0.26808 },
   { relX: 0.75174, relY: 0.26808 },
 ];
+
+// Neck slit circle: center (0.5, 0.5), radius 0.05955 (fractional)
+const SHOULDER_ARMOR_NECK_CIRCLE = { relX: 0.5, relY: 0.5, relR: 0.05955 };
 
 // SingleHoleNarrow_Template.svg — narrow teardrop shape, 28×36mm, single center hole
 const SINGLE_HOLE_NARROW_OUTLINE: FracCmd[] = [
@@ -856,6 +853,14 @@ export class MantleShoulderArmor extends Template {
   generateCutPaths(params: TemplateParams): string[] {
     const { width, length } = params;
     const paths = [this.generateCutPath(params)];
+    // Neck slit line (separate cut path — just a straight line)
+    const slitPath = new SVGPath();
+    slitPath.moveTo(width * 0.5, length * 0.44038);
+    slitPath.lineTo(width * 0.5, length * 0.09154);
+    paths.push(slitPath.toString());
+    // Neck slit circle (proper 2-arc circle)
+    const nc = SHOULDER_ARMOR_NECK_CIRCLE;
+    paths.push(circlePath(width * nc.relX, length * nc.relY, length * nc.relR));
     for (const hole of SHOULDER_ARMOR_HOLES) {
       paths.push(generateAttachmentHole(width * hole.relX, length * hole.relY, 2.5, 0, 0, false, params));
     }

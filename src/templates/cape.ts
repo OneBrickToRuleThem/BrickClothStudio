@@ -35,56 +35,46 @@ interface CapeOutlineProfile {
  * Caller must already be at the left shoulder peak position.
  */
 function drawRefOutline(path: SVGPath, w: number, h: number) {
-  // --- Left side: 25 cubics from shoulder peak down to bottom-center ---
+  // --- Left side: 14 smoothed cubics from shoulder peak down to side bottom ---
   path.cubicBezierTo(w * 0.34058, h * 0.01217, w * 0.31290, h * 0.01849, w * 0.30793, h * 0.02040);
   path.cubicBezierTo(w * 0.29702, h * 0.02459, w * 0.28376, h * 0.03298, w * 0.27895, h * 0.03873);
   path.cubicBezierTo(w * 0.27002, h * 0.04942, w * 0.25938, h * 0.06828, w * 0.23779, h * 0.11174);
   path.cubicBezierTo(w * 0.22615, h * 0.13518, w * 0.21624, h * 0.15492, w * 0.21578, h * 0.15561);
   path.cubicBezierTo(w * 0.21459, h * 0.15739, w * 0.19440, h * 0.20213, w * 0.18948, h * 0.21389);
   path.cubicBezierTo(w * 0.18724, h * 0.21926, w * 0.17947, h * 0.23755, w * 0.17222, h * 0.25453);
-  path.cubicBezierTo(w * 0.16105, h * 0.28069, w * 0.14695, h * 0.31696, w * 0.14695, h * 0.31955);
-  path.cubicBezierTo(w * 0.14695, h * 0.31996, w * 0.14615, h * 0.32208, w * 0.14517, h * 0.32427);
-  path.cubicBezierTo(w * 0.14150, h * 0.33246, w * 0.10078, h * 0.45578, w * 0.09352, h * 0.48070);
-  path.cubicBezierTo(w * 0.09170, h * 0.48694, w * 0.08892, h * 0.49630, w * 0.08734, h * 0.50149);
-  path.cubicBezierTo(w * 0.08405, h * 0.51230, w * 0.07365, h * 0.54804, w * 0.06387, h * 0.58214);
-  path.cubicBezierTo(w * 0.06019, h * 0.59496, w * 0.05631, h * 0.60828, w * 0.05526, h * 0.61175);
-  path.cubicBezierTo(w * 0.04892, h * 0.63252, w * 0.04331, h * 0.65211, w * 0.04119, h * 0.66089);
-  path.cubicBezierTo(w * 0.03985, h * 0.66643, w * 0.03771, h * 0.67494, w * 0.03644, h * 0.67979);
-  path.cubicBezierTo(w * 0.03518, h * 0.68464, w * 0.03328, h * 0.69229, w * 0.03223, h * 0.69680);
+  path.cubicBezierTo(w * 0.16105, h * 0.28069, w * 0.14615, h * 0.32208, w * 0.14517, h * 0.32427);
+  path.cubicBezierTo(w * 0.14150, h * 0.33246, w * 0.08892, h * 0.49630, w * 0.08734, h * 0.50149);
+  path.cubicBezierTo(w * 0.08405, h * 0.51230, w * 0.05631, h * 0.60828, w * 0.05526, h * 0.61175);
+  path.cubicBezierTo(w * 0.04892, h * 0.63252, w * 0.03328, h * 0.69229, w * 0.03223, h * 0.69680);
   path.cubicBezierTo(w * 0.03118, h * 0.70130, w * 0.02728, h * 0.71775, w * 0.02356, h * 0.73334);
   path.cubicBezierTo(w * 0.01984, h * 0.74893, w * 0.01564, h * 0.76849, w * 0.01424, h * 0.77681);
-  path.cubicBezierTo(w * 0.01284, h * 0.78513, w * 0.01031, h * 0.80015, w * 0.00862, h * 0.81020);
-  path.cubicBezierTo(w * 0.00694, h * 0.82025, w * 0.00532, h * 0.82932, w * 0.00503, h * 0.83036);
-  path.cubicBezierTo(w * 0.00473, h * 0.83140, w * 0.00333, h * 0.84161, w * 0.00191, h * 0.85304);
+  path.cubicBezierTo(w * 0.01284, h * 0.78513, w * 0.00333, h * 0.84161, w * 0.00191, h * 0.85304);
   path.cubicBezierTo(w * -0.00065, h * 0.87357, w * -0.00063, h * 0.89219, w * 0.00193, h * 0.89712);
+
+  // --- Left hem: 4 cubics from side bottom to center ---
   path.cubicBezierTo(w * 0.00409, h * 0.90125, w * 0.00828, h * 0.90362, w * 0.03267, h * 0.91449);
   path.cubicBezierTo(w * 0.07094, h * 0.93155, w * 0.12346, h * 0.94865, w * 0.18105, h * 0.96279);
   path.cubicBezierTo(w * 0.22355, h * 0.97322, w * 0.23299, h * 0.97505, w * 0.29379, h * 0.98465);
   path.cubicBezierTo(w * 0.35859, h * 0.99487, w * 0.37646, h * 0.99729, w * 0.40180, h * 0.99925);
 
-  // --- Bottom center bridge ---
-  path.lineTo(w * 0.59820, h * 0.99925);
+  // --- Bottom center bridge (tangent-continuous cubic) ---
+  path.cubicBezierTo(w * 0.46727, h * 1.00431, w * 0.53273, h * 1.00431, w * 0.59820, h * 0.99925);
 
-  // --- Right side: 25 mirrored cubics from bottom-center up to right shoulder peak ---
+  // --- Right hem: 4 mirrored cubics from center to side bottom ---
   path.cubicBezierTo(w * 0.62354, h * 0.99729, w * 0.64141, h * 0.99487, w * 0.70621, h * 0.98465);
   path.cubicBezierTo(w * 0.76701, h * 0.97505, w * 0.77645, h * 0.97322, w * 0.81895, h * 0.96279);
   path.cubicBezierTo(w * 0.87654, h * 0.94865, w * 0.92906, h * 0.93155, w * 0.96733, h * 0.91449);
   path.cubicBezierTo(w * 0.99172, h * 0.90362, w * 0.99591, h * 0.90125, w * 0.99807, h * 0.89712);
-  path.cubicBezierTo(w * 1.00065, h * 0.89219, w * 1.00063, h * 0.87357, w * 0.99809, h * 0.85304);
-  path.cubicBezierTo(w * 0.99667, h * 0.84161, w * 0.99527, h * 0.83140, w * 0.99497, h * 0.83036);
-  path.cubicBezierTo(w * 0.99468, h * 0.82932, w * 0.99306, h * 0.82025, w * 0.99138, h * 0.81020);
-  path.cubicBezierTo(w * 0.98969, h * 0.80015, w * 0.98716, h * 0.78513, w * 0.98576, h * 0.77681);
+
+  // --- Right side: 14 smoothed mirrored cubics from side bottom up to right shoulder peak ---
+  path.cubicBezierTo(w * 1.00065, h * 0.87357, w * 1.00063, h * 0.89219, w * 0.99809, h * 0.85304);
+  path.cubicBezierTo(w * 0.99667, h * 0.84161, w * 0.98716, h * 0.78513, w * 0.98576, h * 0.77681);
   path.cubicBezierTo(w * 0.98436, h * 0.76849, w * 0.98016, h * 0.74893, w * 0.97644, h * 0.73334);
   path.cubicBezierTo(w * 0.97272, h * 0.71775, w * 0.96882, h * 0.70130, w * 0.96777, h * 0.69680);
-  path.cubicBezierTo(w * 0.96672, h * 0.69229, w * 0.96482, h * 0.68464, w * 0.96356, h * 0.67979);
-  path.cubicBezierTo(w * 0.96229, h * 0.67494, w * 0.96015, h * 0.66643, w * 0.95881, h * 0.66089);
-  path.cubicBezierTo(w * 0.95669, h * 0.65211, w * 0.95108, h * 0.63252, w * 0.94474, h * 0.61175);
-  path.cubicBezierTo(w * 0.94369, h * 0.60828, w * 0.93981, h * 0.59496, w * 0.93613, h * 0.58214);
-  path.cubicBezierTo(w * 0.92635, h * 0.54804, w * 0.91595, h * 0.51230, w * 0.91266, h * 0.50149);
-  path.cubicBezierTo(w * 0.91108, h * 0.49630, w * 0.90830, h * 0.48694, w * 0.90648, h * 0.48070);
-  path.cubicBezierTo(w * 0.89922, h * 0.45578, w * 0.85850, h * 0.33246, w * 0.85483, h * 0.32427);
-  path.cubicBezierTo(w * 0.85385, h * 0.32208, w * 0.85305, h * 0.31996, w * 0.85305, h * 0.31955);
-  path.cubicBezierTo(w * 0.85305, h * 0.31696, w * 0.83895, h * 0.28069, w * 0.82778, h * 0.25453);
+  path.cubicBezierTo(w * 0.96672, h * 0.69229, w * 0.95108, h * 0.63252, w * 0.94474, h * 0.61175);
+  path.cubicBezierTo(w * 0.94369, h * 0.60828, w * 0.91595, h * 0.51230, w * 0.91266, h * 0.50149);
+  path.cubicBezierTo(w * 0.91108, h * 0.49630, w * 0.85850, h * 0.33246, w * 0.85483, h * 0.32427);
+  path.cubicBezierTo(w * 0.85385, h * 0.32208, w * 0.83895, h * 0.28069, w * 0.82778, h * 0.25453);
   path.cubicBezierTo(w * 0.82053, h * 0.23755, w * 0.81276, h * 0.21926, w * 0.81052, h * 0.21389);
   path.cubicBezierTo(w * 0.80560, h * 0.20213, w * 0.78541, h * 0.15739, w * 0.78422, h * 0.15561);
   path.cubicBezierTo(w * 0.78376, h * 0.15492, w * 0.77385, h * 0.13518, w * 0.76221, h * 0.11174);
@@ -122,20 +112,13 @@ function drawRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: number =
   path.cubicBezierTo(xAdj(0.22615, 0.13518), h * 0.13518, xAdj(0.21624, 0.15492), h * 0.15492, xAdj(0.21578, 0.15561), h * 0.15561);
   path.cubicBezierTo(xAdj(0.21459, 0.15739), h * 0.15739, xAdj(0.19440, 0.20213), h * 0.20213, xAdj(0.18948, 0.21389), h * 0.21389);
   path.cubicBezierTo(xAdj(0.18724, 0.21926), h * 0.21926, xAdj(0.17947, 0.23755), h * 0.23755, xAdj(0.17222, 0.25453), h * 0.25453);
-  path.cubicBezierTo(xAdj(0.16105, 0.28069), h * 0.28069, xAdj(0.14695, 0.31696), h * 0.31696, xAdj(0.14695, 0.31955), h * 0.31955);
-  path.cubicBezierTo(xAdj(0.14695, 0.31996), h * 0.31996, xAdj(0.14615, 0.32208), h * 0.32208, xAdj(0.14517, 0.32427), h * 0.32427);
-  path.cubicBezierTo(xAdj(0.14150, 0.33246), h * 0.33246, xAdj(0.10078, 0.45578), h * 0.45578, xAdj(0.09352, 0.48070), h * 0.48070);
-  path.cubicBezierTo(xAdj(0.09170, 0.48694), h * 0.48694, xAdj(0.08892, 0.49630), h * 0.49630, xAdj(0.08734, 0.50149), h * 0.50149);
-  path.cubicBezierTo(xAdj(0.08405, 0.51230), h * 0.51230, xAdj(0.07365, 0.54804), h * 0.54804, xAdj(0.06387, 0.58214), h * 0.58214);
-  path.cubicBezierTo(xAdj(0.06019, 0.59496), h * 0.59496, xAdj(0.05631, 0.60828), h * 0.60828, xAdj(0.05526, 0.61175), h * 0.61175);
-  path.cubicBezierTo(xAdj(0.04892, 0.63252), h * 0.63252, xAdj(0.04331, 0.65211), h * 0.65211, xAdj(0.04119, 0.66089), h * 0.66089);
-  path.cubicBezierTo(xAdj(0.03985, 0.66643), h * 0.66643, xAdj(0.03771, 0.67494), h * 0.67494, xAdj(0.03644, 0.67979), h * 0.67979);
-  path.cubicBezierTo(xAdj(0.03518, 0.68464), h * 0.68464, xAdj(0.03328, 0.69229), h * 0.69229, xAdj(0.03223, 0.69680), h * 0.69680);
+  path.cubicBezierTo(xAdj(0.16105, 0.28069), h * 0.28069, xAdj(0.14615, 0.32208), h * 0.32208, xAdj(0.14517, 0.32427), h * 0.32427);
+  path.cubicBezierTo(xAdj(0.14150, 0.33246), h * 0.33246, xAdj(0.08892, 0.49630), h * 0.49630, xAdj(0.08734, 0.50149), h * 0.50149);
+  path.cubicBezierTo(xAdj(0.08405, 0.51230), h * 0.51230, xAdj(0.05631, 0.60828), h * 0.60828, xAdj(0.05526, 0.61175), h * 0.61175);
+  path.cubicBezierTo(xAdj(0.04892, 0.63252), h * 0.63252, xAdj(0.03328, 0.69229), h * 0.69229, xAdj(0.03223, 0.69680), h * 0.69680);
   path.cubicBezierTo(xAdj(0.03118, 0.70130), h * 0.70130, xAdj(0.02728, 0.71775), h * 0.71775, xAdj(0.02356, 0.73334), h * 0.73334);
   path.cubicBezierTo(xAdj(0.01984, 0.74893), h * 0.74893, xAdj(0.01564, 0.76849), h * 0.76849, xAdj(0.01424, 0.77681), h * 0.77681);
-  path.cubicBezierTo(xAdj(0.01284, 0.78513), h * 0.78513, xAdj(0.01031, 0.80015), h * 0.80015, xAdj(0.00862, 0.81020), h * 0.81020);
-  path.cubicBezierTo(xAdj(0.00694, 0.82025), h * 0.82025, xAdj(0.00532, 0.82932), h * 0.82932, xAdj(0.00503, 0.83036), h * 0.83036);
-  path.cubicBezierTo(xAdj(0.00473, 0.83140), h * 0.83140, xAdj(0.00333, 0.84161), h * 0.84161, xAdj(0.00191, 0.85304), h * 0.85304);
+  path.cubicBezierTo(xAdj(0.01284, 0.78513), h * 0.78513, xAdj(0.00333, 0.84161), h * 0.84161, xAdj(0.00191, 0.85304), h * 0.85304);
   path.cubicBezierTo(xAdj(-0.00065, 0.87357), h * 0.87357, xAdj(-0.00063, 0.89219), h * 0.89219, xAdj(0.00193, 0.89712), h * 0.89712);
 }
 
@@ -161,21 +144,14 @@ function drawRefRightSide(path: SVGPath, w: number, h: number, hemWidth: number 
     const t = blend * blend * (3 - 2 * blend); // smoothstep
     return (sh + (h - sh) * t) * yFrac;
   }
-  path.cubicBezierTo(xAdj(1.00065, 0.89219), h * 0.89219, xAdj(1.00063, 0.87357), h * 0.87357, xAdj(0.99809, 0.85304), h * 0.85304);
-  path.cubicBezierTo(xAdj(0.99667, 0.84161), h * 0.84161, xAdj(0.99527, 0.83140), h * 0.83140, xAdj(0.99497, 0.83036), h * 0.83036);
-  path.cubicBezierTo(xAdj(0.99468, 0.82932), h * 0.82932, xAdj(0.99306, 0.82025), h * 0.82025, xAdj(0.99138, 0.81020), h * 0.81020);
-  path.cubicBezierTo(xAdj(0.98969, 0.80015), h * 0.80015, xAdj(0.98716, 0.78513), h * 0.78513, xAdj(0.98576, 0.77681), h * 0.77681);
+  path.cubicBezierTo(xAdj(1.00065, 0.87357), h * 0.87357, xAdj(1.00063, 0.89219), h * 0.89219, xAdj(0.99809, 0.85304), h * 0.85304);
+  path.cubicBezierTo(xAdj(0.99667, 0.84161), h * 0.84161, xAdj(0.98716, 0.78513), h * 0.78513, xAdj(0.98576, 0.77681), h * 0.77681);
   path.cubicBezierTo(xAdj(0.98436, 0.76849), h * 0.76849, xAdj(0.98016, 0.74893), h * 0.74893, xAdj(0.97644, 0.73334), h * 0.73334);
   path.cubicBezierTo(xAdj(0.97272, 0.71775), h * 0.71775, xAdj(0.96882, 0.70130), h * 0.70130, xAdj(0.96777, 0.69680), h * 0.69680);
-  path.cubicBezierTo(xAdj(0.96672, 0.69229), h * 0.69229, xAdj(0.96482, 0.68464), h * 0.68464, xAdj(0.96356, 0.67979), h * 0.67979);
-  path.cubicBezierTo(xAdj(0.96229, 0.67494), h * 0.67494, xAdj(0.96015, 0.66643), h * 0.66643, xAdj(0.95881, 0.66089), h * 0.66089);
-  path.cubicBezierTo(xAdj(0.95669, 0.65211), h * 0.65211, xAdj(0.95108, 0.63252), h * 0.63252, xAdj(0.94474, 0.61175), h * 0.61175);
-  path.cubicBezierTo(xAdj(0.94369, 0.60828), h * 0.60828, xAdj(0.93981, 0.59496), h * 0.59496, xAdj(0.93613, 0.58214), h * 0.58214);
-  path.cubicBezierTo(xAdj(0.92635, 0.54804), h * 0.54804, xAdj(0.91595, 0.51230), h * 0.51230, xAdj(0.91266, 0.50149), h * 0.50149);
-  path.cubicBezierTo(xAdj(0.91108, 0.49630), h * 0.49630, xAdj(0.90830, 0.48694), h * 0.48694, xAdj(0.90648, 0.48070), h * 0.48070);
-  path.cubicBezierTo(xAdj(0.89922, 0.45578), h * 0.45578, xAdj(0.85850, 0.33246), h * 0.33246, xAdj(0.85483, 0.32427), h * 0.32427);
-  path.cubicBezierTo(xAdj(0.85385, 0.32208), h * 0.32208, xAdj(0.85305, 0.31996), h * 0.31996, xAdj(0.85305, 0.31955), h * 0.31955);
-  path.cubicBezierTo(xAdj(0.85305, 0.31696), h * 0.31696, xAdj(0.83895, 0.28069), h * 0.28069, xAdj(0.82778, 0.25453), h * 0.25453);
+  path.cubicBezierTo(xAdj(0.96672, 0.69229), h * 0.69229, xAdj(0.95108, 0.63252), h * 0.63252, xAdj(0.94474, 0.61175), h * 0.61175);
+  path.cubicBezierTo(xAdj(0.94369, 0.60828), h * 0.60828, xAdj(0.91595, 0.51230), h * 0.51230, xAdj(0.91266, 0.50149), h * 0.50149);
+  path.cubicBezierTo(xAdj(0.91108, 0.49630), h * 0.49630, xAdj(0.85850, 0.33246), h * 0.33246, xAdj(0.85483, 0.32427), h * 0.32427);
+  path.cubicBezierTo(xAdj(0.85385, 0.32208), h * 0.32208, xAdj(0.83895, 0.28069), h * 0.28069, xAdj(0.82778, 0.25453), h * 0.25453);
   path.cubicBezierTo(xAdj(0.82053, 0.23755), h * 0.23755, xAdj(0.81276, 0.21926), h * 0.21926, xAdj(0.81052, 0.21389), h * 0.21389);
   path.cubicBezierTo(xAdj(0.80560, 0.20213), h * 0.20213, xAdj(0.78541, 0.15739), h * 0.15739, xAdj(0.78422, 0.15561), h * 0.15561);
   path.cubicBezierTo(xAdj(0.78376, 0.15492), h * 0.15492, xAdj(0.77385, 0.13518), h * 0.13518, xAdj(0.76221, 0.11174), yAt(0.11174));
@@ -249,8 +225,8 @@ function drawRefStandardHem(path: SVGPath, w: number, h: number, hemWidth: numbe
   path.cubicBezierTo(xAdj(0.07094), h * 0.93155, xAdj(0.12346), h * 0.94865, xAdj(0.18105), h * 0.96279);
   path.cubicBezierTo(xAdj(0.22355), h * 0.97322, xAdj(0.23299), h * 0.97505, xAdj(0.29379), h * 0.98465);
   path.cubicBezierTo(xAdj(0.35859), h * 0.99487, xAdj(0.37646), h * 0.99729, xAdj(0.40180), h * 0.99925);
-  // Bridge
-  path.lineTo(xAdj(0.59820), h * 0.99925);
+  // Bridge (tangent-continuous cubic)
+  path.cubicBezierTo(xAdj(0.46727), h * 1.00431, xAdj(0.53273), h * 1.00431, xAdj(0.59820), h * 0.99925);
   // Right bottom 4 beziers
   path.cubicBezierTo(xAdj(0.62354), h * 0.99729, xAdj(0.64141), h * 0.99487, xAdj(0.70621), h * 0.98465);
   path.cubicBezierTo(xAdj(0.76701), h * 0.97505, xAdj(0.77645), h * 0.97322, xAdj(0.81895), h * 0.96279);
@@ -301,11 +277,9 @@ function drawRoundedHem(
 const LEFT_SIDE_SAMPLES: [number, number][] = [
   [0.02040, 0.30793], [0.03873, 0.27895], [0.11174, 0.23779],
   [0.15561, 0.21578], [0.21389, 0.18948], [0.25453, 0.17222],
-  [0.31955, 0.14695], [0.32427, 0.14517], [0.48070, 0.09352],
-  [0.50149, 0.08734], [0.58214, 0.06387], [0.61175, 0.05526],
-  [0.66089, 0.04119], [0.67979, 0.03644], [0.69680, 0.03223],
-  [0.73334, 0.02356], [0.77681, 0.01424], [0.81020, 0.00862],
-  [0.83036, 0.00503], [0.85304, 0.00191], [0.89712, 0.00193],
+  [0.32427, 0.14517], [0.50149, 0.08734], [0.61175, 0.05526],
+  [0.69680, 0.03223], [0.73334, 0.02356], [0.77681, 0.01424],
+  [0.85304, 0.00191], [0.89712, 0.00193],
 ];
 
 /**
@@ -487,8 +461,8 @@ function drawStyledRightSide(
 
 /** Narrow left side sample points [yFrac, xFrac] from bezier endpoints and control points */
 const NARROW_LEFT_SIDE_SAMPLES: [number, number][] = [
-  [0.0014, 0.4759],
-  [0.0024, 0.3920],
+  [0.0014, 0.5000],
+  [0.0024, 0.4160],
   [0.0033, 0.3822],
   [0.0112, 0.3583],
   [0.0159, 0.3440],
@@ -517,7 +491,7 @@ function narrowLeftSideXFrac(yFrac: number): number {
   return last[1];
 }
 
-/** Draw narrow left side: 4 beziers from top-left (0.4759,0.0014) to (0.0068,0.8464) */
+/** Draw narrow left side: 4 beziers from top (0.5,0.0014) to (0.0068,0.8464) */
 function drawNarrowRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0) {
   const cx = w / 2;
   function xAdj(xFrac: number, yFrac: number): number {
@@ -527,8 +501,8 @@ function drawNarrowRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: nu
     const adjusted = cx + (x - cx) * hemWidth;
     return x + (adjusted - x) * t;
   }
-  // B6 reversed
-  path.cubicBezierTo(xAdj(0.392, 0.0024), h * 0.0024, xAdj(0.3822, 0.0033), h * 0.0033, xAdj(0.3583, 0.0112), h * 0.0112);
+  // B6 reversed (from apex at 0.5)
+  path.cubicBezierTo(xAdj(0.4160, 0.0024), h * 0.0024, xAdj(0.3822, 0.0033), h * 0.0033, xAdj(0.3583, 0.0112), h * 0.0112);
   // B5 reversed
   path.cubicBezierTo(xAdj(0.344, 0.0159), h * 0.0159, xAdj(0.3232, 0.0267), h * 0.0267, xAdj(0.3122, 0.0352), h * 0.0352);
   // B4 reversed
@@ -537,7 +511,7 @@ function drawNarrowRefLeftSide(path: SVGPath, w: number, h: number, hemWidth: nu
   path.cubicBezierTo(xAdj(0.0385, 0.6116), h * 0.6116, xAdj(0.0147, 0.7327), h * 0.7327, xAdj(0.0068, 0.8464), h * 0.8464);
 }
 
-/** Draw narrow right side: 4 beziers from (0.9932,0.8464) up to start (0.4759,0.0014) */
+/** Draw narrow right side: 4 beziers from (0.9932,0.8464) up to start (0.5,0.0014) */
 function drawNarrowRefRightSide(path: SVGPath, w: number, h: number, hemWidth: number = 1.0) {
   const cx = w / 2;
   function xAdj(xFrac: number, yFrac: number): number {
@@ -553,8 +527,8 @@ function drawNarrowRefRightSide(path: SVGPath, w: number, h: number, hemWidth: n
   path.cubicBezierTo(xAdj(0.8694, 0.3013), h * 0.3013, xAdj(0.7545, 0.0863), h * 0.0863, xAdj(0.6878, 0.0352), h * 0.0352);
   // B8 reversed
   path.cubicBezierTo(xAdj(0.6768, 0.0267), h * 0.0267, xAdj(0.656, 0.0159), h * 0.0159, xAdj(0.6417, 0.0112), h * 0.0112);
-  // B7 reversed — closes back to starting point
-  path.cubicBezierTo(xAdj(0.6178, 0.0033), h * 0.0033, xAdj(0.608, 0.0024), h * 0.0024, xAdj(0.4759, 0.0014), h * 0.0014);
+  // B7 reversed — closes back to starting point (apex at 0.5)
+  path.cubicBezierTo(xAdj(0.6178, 0.0033), h * 0.0033, xAdj(0.5840, 0.0024), h * 0.0024, xAdj(0.5, 0.0014), h * 0.0014);
 }
 
 /** Draw narrow standard hem: 2 beziers down to bottom, bridge, 2 beziers up */
@@ -1414,8 +1388,8 @@ export class CapeNarrowSingleHole extends Template {
     const w = width;
     const h = length;
 
-    // Start at top-left of leaf shape
-    path.moveTo(w * 0.4759, h * 0.0014);
+    // Start at top apex of leaf shape (centered)
+    path.moveTo(w * 0.5, h * 0.0014);
 
     drawModifiedOutline(path, w, h, params, NARROW_PROFILE);
 
@@ -1590,19 +1564,16 @@ export class CapeLong extends Template {
       const splitGap = w * 0.03;
       const cx = w / 2;
 
-      // Left side: 12 reference beziers (shoulder → ~0.612h)
+      // Left side: 9 smoothed reference beziers (shoulder → ~0.612h)
       path.cubicBezierTo(w * 0.34058, h * 0.01217, w * 0.31290, h * 0.01849, w * 0.30793, h * 0.02040);
       path.cubicBezierTo(w * 0.29702, h * 0.02459, w * 0.28376, h * 0.03298, w * 0.27895, h * 0.03873);
       path.cubicBezierTo(w * 0.27002, h * 0.04942, w * 0.25938, h * 0.06828, w * 0.23779, h * 0.11174);
       path.cubicBezierTo(w * 0.22615, h * 0.13518, w * 0.21624, h * 0.15492, w * 0.21578, h * 0.15561);
       path.cubicBezierTo(w * 0.21459, h * 0.15739, w * 0.19440, h * 0.20213, w * 0.18948, h * 0.21389);
       path.cubicBezierTo(w * 0.18724, h * 0.21926, w * 0.17947, h * 0.23755, w * 0.17222, h * 0.25453);
-      path.cubicBezierTo(w * 0.16105, h * 0.28069, w * 0.14695, h * 0.31696, w * 0.14695, h * 0.31955);
-      path.cubicBezierTo(w * 0.14695, h * 0.31996, w * 0.14615, h * 0.32208, w * 0.14517, h * 0.32427);
-      path.cubicBezierTo(w * 0.14150, h * 0.33246, w * 0.10078, h * 0.45578, w * 0.09352, h * 0.48070);
-      path.cubicBezierTo(w * 0.09170, h * 0.48694, w * 0.08892, h * 0.49630, w * 0.08734, h * 0.50149);
-      path.cubicBezierTo(w * 0.08405, h * 0.51230, w * 0.07365, h * 0.54804, w * 0.06387, h * 0.58214);
-      path.cubicBezierTo(w * 0.06019, h * 0.59496, w * 0.05631, h * 0.60828, w * 0.05526, h * 0.61175);
+      path.cubicBezierTo(w * 0.16105, h * 0.28069, w * 0.14615, h * 0.32208, w * 0.14517, h * 0.32427);
+      path.cubicBezierTo(w * 0.14150, h * 0.33246, w * 0.08892, h * 0.49630, w * 0.08734, h * 0.50149);
+      path.cubicBezierTo(w * 0.08405, h * 0.51230, w * 0.05631, h * 0.60828, w * 0.05526, h * 0.61175);
 
       // Extend to split point, then tail geometry
       path.lineTo(w * 0.05526, splitY);
@@ -1614,14 +1585,11 @@ export class CapeLong extends Template {
       path.lineTo(w * 0.94474, h);
       path.lineTo(w * 0.94474, splitY);
 
-      // Right side: 12 mirrored reference beziers (~0.612h → shoulder)
+      // Right side: 9 smoothed mirrored reference beziers (~0.612h → shoulder)
       path.lineTo(w * 0.94474, h * 0.61175);
-      path.cubicBezierTo(w * 0.94369, h * 0.60828, w * 0.93981, h * 0.59496, w * 0.93613, h * 0.58214);
-      path.cubicBezierTo(w * 0.92635, h * 0.54804, w * 0.91595, h * 0.51230, w * 0.91266, h * 0.50149);
-      path.cubicBezierTo(w * 0.91108, h * 0.49630, w * 0.90830, h * 0.48694, w * 0.90648, h * 0.48070);
-      path.cubicBezierTo(w * 0.89922, h * 0.45578, w * 0.85850, h * 0.33246, w * 0.85483, h * 0.32427);
-      path.cubicBezierTo(w * 0.85385, h * 0.32208, w * 0.85305, h * 0.31996, w * 0.85305, h * 0.31955);
-      path.cubicBezierTo(w * 0.85305, h * 0.31696, w * 0.83895, h * 0.28069, w * 0.82778, h * 0.25453);
+      path.cubicBezierTo(w * 0.94369, h * 0.60828, w * 0.91595, h * 0.51230, w * 0.91266, h * 0.50149);
+      path.cubicBezierTo(w * 0.91108, h * 0.49630, w * 0.85850, h * 0.33246, w * 0.85483, h * 0.32427);
+      path.cubicBezierTo(w * 0.85385, h * 0.32208, w * 0.83895, h * 0.28069, w * 0.82778, h * 0.25453);
       path.cubicBezierTo(w * 0.82053, h * 0.23755, w * 0.81276, h * 0.21926, w * 0.81052, h * 0.21389);
       path.cubicBezierTo(w * 0.80560, h * 0.20213, w * 0.78541, h * 0.15739, w * 0.78422, h * 0.15561);
       path.cubicBezierTo(w * 0.78376, h * 0.15492, w * 0.77385, h * 0.13518, w * 0.76221, h * 0.11174);

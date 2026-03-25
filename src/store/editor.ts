@@ -15,11 +15,32 @@ import {
 import { DEFAULT_HOLE_DIAMETER, DEFAULT_CLEARANCE, DEFAULT_SLIT_WIDTH, DEFAULT_HOLE_TYPE, HOLE_STANDARDS } from '../utils/constants';
 
 export interface EditorStore extends EditorState {
+  // Theme
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+
+  // Undo/Redo
+  history: Array<{ elementType: string; templateVariant: string; parameters: Record<string, number | string | boolean>; decorations: DecorationLayer[] }>;
+  historyIndex: number;
+  undo: () => void;
+  redo: () => void;
+
+  // Snap to grid
+  snapToGrid: boolean;
+  toggleSnapToGrid: () => void;
+
   // State setters
   setElementType: (type: ElementType) => void;
   setTemplateVariant: (variant: TemplateVariant) => void;
   setParameter: (key: string, value: number | string | boolean) => void;
   setParameters: (params: Record<string, number | string | boolean>) => void;
+
+  // Per-element parameter memory
+  savedParameters: Record<string, Record<string, number | string | boolean>>;
+  /** Save current params and switch to a new element type, restoring its saved params */
+  switchElement: (type: ElementType, variant: TemplateVariant) => void;
+  /** Save current params and switch to a new variant within the same element type */
+  switchVariant: (variant: TemplateVariant) => void;
 
   // Decoration management
   addDecoration: (decoration: Omit<DecorationLayer, 'id'>) => void;
@@ -173,7 +194,7 @@ const defaultParameters = {
 };
 
 // Default dimensions per element type / variant
-const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number }> = {
+export const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length: number }> = {
   'cape': { width: 40, length: 39 },
   'flag:small-flag': { width: 22, length: 60 },
   'flag:large-flag': { width: 40, length: 64 },
@@ -232,6 +253,32 @@ const defaultExportOptions: SVGExportOptions = {
   includeDesigns: false,
 };
 
+const MAX_HISTORY = 50;
+
+type HistoryEntry = {
+  elementType: string;
+  templateVariant: string;
+  parameters: Record<string, number | string | boolean>;
+  decorations: DecorationLayer[];
+};
+
+function snapshot(state: EditorStore): HistoryEntry {
+  return {
+    elementType: state.elementType,
+    templateVariant: state.templateVariant,
+    parameters: { ...state.parameters },
+    decorations: state.decorations.map((d) => ({ ...d })),
+  };
+}
+
+function pushHistory(state: EditorStore): Partial<EditorStore> {
+  const entry = snapshot(state);
+  const newHistory = state.history.slice(0, state.historyIndex + 1);
+  newHistory.push(entry);
+  if (newHistory.length > MAX_HISTORY) newHistory.shift();
+  return { history: newHistory, historyIndex: newHistory.length - 1 };
+}
+
 export const useEditorStore = create<EditorStore>((set) => ({
   // Initial state
   elementType: 'cape',
@@ -241,6 +288,45 @@ export const useEditorStore = create<EditorStore>((set) => ({
   selectedDecorationId: null,
   printConfig: defaultPrintConfig,
   exportOptions: defaultExportOptions,
+  savedParameters: {},
+
+  // Theme
+  theme: 'light',
+  toggleTheme: () =>
+    set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
+
+  // Undo/Redo — timeline of state snapshots
+  history: [{ elementType: 'cape', templateVariant: 'standard', parameters: { ...defaultParameters }, decorations: [] }],
+  historyIndex: 0,
+  undo: () =>
+    set((state) => {
+      if (state.historyIndex <= 0) return {};
+      const entry = state.history[state.historyIndex - 1];
+      return {
+        elementType: entry.elementType as ElementType,
+        templateVariant: entry.templateVariant as TemplateVariant,
+        parameters: { ...entry.parameters },
+        decorations: entry.decorations.map((d) => ({ ...d })),
+        historyIndex: state.historyIndex - 1,
+      };
+    }),
+  redo: () =>
+    set((state) => {
+      if (state.historyIndex >= state.history.length - 1) return {};
+      const entry = state.history[state.historyIndex + 1];
+      return {
+        elementType: entry.elementType as ElementType,
+        templateVariant: entry.templateVariant as TemplateVariant,
+        parameters: { ...entry.parameters },
+        decorations: entry.decorations.map((d) => ({ ...d })),
+        historyIndex: state.historyIndex + 1,
+      };
+    }),
+
+  // Snap to grid
+  snapToGrid: false,
+  toggleSnapToGrid: () =>
+    set((state) => ({ snapToGrid: !state.snapToGrid })),
 
   // Setters
   setElementType: (type) =>
@@ -257,7 +343,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
 
   setParameter: (key, value) =>
     set((state) => ({
-      ...state,
+      ...pushHistory(state),
       parameters: {
         ...state.parameters,
         [key]: value,
@@ -266,16 +352,53 @@ export const useEditorStore = create<EditorStore>((set) => ({
 
   setParameters: (params) =>
     set((state) => ({
-      ...state,
+      ...pushHistory(state),
       parameters: {
         ...state.parameters,
         ...params,
       },
     })),
 
+  switchElement: (type, variant) =>
+    set((state) => {
+      const hist = pushHistory(state);
+      const currentKey = `${state.elementType}:${state.templateVariant}`;
+      const targetKey = `${type}:${variant}`;
+      const saved = { ...state.savedParameters, [currentKey]: { ...state.parameters } };
+      const dims = getDimensionDefaults(type, variant);
+      const restored = saved[targetKey]
+        ? { ...saved[targetKey] }
+        : { ...defaultParameters, width: dims.width, length: dims.length };
+      return {
+        ...hist,
+        elementType: type,
+        templateVariant: variant,
+        parameters: restored,
+        savedParameters: saved,
+      };
+    }),
+
+  switchVariant: (variant) =>
+    set((state) => {
+      const hist = pushHistory(state);
+      const currentKey = `${state.elementType}:${state.templateVariant}`;
+      const targetKey = `${state.elementType}:${variant}`;
+      const saved = { ...state.savedParameters, [currentKey]: { ...state.parameters } };
+      const dims = getDimensionDefaults(state.elementType, variant);
+      const restored = saved[targetKey]
+        ? { ...saved[targetKey] }
+        : { ...defaultParameters, width: dims.width, length: dims.length };
+      return {
+        ...hist,
+        templateVariant: variant,
+        parameters: restored,
+        savedParameters: saved,
+      };
+    }),
+
   addDecoration: (decoration) =>
     set((state) => ({
-      ...state,
+      ...pushHistory(state),
       decorations: [
         ...state.decorations,
         {
@@ -287,7 +410,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
 
   updateDecoration: (id, updates) =>
     set((state) => ({
-      ...state,
+      ...pushHistory(state),
       decorations: state.decorations.map((d) =>
         d.id === id ? { ...d, ...updates } : d
       ),
@@ -295,7 +418,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
 
   removeDecoration: (id) =>
     set((state) => ({
-      ...state,
+      ...pushHistory(state),
       decorations: state.decorations.filter((d) => d.id !== id),
       selectedDecorationId:
         state.selectedDecorationId === id ? null : state.selectedDecorationId,
@@ -339,9 +462,15 @@ export const useEditorStore = create<EditorStore>((set) => ({
 
   resetToDefaults: () =>
     set((state) => {
+      const hist = pushHistory(state);
       const dims = getDimensionDefaults(state.elementType, state.templateVariant);
+      const currentKey = `${state.elementType}:${state.templateVariant}`;
+      const saved = { ...state.savedParameters };
+      delete saved[currentKey];
       return {
+        ...hist,
         parameters: { ...defaultParameters, width: dims.width, length: dims.length },
+        savedParameters: saved,
         decorations: [],
         selectedDecorationId: null,
       };
