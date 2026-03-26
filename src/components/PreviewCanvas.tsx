@@ -195,6 +195,7 @@ export default function PreviewCanvas() {
     const imgX = -MINIFIG_WIDTH_MM - 5; // left of the Y axis
     const imgY = 0; // top of minifig aligns with X axis (y=0)
     const opacity = 0.35;
+    const imgFilter = theme === 'dark' ? 'filter:invert(1) brightness(0.6);' : '';
 
     // ViewBox matches the pattern SVG (0 0 ...) so coordinates align with axes origin at (10,10)
     const vbW = 200;
@@ -210,10 +211,10 @@ export default function PreviewCanvas() {
           width="${MINIFIG_WIDTH_MM}" height="${MINIFIG_HEIGHT_MM}"
           preserveAspectRatio="xMidYMid meet"
           opacity="${opacity}"
-          style="pointer-events:none;" />
+          style="pointer-events:none;${imgFilter}" />
       </g>
     </svg>`;
-  }, [pattern]);
+  }, [pattern, theme]);
 
   // Delete selected decoration on Delete/Backspace key
   useEffect(() => {
