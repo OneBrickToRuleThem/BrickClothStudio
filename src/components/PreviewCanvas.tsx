@@ -376,8 +376,9 @@ export default function PreviewCanvas() {
 
     // Snap to grid if enabled
     if (snapToGrid) {
-      cx = Math.round(cx / CANVAS_GRID_SPACING) * CANVAS_GRID_SPACING;
-      cy = Math.round(cy / CANVAS_GRID_SPACING) * CANVAS_GRID_SPACING;
+      const step = CANVAS_GRID_SPACING / 2;
+      cx = Math.round(cx / step) * step;
+      cy = Math.round(cy / step) * step;
       cx = Math.max(minInset, Math.min(w - minInset, cx));
       cy = Math.max(minInset, Math.min(h - minInset, cy));
     }
@@ -838,8 +839,9 @@ export default function PreviewCanvas() {
                   let nx = origX + dx;
                   let ny = origY + dy;
                   if (snapToGrid) {
-                    nx = Math.round(nx / CANVAS_GRID_SPACING) * CANVAS_GRID_SPACING;
-                    ny = Math.round(ny / CANVAS_GRID_SPACING) * CANVAS_GRID_SPACING;
+                    const step = CANVAS_GRID_SPACING / 2;
+                    nx = Math.round(nx / step) * step;
+                    ny = Math.round(ny / step) * step;
                   }
                   updateDecoration(deco.id, { x: nx, y: ny });
                 };
