@@ -59,6 +59,12 @@ export const SAIL_HOLE_STANDARDS = {
     label: 'Pin hole (2mm)',
     description: 'Small pin-sized attachment hole',
   },
+  'ball-joint': {
+    radius: 1.6, // mm, LEGO ball joint bar (~3.2mm diameter)
+    diameter: 3.2,
+    label: 'Ball Joint (3.2mm)',
+    description: 'Sized for LEGO ball joint bar attachment',
+  },
 } as const;
 
 export type SailHoleType = keyof typeof SAIL_HOLE_STANDARDS;

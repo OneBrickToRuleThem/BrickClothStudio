@@ -675,100 +675,55 @@ export class Wings extends Template {
 }
 
 /**
- * WingsCustom: Rectangular custom wing, similar to square sail.
- * Features draggable corner grommets, per-edge styles, and score lines.
+ * WingsCustom: Asymmetric custom wing with 4 draggable connection points.
+ * Outline is a quadrilateral connecting the 4 nodes with straight edges.
+ * Each node gets a ball-joint attachment hole.
  */
 export class WingsCustom extends Template {
-  private getGrommets(params: TemplateParams) {
+  private getNodes(params: TemplateParams) {
     const w = params.width;
     const h = params.length;
     return [
-      { x: (params.sailGrommetTLx as number) || 4, y: (params.sailGrommetTLy as number) || 4 },
-      { x: w - ((params.sailGrommetTRx as number) || 4), y: (params.sailGrommetTRy as number) || 4 },
-      { x: w - ((params.sailGrommetBRx as number) || 4), y: h - ((params.sailGrommetBRy as number) || 4) },
-      { x: (params.sailGrommetBLx as number) || 4, y: h - ((params.sailGrommetBLy as number) || 4) },
+      { x: (params.sailGrommetTLx as number) || 5, y: (params.sailGrommetTLy as number) || 2 },
+      { x: w - ((params.sailGrommetTRx as number) || 3), y: (params.sailGrommetTRy as number) || 5 },
+      { x: w - ((params.sailGrommetBRx as number) || 7), y: h - ((params.sailGrommetBRy as number) || 5) },
+      { x: (params.sailGrommetBLx as number) || 3, y: h - ((params.sailGrommetBLy as number) || 2) },
     ];
   }
 
   generateCutPath(params: TemplateParams): string {
-    const w = params.width;
-    const h = params.length;
     const holeR = getSailHoleRadius(params);
-    const gap = (params.sailGrommetMargin as number) ?? 3;
-    const grommets = this.getGrommets(params);
-    const lockCorners = !!params.sailLockCorners;
-
-    if (lockCorners) {
-      const margin = holeR + gap;
-      const edgeStyles = [
-        (params.sailTopStyle as string) || 'none',
-        (params.sailRightStyle as string) || 'none',
-        (params.sailBottomStyle as string) || 'none',
-        (params.sailLeftStyle as string) || 'none',
-      ];
-      const globalDepth = (params.sailEdgeDepth as number) || 3;
-      const edgeDepths = [
-        (params.sailTopDepth as number) || globalDepth,
-        (params.sailRightDepth as number) || globalDepth,
-        (params.sailBottomDepth as number) || globalDepth,
-        (params.sailLeftDepth as number) || globalDepth,
-      ];
-      const count = (params.sailEdgeCount as number) || 6;
-      const tornSeed = (params.sailTornSeed as number) || 42;
-      return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed);
-    }
-
-    const { left, top, right, bottom } = sailOutlineBounds(grommets, holeR, gap, w, h);
-    const r = 1.5;
-    const topStyle = (params.sailTopStyle as string) || 'none';
-    const bottomStyle = (params.sailBottomStyle as string) || 'none';
-    const leftStyle = (params.sailLeftStyle as string) || 'none';
-    const rightStyle = (params.sailRightStyle as string) || 'none';
-    const globalDepth = (params.sailEdgeDepth as number) || 3;
-    const topDepth = (params.sailTopDepth as number) || globalDepth;
-    const bottomDepth = (params.sailBottomDepth as number) || globalDepth;
-    const leftDepth = (params.sailLeftDepth as number) || globalDepth;
-    const rightDepth = (params.sailRightDepth as number) || globalDepth;
-    const count = (params.sailEdgeCount as number) || 6;
-    const tornSeed = (params.sailTornSeed as number) || 42;
-
-    const path = new SVGPath();
-    path.moveTo(left + r, top);
-    drawStyledEdge(path, left + r, top, right - r, top, topStyle, topDepth, count, 0, -1, 0, tornSeed);
-    path.arcTo(r, r, 0, 0, 1, right, top + r);
-    drawStyledEdge(path, right, top + r, right, bottom - r, rightStyle, rightDepth, count, 1, 0, 0, tornSeed + 1);
-    path.arcTo(r, r, 0, 0, 1, right - r, bottom);
-    drawStyledEdge(path, right - r, bottom, left + r, bottom, bottomStyle, bottomDepth, count, 0, 1, 0, tornSeed + 2);
-    path.arcTo(r, r, 0, 0, 1, left, bottom - r);
-    drawStyledEdge(path, left, bottom - r, left, top + r, leftStyle, leftDepth, count, -1, 0, 0, tornSeed + 3);
-    path.arcTo(r, r, 0, 0, 1, left + r, top);
-    path.closePath();
-    return path.toString();
+    const gap = (params.sailGrommetMargin as number) ?? 2;
+    const nodes = this.getNodes(params);
+    const margin = holeR + gap;
+    // Always build outline from node polygon — plain edges, no decorative styles
+    const edgeStyles = ['none', 'none', 'none', 'none'];
+    const edgeDepths = [3, 3, 3, 3];
+    return buildSailCutPath(nodes, margin, edgeStyles, edgeDepths, 6, 2, 42);
   }
 
   generateCutPaths(params: TemplateParams): string[] {
     const r = getSailHoleRadius(params);
     const paths = [this.generateCutPath(params)];
-    for (const g of this.getGrommets(params)) paths.push(circlePath(g.x, g.y, r));
-    paths.push(...generateExtraGrommetPaths(params));
+    for (const g of this.getNodes(params)) paths.push(circlePath(g.x, g.y, r));
     return paths;
   }
 
   generateScorePaths(params: TemplateParams): string[] {
     const holeR = getSailHoleRadius(params);
-    const grommets = this.getGrommets(params);
+    const nodes = this.getNodes(params);
     const scores: string[] = [];
 
+    // Inner boundary connecting node positions
     const inner = new SVGPath();
-    inner.moveTo(grommets[0].x, grommets[0].y);
-    inner.lineTo(grommets[1].x, grommets[1].y);
-    inner.lineTo(grommets[2].x, grommets[2].y);
-    inner.lineTo(grommets[3].x, grommets[3].y);
+    inner.moveTo(nodes[0].x, nodes[0].y);
+    inner.lineTo(nodes[1].x, nodes[1].y);
+    inner.lineTo(nodes[2].x, nodes[2].y);
+    inner.lineTo(nodes[3].x, nodes[3].y);
     inner.closePath();
     scores.push(inner.toString());
 
-    scores.push(...buildGrommetCrosshairs(grommets, holeR));
-    scores.push(...generateExtraGrommetCrosshairs(params));
+    scores.push(...buildGrommetCrosshairs(nodes, holeR));
     return scores;
   }
 

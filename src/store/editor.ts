@@ -221,6 +221,28 @@ function getDimensionDefaults(elementType: string, templateVariant: string) {
   return ELEMENT_DIMENSION_DEFAULTS[key] || ELEMENT_DIMENSION_DEFAULTS[elementType] || { width: 40, length: 40 };
 }
 
+/** Extra default parameter overrides for specific variants. */
+function getVariantOverrides(templateVariant: string): Record<string, number | string | boolean> {
+  if (templateVariant === 'custom-wing') {
+    return {
+      // Asymmetric wing shape: swept-back quadrilateral
+      sailGrommetTLx: 5,   // wing root, upper
+      sailGrommetTLy: 2,
+      sailGrommetTRx: 3,   // wing tip, upper  (45-3 = 42)
+      sailGrommetTRy: 5,
+      sailGrommetBRx: 7,   // wing tip, lower  (45-7 = 38)
+      sailGrommetBRy: 5,   //                  (30-5 = 25)
+      sailGrommetBLx: 3,   // wing root, lower
+      sailGrommetBLy: 2,   //                  (30-2 = 28)
+      sailLockCorners: true,
+      sailHoleType: 'ball-joint',
+      sailGrommetMargin: 2,
+      sailSymmetry: false,
+    };
+  }
+  return {};
+}
+
 const defaultPrintConfig: PrintSheetConfig = {
   paperSize: 'A4',
   orientation: 'portrait',
@@ -369,7 +391,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
       const dims = getDimensionDefaults(type, variant);
       const restored = saved[targetKey]
         ? { ...saved[targetKey] }
-        : { ...defaultParameters, width: dims.width, length: dims.length };
+        : { ...defaultParameters, width: dims.width, length: dims.length, ...getVariantOverrides(variant) };
       return {
         ...hist,
         elementType: type,
@@ -388,7 +410,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
       const dims = getDimensionDefaults(state.elementType, variant);
       const restored = saved[targetKey]
         ? { ...saved[targetKey] }
-        : { ...defaultParameters, width: dims.width, length: dims.length };
+        : { ...defaultParameters, width: dims.width, length: dims.length, ...getVariantOverrides(variant) };
       return {
         ...hist,
         templateVariant: variant,

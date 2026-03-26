@@ -738,7 +738,7 @@ function SailParameterPanel({ parameters, setParameter }: {
   parameters: Record<string, number | string | boolean>;
   setParameter: (key: string, value: number | string | boolean) => void;
 }) {
-  const { templateVariant } = useEditorStore();
+  const { templateVariant, elementType } = useEditorStore();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     edgeStyles: true,
     grommets: false,
@@ -749,7 +749,8 @@ function SailParameterPanel({ parameters, setParameter }: {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
-  const isSquare = templateVariant === 'square-sail' || templateVariant === 'custom-wing';
+  const isCustomWing = elementType === 'wings' && templateVariant === 'custom-wing';
+  const isSquare = templateVariant === 'square-sail' || isCustomWing;
   const isPolygon = templateVariant === 'polygon-sail';
   const holeType = (parameters.sailHoleType as string) || 'grommet';
   const edgeStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn'] as const;
@@ -836,7 +837,8 @@ function SailParameterPanel({ parameters, setParameter }: {
         </section>
       )}
 
-      {/* Sail Options — IN PROGRESS */}
+      {/* Sail Options — hidden for custom wing */}
+      {!isCustomWing && (
       <section className="panel-section border-t pt-4">
         <h3 className="panel-section-title">Sail Options</h3>
         <div className="mt-2 space-y-2">
@@ -863,8 +865,10 @@ function SailParameterPanel({ parameters, setParameter }: {
           <p className="text-[10px] text-gray-500">Distance between grommet hole and sail outline (prevents tearing)</p>
         </div>
       </section>
+      )}
 
-      {/* Grommet Hole Type */}
+      {/* Grommet Hole Type — hidden for custom wing */}
+      {!isCustomWing && (
       <section className="panel-section border-t pt-4">
         <h3 className="panel-section-title">Grommet Type</h3>
         <div className="mt-2 space-y-1.5">
@@ -884,8 +888,10 @@ function SailParameterPanel({ parameters, setParameter }: {
           })}
         </div>
       </section>
+      )}
 
-      {/* Edge Styles */}
+      {/* Edge Styles — hidden for custom wing */}
+      {!isCustomWing && (
       <section className="panel-section border-t pt-4">
         <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('edgeStyles')}>
           <h3 className="panel-section-title">Edge Styles</h3>
@@ -1015,9 +1021,27 @@ function SailParameterPanel({ parameters, setParameter }: {
           </div>
         )}
       </section>
+      )}
+
+      {/* Wing Options — shown only for custom wing */}
+      {isCustomWing && (
+      <section className="panel-section border-t pt-4">
+        <h3 className="panel-section-title">Wing Options</h3>
+        <div className="mt-2 space-y-2">
+          <label className="block text-sm">
+            Outline margin: {((parameters.sailGrommetMargin as number) ?? 2).toFixed(1)}mm
+          </label>
+          <input type="range" className="w-full" min={1} max={6} step={0.5}
+            value={(parameters.sailGrommetMargin as number) ?? 2}
+            onChange={(e) => setParameter('sailGrommetMargin', parseFloat(e.target.value))} />
+          <p className="text-[10px] text-gray-500">Gap between connection points and wing outline</p>
+          <p className="text-[10px] text-gray-500 mt-2">Drag the 4 nodes in the preview to reshape the wing</p>
+        </div>
+      </section>
+      )}
 
       {/* Grommet Positions (square & triangular only — polygon uses vertex mask above) */}
-      {!isPolygon && (
+      {!isPolygon && !isCustomWing && (
       <section className="panel-section border-t pt-4">
         <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('grommets')}>
           <h3 className="panel-section-title">Grommet Positions</h3>
@@ -1083,7 +1107,8 @@ function SailParameterPanel({ parameters, setParameter }: {
       </section>
       )}
 
-      {/* Extra Grommets (all sail types) */}
+      {/* Extra Grommets (all sail types — hidden for custom wing) */}
+      {!isCustomWing && (
       <section className="panel-section border-t pt-4">
         <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('extraGrommets')}>
           <h3 className="panel-section-title">Extra Grommets</h3>
@@ -1143,15 +1168,28 @@ function SailParameterPanel({ parameters, setParameter }: {
         </div>
         )}
       </section>
+      )}
 
-      {/* Sail Info */}
+      {/* Info */}
       <section className="panel-section border-t pt-4 text-xs text-gray-600">
-        <p className="font-semibold mb-1">Sail Info:</p>
-        <p>• Grommet: {SAIL_HOLE_STANDARDS[holeType as keyof typeof SAIL_HOLE_STANDARDS]?.label || 'Grommet (3mm)'}</p>
-        <p>• Drag grommets in the preview to reposition</p>
-        <p>• Blue crosshairs mark grommet centers</p>
-        {!!parameters.sailLockCorners && <p>• Corner shape follows grommets with {((parameters.sailGrommetMargin as number) ?? 3).toFixed(1)}mm gap</p>}
-        {!!parameters.sailSymmetry && <p>• All corners mirror when any is dragged</p>}
+        {isCustomWing ? (
+        <>
+          <p className="font-semibold mb-1">Wing Info:</p>
+          <p>• Connection: Ball Joint ({SAIL_HOLE_STANDARDS['ball-joint' as keyof typeof SAIL_HOLE_STANDARDS]?.label || '3.2mm'})</p>
+          <p>• Drag nodes in the preview to reshape the wing</p>
+          <p>• Blue crosshairs mark connection point centers</p>
+          <p>• Outline margin: {((parameters.sailGrommetMargin as number) ?? 2).toFixed(1)}mm</p>
+        </>
+        ) : (
+        <>
+          <p className="font-semibold mb-1">Sail Info:</p>
+          <p>• Grommet: {SAIL_HOLE_STANDARDS[holeType as keyof typeof SAIL_HOLE_STANDARDS]?.label || 'Grommet (3mm)'}</p>
+          <p>• Drag grommets in the preview to reposition</p>
+          <p>• Blue crosshairs mark grommet centers</p>
+          {!!parameters.sailLockCorners && <p>• Corner shape follows grommets with {((parameters.sailGrommetMargin as number) ?? 3).toFixed(1)}mm gap</p>}
+          {!!parameters.sailSymmetry && <p>• All corners mirror when any is dragged</p>}
+        </>
+        )}
       </section>
     </>
   );

@@ -271,7 +271,7 @@ export default function PreviewCanvas() {
     if (!hasGrommets || !pattern) return [];
     const w = (parameters.width as number) || 60;
     const h = (parameters.length as number) || 60;
-    const grommets: Array<{ id: string; x: number; y: number; paramX: string; paramY: string; corner: string }> = [];
+    const grommets: Array<{ id: string; label: string; x: number; y: number; paramX: string; paramY: string; corner: string }> = [];
 
     if (isPolygonSail) {
       // Polygon sail: compute grommet positions from polygon vertices or custom positions
@@ -298,41 +298,47 @@ export default function PreviewCanvas() {
           gy = cy + ry * Math.sin(angle);
         }
         grommets.push({
-          id: `P${i}`, corner: `V${i + 1}`,
+          id: `P${i}`, label: `P${i}`, corner: `V${i + 1}`,
           x: gx, y: gy,
           paramX: '', paramY: '', // handled via JSON array
         });
       }
     } else {
+      const wingLabel = (pos: string, idx: number) =>
+        isCustomWing ? `N${idx}` : pos;
       grommets.push({
-        id: 'TL', corner: 'Top-Left',
+        id: 'TL', corner: wingLabel('Top-Left', 1),
+        label: wingLabel('TL', 1),
         x: (parameters.sailGrommetTLx as number) || 4,
         y: (parameters.sailGrommetTLy as number) || 4,
         paramX: 'sailGrommetTLx', paramY: 'sailGrommetTLy',
       });
       if (isSquareSail) {
         grommets.push({
-          id: 'TR', corner: 'Top-Right',
+          id: 'TR', corner: wingLabel('Top-Right', 2),
+          label: wingLabel('TR', 2),
           x: w - ((parameters.sailGrommetTRx as number) || 4),
           y: (parameters.sailGrommetTRy as number) || 4,
           paramX: 'sailGrommetTRx', paramY: 'sailGrommetTRy',
         });
       }
       grommets.push({
-        id: 'BL', corner: 'Bottom-Left',
+        id: 'BL', corner: wingLabel('Bottom-Left', 3),
+        label: wingLabel('BL', 3),
         x: (parameters.sailGrommetBLx as number) || 4,
         y: h - ((parameters.sailGrommetBLy as number) || 4),
         paramX: 'sailGrommetBLx', paramY: 'sailGrommetBLy',
       });
       grommets.push({
-        id: 'BR', corner: 'Bottom-Right',
+        id: 'BR', corner: wingLabel('Bottom-Right', 4),
+        label: wingLabel('BR', 4),
         x: w - ((parameters.sailGrommetBRx as number) || 4),
         y: h - ((parameters.sailGrommetBRy as number) || 4),
         paramX: 'sailGrommetBRx', paramY: 'sailGrommetBRy',
       });
     }
     return grommets;
-  }, [hasGrommets, isSquareSail, isPolygonSail, pattern, parameters]);
+  }, [hasGrommets, isSquareSail, isPolygonSail, isCustomWing, pattern, parameters]);
 
   const screenToMM = useCallback((clientX: number, clientY: number): { x: number; y: number } => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -924,7 +930,7 @@ export default function PreviewCanvas() {
                   {/* Label */}
                   <text x={cx} y={cy - handleR - 1} textAnchor="middle"
                     fontSize={2} fill="#3b82f6" fontFamily="sans-serif">
-                    {g.id}
+                    {g.label}
                   </text>
                 </g>
               );
