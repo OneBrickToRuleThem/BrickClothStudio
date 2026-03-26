@@ -71,8 +71,8 @@ export default function Editor() {
             onClick={() => setMobileTab(tab.key)}
             className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
               mobileTab === tab.key
-                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:text-blue-400 dark:border-blue-400 dark:bg-blue-900/30'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
             {tab.label}
@@ -106,8 +106,8 @@ export default function Editor() {
                 onClick={() => setRightPanel(tab.key)}
                 className={`flex-1 py-2 text-xs font-medium transition-colors ${
                   rightPanel === tab.key
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:text-blue-400 dark:border-blue-400 dark:bg-blue-900/30'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
               >
                 {tab.label}
@@ -150,8 +150,8 @@ export default function Editor() {
                   onClick={() => setRightPanel(tab.key)}
                   className={`flex-1 py-2 text-xs font-medium transition-colors ${
                     rightPanel === tab.key
-                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:text-blue-400 dark:border-blue-400 dark:bg-blue-900/30'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
                   {tab.label}
