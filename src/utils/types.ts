@@ -25,6 +25,7 @@ export type TemplateVariant =
   | 'square-sail'
   | 'triangular-sail'
   | 'polygon-sail'
+  | 'custom-wing'
   | 'calibration-test';
 
 export interface Point {

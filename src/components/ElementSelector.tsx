@@ -230,6 +230,7 @@ function ElementVariantSelector() {
 
     wings: [
       { value: 'standard', label: 'Dragon Wing' },
+      { value: 'custom-wing', label: 'Custom Wing' },
     ],
     kama: [
       { value: 'wrap-skirt', label: 'Wrap Skirt' },

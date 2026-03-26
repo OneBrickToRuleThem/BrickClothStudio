@@ -160,12 +160,12 @@ export default function ParameterPanel() {
           <FlagParameterPanel parameters={parameters} setParameter={setParameter} />
         )}
 
-        {elementType === 'sail' && (
+        {(elementType === 'sail' || (elementType === 'wings' && templateVariant === 'custom-wing')) && (
           <SailParameterPanel parameters={parameters} setParameter={setParameter} />
         )}
 
-        {/* --- Attachment Hole (all non-sail, non-flag elements) --- */}
-        {elementType !== 'sail' && elementType !== 'flag' && (
+        {/* --- Attachment Hole (all non-sail, non-flag, non-custom-wing elements) --- */}
+        {elementType !== 'sail' && elementType !== 'flag' && !(elementType === 'wings' && templateVariant === 'custom-wing') && (
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('attachment')}>
             <h3 className="panel-section-title">Attachment Hole</h3>
@@ -749,7 +749,7 @@ function SailParameterPanel({ parameters, setParameter }: {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
-  const isSquare = templateVariant === 'square-sail';
+  const isSquare = templateVariant === 'square-sail' || templateVariant === 'custom-wing';
   const isPolygon = templateVariant === 'polygon-sail';
   const holeType = (parameters.sailHoleType as string) || 'grommet';
   const edgeStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn'] as const;

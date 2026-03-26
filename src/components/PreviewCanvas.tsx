@@ -262,11 +262,13 @@ export default function PreviewCanvas() {
 
   // --- Sail grommet dragging ---
   const isSail = elementType === 'sail';
-  const isSquareSail = templateVariant === 'square-sail';
+  const isCustomWing = elementType === 'wings' && templateVariant === 'custom-wing';
+  const hasGrommets = isSail || isCustomWing;
+  const isSquareSail = templateVariant === 'square-sail' || isCustomWing;
   const isPolygonSail = templateVariant === 'polygon-sail';
 
   const sailGrommets = useMemo(() => {
-    if (!isSail || !pattern) return [];
+    if (!hasGrommets || !pattern) return [];
     const w = (parameters.width as number) || 60;
     const h = (parameters.length as number) || 60;
     const grommets: Array<{ id: string; x: number; y: number; paramX: string; paramY: string; corner: string }> = [];
@@ -330,7 +332,7 @@ export default function PreviewCanvas() {
       });
     }
     return grommets;
-  }, [isSail, isSquareSail, isPolygonSail, pattern, parameters]);
+  }, [hasGrommets, isSquareSail, isPolygonSail, pattern, parameters]);
 
   const screenToMM = useCallback((clientX: number, clientY: number): { x: number; y: number } => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -880,8 +882,8 @@ export default function PreviewCanvas() {
           );
         })}
 
-        {/* Sail grommet drag handles */}
-        {isSail && pattern && (
+        {/* Grommet drag handles */}
+        {hasGrommets && pattern && (
           <svg
             style={{
               position: 'absolute',

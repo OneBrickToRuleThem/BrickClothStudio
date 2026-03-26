@@ -18,6 +18,7 @@ import {
   FlagLarge,
   FlagCustom,
   Wings,
+  WingsCustom,
   Kama,
   SailSquare,
   SailTriangular,
@@ -114,8 +115,15 @@ export function generatePattern(
         name = 'Small Flag';
     }
   } else if (elementType === 'wings') {
-    template = new Wings();
-    name = 'Wing';
+    switch (templateVariant) {
+      case 'custom-wing':
+        template = new WingsCustom();
+        name = 'Custom Wing';
+        break;
+      default:
+        template = new Wings();
+        name = 'Wing';
+    }
   } else if (elementType === 'kama') {
     switch (templateVariant) {
       case 'full-skirt':

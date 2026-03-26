@@ -201,6 +201,7 @@ export const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length:
   'flag:custom-flag': { width: 30, length: 60 },
 
   'wings': { width: 45, length: 25 },
+  'wings:custom-wing': { width: 45, length: 30 },
   'kama': { width: 47, length: 19 },
   'kama:full-skirt': { width: 47, length: 19 },
   'mantle': { width: 23, length: 26 },
