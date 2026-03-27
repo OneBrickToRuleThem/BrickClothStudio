@@ -116,6 +116,7 @@ const defaultParameters = {
   steppedCount: 5,
   steppedDepth: 4,
   serrated: false,
+  hemSerratedReverse: false,
   thorned: false,
   torn: false,
   feathered: false,

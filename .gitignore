@@ -24,6 +24,7 @@ archive/
 
 # One-off SVG processing scripts
 scripts/
+gen-edge-preview.ts
 
 # Stale preset files
 *.preset.json

@@ -512,8 +512,28 @@ export default function ParameterPanel() {
             </div>
           )}
 
-          {/* Serrated / Thorned / Sawtooth / Arrow / Picot — count + depth */}
-          {['serrated', 'thorned', 'sawtooth', 'arrow', 'picot'].includes(activeHemValue) && (
+          {/* Serrated — count + depth + direction */}
+          {activeHemValue === 'serrated' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Count" name="hemEdgeCount"
+                min={3} max={20} step={1}
+                value={parameters.hemEdgeCount as number || 8}
+                onChange={(v) => setParameter('hemEdgeCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="hemEdgeDepth"
+                min={0.5} max={8} step={0.5}
+                value={parameters.hemEdgeDepth as number || 3}
+                onChange={(v) => setParameter('hemEdgeDepth', v)} />
+              <label className="flex items-center gap-2 text-sm mt-1">
+                <input type="checkbox" className="w-4 h-4"
+                  checked={parameters.hemSerratedReverse as boolean || false}
+                  onChange={(e) => setParameter('hemSerratedReverse', e.target.checked)} />
+                <span>Reverse direction</span>
+              </label>
+            </div>
+          )}
+
+          {/* Thorned / Sawtooth / Arrow / Picot — count + depth */}
+          {['thorned', 'sawtooth', 'arrow', 'picot'].includes(activeHemValue) && (
             <div className="space-y-1 pl-1">
               <ParameterSlider label="Count" name="hemEdgeCount"
                 min={3} max={20} step={1}

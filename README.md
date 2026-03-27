@@ -17,7 +17,7 @@
 
 | Element | Variants | Default Size | Notes |
 |---------|----------|-------------|-------|
-| **Cape** | Standard, Wind-Swept, Phantom Shroud, Seven Points, Narrow, Top, Stepped | 40×39 mm | Attachment holes, edge styles, sword/arm slits, worn holes, rounding |
+| **Cape** | Standard, Wind-Swept, Phantom Shroud, Seven Points, Narrow, Top, Stepped | 40×39 mm | Attachment holes, edge styles, sword/arm slits, weathering, rounding |
 | **Flag/Banner** | Small, Large, Custom | 22×60 / 40×64 / 30×60 mm | Custom has configurable edges and 1–6 clip holes |
 | **Sail** | Square, Triangular, Polygon | 60×60 mm | Draggable grommets (4 types + extra), per-edge styling, stud-based sizing, 5–12 sided polygon |
 | **Kama/Skirt** | Wrap Skirt, Full Skirt | 47×19 mm | 2–4 attachment holes, bottom hem edge styles |
@@ -208,7 +208,7 @@ src/
 ├── store/
 │   └── editor.ts        # Zustand store + defaults
 ├── test/                # Unit tests
-│   ├── symmetry.test.ts # Symmetry verification (222 tests)
+│   ├── symmetry.test.ts # Symmetry verification (245 tests)
 │   ├── geometry.test.ts # Geometry primitives
 │   └── packing.test.ts  # Print sheet packing
 └── utils/
@@ -259,7 +259,6 @@ We're looking for **high-quality flatbed scans of official LEGO capes and fabric
 **What we need:**
 - **600 DPI flatbed scans** (or higher) of the cape laid flat
 - Both sides if the fabric has a distinct front/back
-- Include a ruler or known-scale reference in the scan if possible
 - Any LEGO part number or set number for identification
 
 **How to contribute:**

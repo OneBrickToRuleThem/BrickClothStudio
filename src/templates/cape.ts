@@ -394,8 +394,12 @@ function drawStyledLeftSide(
     } else if (style === 'flame') {
       const rng = new SeededRNG(seed + i * 3 + 17);
       const phase = (st * count) % 1;
-      const flicker = rng.nextRange(0.5, 1.3);
-      offset = -depth * flicker * Math.sin(phase * Math.PI);
+      // Multi-frequency jagged fire: primary tongue + secondary flicker + tertiary crackle
+      const primary = Math.sin(phase * Math.PI);
+      const secondary = 0.35 * Math.sin(phase * Math.PI * 3 + rng.nextRange(0, 2));
+      const tertiary = 0.15 * Math.sin(phase * Math.PI * 7 + rng.nextRange(0, 4));
+      const flicker = rng.nextRange(0.6, 1.2);
+      offset = -depth * flicker * Math.max(0, primary + secondary + tertiary);
     } else if (style === 'stepped') {
       const phase = (st * count) % 1;
       offset = -depth * Math.floor(phase * 3) / 3;
@@ -409,8 +413,8 @@ function drawStyledLeftSide(
     } else if (style === 'feathered') {
       const rng = new SeededRNG(seed + i * 5 + 11);
       const phase = (st * count) % 1;
-      const h = depth * (0.6 + rng.nextRange(0, 1) * 0.4);
-      offset = -h * Math.sin(phase * Math.PI);
+      const flicker = rng.nextRange(0.5, 1.3);
+      offset = -depth * flicker * Math.sin(phase * Math.PI);
     } else if (style === 'cloud') {
       const rng = new SeededRNG(seed + i * 2 + 7);
       const phase = (st * count * 3) % 1;
@@ -522,8 +526,12 @@ function drawStyledRightSide(
     } else if (style === 'flame') {
       const rng = new SeededRNG(seed + (segments - i) * 3 + 17);
       const phase = (st * count) % 1;
-      const flicker = rng.nextRange(0.5, 1.3);
-      offset = depth * flicker * Math.sin(phase * Math.PI);
+      // Multi-frequency jagged fire: primary tongue + secondary flicker + tertiary crackle
+      const primary = Math.sin(phase * Math.PI);
+      const secondary = 0.35 * Math.sin(phase * Math.PI * 3 + rng.nextRange(0, 2));
+      const tertiary = 0.15 * Math.sin(phase * Math.PI * 7 + rng.nextRange(0, 4));
+      const flicker = rng.nextRange(0.6, 1.2);
+      offset = depth * flicker * Math.max(0, primary + secondary + tertiary);
     } else if (style === 'stepped') {
       const phase = (st * count) % 1;
       offset = depth * Math.floor(phase * 3) / 3;
@@ -537,8 +545,8 @@ function drawStyledRightSide(
     } else if (style === 'feathered') {
       const rng = new SeededRNG(seed + (segments - i) * 5 + 11);
       const phase = (st * count) % 1;
-      const h = depth * (0.6 + rng.nextRange(0, 1) * 0.4);
-      offset = h * Math.sin(phase * Math.PI);
+      const flicker = rng.nextRange(0.5, 1.3);
+      offset = depth * flicker * Math.sin(phase * Math.PI);
     } else if (style === 'cloud') {
       const rng = new SeededRNG(seed + (segments - i) * 2 + 7);
       const phase = (st * count * 3) % 1;
@@ -987,28 +995,41 @@ function drawModifiedOutline(
   } else if (flame) {
     const count = (params.flameCount as number) || 5;
     const depth = (params.flameDepth as number) || 6;
-    const segW = hemSpan / count;
-    for (let i = 0; i < count; i++) {
-      const t0 = i / count;
-      const t1 = (i + 0.5) / count;
-      const t2 = (i + 1) / count;
+    // Fire effect: each main tongue has sub-tongues for a jagged, flickering look
+    const subCount = count * 3; // 3 sub-tongues per main flame
+    const segW = hemSpan / subCount;
+    const baseSeed = (params.seed as number) || 12345;
+    for (let i = 0; i < subCount; i++) {
+      const t0 = i / subCount;
+      const t1 = (i + 0.5) / subCount;
+      const t2 = (i + 1) / subCount;
       const startX = leftX + segW * i;
       const tipX = leftX + segW * (i + 0.5);
       const endX = leftX + segW * (i + 1);
       const bYStart = baseY(t0);
       const bYTip = baseY(t1);
       const bYEnd = baseY(t2);
-      const tip = offsetPoint(tipX, bYTip, depth);
-      // Mirror flame lean about cape center for symmetry
-      const isRightHalf = (i + 0.5) / count > 0.5;
-      const isCenter = count % 2 === 1 && i === Math.floor(count / 2);
-      const leanStart = isCenter ? 0.45 : isRightHalf ? 0.3 : 0.6;
-      const leanEnd = isCenter ? 0.45 : isRightHalf ? 0.6 : 0.3;
-      const cp1 = offsetPoint(startX + segW * 0.15, baseY(t0 + 0.15 / count), depth * leanStart);
-      const cp2 = offsetPoint(tipX - segW * 0.1, bYTip, depth * 0.9);
+      // Main tongue envelope: taller at center
+      const envelope = Math.sin(((i + 0.5) / subCount) * Math.PI);
+      // Seed by distance from center so mirror-image tongues get identical randoms
+      const mirrorIdx = Math.abs(i - (subCount - 1) / 2);
+      const rng = new SeededRNG(baseSeed + Math.round(mirrorIdx * 1000) + 17);
+      // Alternate tall/short sub-tongues for fire texture
+      const isTall = i % 3 === 1; // middle sub-tongue of each group is tallest
+      const heightMul = isTall ? (0.8 + rng.nextRange(0, 0.4)) : (0.3 + rng.nextRange(0, 0.35));
+      const tongueDepth = depth * envelope * heightMul;
+      if (tongueDepth < 0.3) {
+        // Too shallow — just draw a line
+        path.lineTo(endX, bYEnd);
+        continue;
+      }
+      const tip = offsetPoint(tipX, bYTip, tongueDepth);
+      // Sharper control points for jagged fire look
+      const cp1 = offsetPoint(startX + segW * 0.25, baseY(t0 + 0.25 / subCount), tongueDepth * 0.3);
+      const cp2 = offsetPoint(tipX - segW * 0.05, bYTip, tongueDepth * 0.95);
       path.cubicBezierTo(cp1.x, cp1.y, cp2.x, cp2.y, tip.x, tip.y);
-      const cp3 = offsetPoint(tipX + segW * 0.1, bYTip, depth * 0.9);
-      const cp4 = offsetPoint(endX - segW * 0.15, baseY(t2 - 0.15 / count), depth * leanEnd);
+      const cp3 = offsetPoint(tipX + segW * 0.05, bYTip, tongueDepth * 0.95);
+      const cp4 = offsetPoint(endX - segW * 0.25, baseY(t2 - 0.25 / subCount), tongueDepth * 0.3);
       path.cubicBezierTo(cp3.x, cp3.y, cp4.x, cp4.y, endX, bYEnd);
     }
   } else if (stepped) {
@@ -1035,7 +1056,34 @@ function drawModifiedOutline(
       }
     }
     path.lineTo(rightX, leftY);
-  } else if (serrated || thorned || sawtooth || arrow || picot || feathered || cloud || torn) {
+  } else if (feathered) {
+    // Feathered: smooth organic bezier curves leaning toward center (like plumage)
+    const count = (params.hemEdgeCount as number) || 8;
+    const depth = (params.hemEdgeDepth as number) || 3;
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const t0 = i / count;
+      const t1 = (i + 0.5) / count;
+      const t2 = (i + 1) / count;
+      const startX = leftX + segW * i;
+      const tipX = leftX + segW * (i + 0.5);
+      const endX = leftX + segW * (i + 1);
+      const bYTip = baseY(t1);
+      const bYEnd = baseY(t2);
+      const tip = offsetPoint(tipX, bYTip, depth);
+      // Mirror lean about cape center for symmetry
+      const isRightHalf = (i + 0.5) / count > 0.5;
+      const isCenter = count % 2 === 1 && i === Math.floor(count / 2);
+      const leanStart = isCenter ? 0.45 : isRightHalf ? 0.3 : 0.6;
+      const leanEnd = isCenter ? 0.45 : isRightHalf ? 0.6 : 0.3;
+      const cp1 = offsetPoint(startX + segW * 0.15, baseY(t0 + 0.15 / count), depth * leanStart);
+      const cp2 = offsetPoint(tipX - segW * 0.1, bYTip, depth * 0.9);
+      path.cubicBezierTo(cp1.x, cp1.y, cp2.x, cp2.y, tip.x, tip.y);
+      const cp3 = offsetPoint(tipX + segW * 0.1, bYTip, depth * 0.9);
+      const cp4 = offsetPoint(endX - segW * 0.15, baseY(t2 - 0.15 / count), depth * leanEnd);
+      path.cubicBezierTo(cp3.x, cp3.y, cp4.x, cp4.y, endX, bYEnd);
+    }
+  } else if (serrated || thorned || sawtooth || arrow || picot || cloud || torn) {
     // Segment-based styles adapted from side edges
     const count = (params.hemEdgeCount as number) || 8;
     const depth = (params.hemEdgeDepth as number) || 3;
@@ -1048,8 +1096,9 @@ function drawModifiedOutline(
       const st = t;
       let off = 0;
       if (serrated) {
+        const reverse = params.hemSerratedReverse as boolean;
         const phase = (st * count) % 1;
-        off = depth * phase;
+        off = depth * (reverse ? (1 - phase) : phase);
       } else if (thorned) {
         const phase = (st * count) % 1;
         off = phase < 0.15 ? depth * (phase / 0.15) : phase < 0.3 ? depth * (1 - (phase - 0.15) / 0.15) : 0;
@@ -1057,16 +1106,20 @@ function drawModifiedOutline(
         const phase = (st * count) % 1;
         off = phase < 0.25 ? depth * (phase / 0.25) : depth * (1 - (phase - 0.25) / 0.75);
       } else if (arrow) {
+        // Chevron arrowhead notches: V-shaped cuts pointing outward
         const phase = (st * count) % 1;
-        off = phase < 0.5 ? depth * (phase * 2) : -depth * 0.3 + depth * 0.3 * ((phase - 0.5) * 2);
+        if (phase < 0.1 || phase > 0.9) {
+          off = 0; // flat between chevrons
+        } else if (phase < 0.5) {
+          // descend to tip
+          off = depth * ((phase - 0.1) / 0.4);
+        } else {
+          // ascend from tip
+          off = depth * ((0.9 - phase) / 0.4);
+        }
       } else if (picot) {
         const phase = (st * count) % 1;
         off = (phase > 0.35 && phase < 0.65) ? depth * Math.sin((phase - 0.35) / 0.3 * Math.PI) : 0;
-      } else if (feathered) {
-        const rng = new SeededRNG(seed + i * 5 + 11);
-        const phase = (st * count) % 1;
-        const h = depth * (0.6 + rng.nextRange(0, 1) * 0.4);
-        off = h * Math.sin(phase * Math.PI);
       } else if (cloud) {
         const rng = new SeededRNG(seed + i * 2 + 7);
         const phase = (st * count * 3) % 1;
