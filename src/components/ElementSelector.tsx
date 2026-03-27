@@ -40,16 +40,13 @@ function ElementIcon({ type, className }: { type: ElementType; className?: strin
       );
 
     case 'wings':
-      // Exact Wings outline at 45×25 default
+      // Tattered Wing — simplified asymmetric silhouette
       return (
-        <svg {...common} viewBox="-1 -1 47 27">
-          <path d="M 18.45 0.00 C 22.50 1.00 29.25 1.75 32.85 3.00 C 38.25 4.50 42.30 7.00 44.10 9.50 C 45.00 10.75 45.00 11.75 44.10 12.50 C 39.60 13.00 35.10 13.50 31.50 14.00 C 31.05 15.50 30.60 18.00 30.15 20.50 C 30.15 22.00 27.00 23.25 20.70 23.50 C 11.25 24.25 4.50 24.75 2.70 25.00 C 0.90 24.75 0.00 22.50 0.00 19.50 C 0.00 17.00 0.00 15.00 0.45 14.25 C 2.70 14.00 7.20 13.75 12.15 13.25 C 13.05 10.00 14.40 6.25 15.75 3.00 C 16.65 1.50 17.55 0.50 18.45 0.00 Z" fill={fill} />
-          {/* Membrane finger score lines */}
-          <path d="M 14.40 8.75 Q 22.95 5.50 31.50 4.25" stroke="white" strokeWidth="0.5" fill="none" opacity="0.5" />
-          <path d="M 14.40 10.25 Q 24.75 7.75 35.10 7.25" stroke="white" strokeWidth="0.5" fill="none" opacity="0.5" />
-          <path d="M 14.40 11.75 Q 26.55 10.00 38.70 10.25" stroke="white" strokeWidth="0.5" fill="none" opacity="0.5" />
-          {/* Attachment hole */}
-          <circle cx="6.75" cy="16.25" r="2.36" fill="white" />
+        <svg {...common} viewBox="0 0 173 101">
+          <path d="M 10 100 C 8 100 7 99 6 97 C 3 93 1 87 1 80 C 0 77 0 68 0 64 C 1 59 2 58 5 56 C 8 55 9 55 15 55 L 43 57 L 44 56 C 46 54 47 52 45 48 C 44 46 44 44 44 43 C 45 42 47 37 47 37 C 48 34 49 32 50 30 C 51 27 56 15 58 12 C 60 9 61 8 62 6 C 65 1 70 0 76 2 C 78 3 80 4 83 5 C 88 8 93 9 100 9 C 111 9 119 10 127 12 C 130 12 135 14 136 15 C 138 16 148 20 156 24 C 164 30 169 34 171 41 C 173 45 173 48 171 50 C 170 50 169 50 165 49 C 157 48 150 48 141 51 C 137 52 137 52 136 51 C 135 51 134 50 134 50 C 134 50 133 51 134 52 C 134 52 133 54 132 55 C 130 55 129 56 128 55 C 127 55 126 55 125 55 C 124 56 124 56 122 55 C 119 54 119 55 122 59 C 123 61 124 61 122 64 C 121 66 119 67 119 67 C 118 67 118 66 117 66 C 117 66 116 66 116 67 C 115 67 115 68 116 70 L 117 72 L 117 75 C 116 78 116 82 117 84 C 117 85 117 87 117 88 C 117 92 116 93 113 93 C 111 93 110 92 105 87 C 102 83 97 80 95 79 C 92 77 88 76 86 78 C 83 80 81 83 81 89 C 80 93 80 95 80 96 C 78 99 75 99 70 93 C 64 88 61 86 59 84 C 57 83 53 80 52 80 C 52 80 52 80 50 77 C 50 76 49 75 49 74 L 49 74 L 48 74 C 47 75 47 76 47 78 C 47 79 46 79 45 78 L 40 78 L 40 77 C 40 77 39 76 39 77 C 39 77 39 78 39 79 C 39 80 38 80 36 81 C 32 83 27 86 24 88 C 23 89 21 91 20 93 C 16 99 13 101 10 100 Z" fill={fill} />
+          {/* Ball joint holes as white circles */}
+          <circle cx="44" cy="10" r="5" fill="white" />
+          <circle cx="82" cy="12" r="3.5" fill="white" />
         </svg>
       );
 
@@ -97,6 +94,16 @@ function ElementIcon({ type, className }: { type: ElementType; className?: strin
         </svg>
       );
 
+    case 'custom':
+      // Image trace icon: camera/image frame
+      return (
+        <svg {...common} viewBox="0 0 32 32">
+          <rect x="2" y="6" width="28" height="20" rx="2" fill={fill} />
+          <polygon points="6,22 12,14 16,18 22,10 26,22" fill="white" opacity="0.7" />
+          <circle cx="10" cy="12" r="2.5" fill="white" opacity="0.7" />
+        </svg>
+      );
+
     default:
       return <span className="text-2xl">📐</span>;
   }
@@ -108,7 +115,8 @@ const ELEMENTS: Array<{ type: ElementType; label: string; wip?: boolean }> = [
   { type: 'sail', label: 'Sail' },
   { type: 'kama', label: 'Kama/Skirt' },
   { type: 'mantle', label: 'Mantle' },
-  { type: 'wings', label: 'Wing', wip: true },
+  { type: 'wings', label: 'Wing' },
+  { type: 'custom', label: 'Custom (Image)' },
 ];
 
 export default function ElementSelector() {
@@ -119,10 +127,11 @@ export default function ElementSelector() {
     const variants: Record<ElementType, string> = {
       cape: 'standard',
       flag: 'small-flag',
-      wings: 'standard',
+      wings: 'tattered-wing',
       kama: 'wrap-skirt',
       mantle: 'shoulder-armor',
       sail: 'square-sail',
+      custom: 'traced-image',
     };
     const variant = variants[type];
     switchElement(type, variant as any);
@@ -229,7 +238,7 @@ function ElementVariantSelector() {
     ],
 
     wings: [
-      { value: 'standard', label: 'Dragon Wing' },
+      { value: 'tattered-wing', label: 'Tattered Wing' },
       { value: 'custom-wing', label: 'Custom Wing' },
     ],
     kama: [
@@ -244,6 +253,9 @@ function ElementVariantSelector() {
       { value: 'square-sail', label: 'Square Sail' },
       { value: 'triangular-sail', label: 'Triangular Sail' },
       { value: 'polygon-sail', label: 'Polygon Sail' },
+    ],
+    custom: [
+      { value: 'traced-image', label: 'Traced Image' },
     ],
   };
 

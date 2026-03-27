@@ -115,6 +115,16 @@ const defaultParameters = {
   stepped: false,
   steppedCount: 5,
   steppedDepth: 4,
+  serrated: false,
+  thorned: false,
+  torn: false,
+  feathered: false,
+  cloud: false,
+  sawtooth: false,
+  arrow: false,
+  picot: false,
+  hemEdgeCount: 8,
+  hemEdgeDepth: 3,
   armSlits: false,
   armSlitY: 0.35,
   armSlitLength: 6,
@@ -177,6 +187,31 @@ const defaultParameters = {
   sailGrommetBLy: 4,
   sailGrommetBRx: 4,
   sailGrommetBRy: 4,
+  // Wing edge midpoints (JSON arrays of {x,y} in absolute mm)
+  wingEdge0Points: '[]' as string,
+  wingEdge1Points: '[]' as string,
+  wingEdge2Points: '[]' as string,
+  wingEdge3Points: '[]' as string,
+  // Wing edge styles
+  wingEdgeStyle: 'none' as string,
+  wingEdgeDepth: 3,
+  wingEdgeCount: 6,
+  wingTornSeed: 42,
+  // Custom image trace
+  customImageData: '' as string,   // base64 data URL of uploaded image
+  customTraceSvg: '' as string,    // traced SVG path data (combined)
+  customTraceContours: '[]' as string,  // JSON array of individual contour path strings
+  customThreshold: 128,
+  customInvert: false as boolean,
+  customBlur: 1,
+  customSimplify: 1.5,
+  customSmooth: true as boolean,
+  customMinArea: 20,
+  customTraceTargetW: 40,               // stable target width for tracing (mm)
+  customTraceTargetH: 40,               // stable target height for tracing (mm)
+  customDetectedHoles: '[]' as string,  // JSON array of {cx, cy, radius, enabled, rawRadius}
+  customHoleRadius: 2.65,               // override radius for detected holes (mm)
+  customHoleScaleApplied: false as boolean,  // whether scale-to-hole has been applied
   // Color split design
   colorSplitCount: 0 as number,
   colorSplitAngle: 0 as number,
@@ -201,6 +236,7 @@ export const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length:
   'flag:custom-flag': { width: 30, length: 60 },
 
   'wings': { width: 45, length: 25 },
+  'wings:tattered-wing': { width: 173, length: 101 },
   'wings:custom-wing': { width: 45, length: 30 },
   'kama': { width: 47, length: 19 },
   'kama:full-skirt': { width: 47, length: 19 },
@@ -214,6 +250,7 @@ export const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length:
   'mantle:high-collar': { width: 32, length: 18 },
   'sail': { width: 60, length: 60 },
   'sail:polygon-sail': { width: 60, length: 60 },
+  'custom': { width: 40, length: 40 },
 };
 
 function getDimensionDefaults(elementType: string, templateVariant: string) {
@@ -238,6 +275,14 @@ function getVariantOverrides(templateVariant: string): Record<string, number | s
       sailHoleType: 'ball-joint',
       sailGrommetMargin: 2,
       sailSymmetry: false,
+      wingEdge0Points: '[]',
+      wingEdge1Points: '[]',
+      wingEdge2Points: '[]',
+      wingEdge3Points: '[]',
+      wingEdgeStyle: 'none',
+      wingEdgeDepth: 3,
+      wingEdgeCount: 6,
+      wingTornSeed: 42,
     };
   }
   return {};

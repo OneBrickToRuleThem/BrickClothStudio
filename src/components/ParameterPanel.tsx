@@ -3,7 +3,7 @@
  * Controls pattern dimensions, hole settings, and decorations
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditorStore } from '../store/editor';
 import { HOLE_STANDARDS, DEFAULT_HOLE_TYPE, SAIL_HOLE_STANDARDS, LEGO_GRID_SIZE } from '../utils/constants';
 
@@ -55,6 +55,14 @@ export default function ParameterPanel() {
     : parameters.dovetail ? 'dovetail'
     : parameters.flame ? 'flame'
     : parameters.stepped ? 'stepped'
+    : parameters.serrated ? 'serrated'
+    : parameters.thorned ? 'thorned'
+    : parameters.torn ? 'torn'
+    : parameters.feathered ? 'feathered'
+    : parameters.cloud ? 'cloud'
+    : parameters.sawtooth ? 'sawtooth'
+    : parameters.arrow ? 'arrow'
+    : parameters.picot ? 'picot'
     : 'none';
   const activeHem = activeHemValue === 'none' ? 'None'
     : activeHemValue.charAt(0).toUpperCase() + activeHemValue.slice(1);
@@ -72,6 +80,14 @@ export default function ParameterPanel() {
     setParameter('dovetail', false);
     setParameter('flame', false);
     setParameter('stepped', false);
+    setParameter('serrated', false);
+    setParameter('thorned', false);
+    setParameter('torn', false);
+    setParameter('feathered', false);
+    setParameter('cloud', false);
+    setParameter('sawtooth', false);
+    setParameter('arrow', false);
+    setParameter('picot', false);
     switch (style) {
       case 'tattered': setParameter('tattered', true); break;
       case 'scalloped': setParameter('scalloped', true); break;
@@ -84,12 +100,20 @@ export default function ParameterPanel() {
       case 'dovetail': setParameter('dovetail', true); break;
       case 'flame': setParameter('flame', true); break;
       case 'stepped': setParameter('stepped', true); break;
+      case 'serrated': setParameter('serrated', true); break;
+      case 'thorned': setParameter('thorned', true); break;
+      case 'torn': setParameter('torn', true); break;
+      case 'feathered': setParameter('feathered', true); break;
+      case 'cloud': setParameter('cloud', true); break;
+      case 'sawtooth': setParameter('sawtooth', true); break;
+      case 'arrow': setParameter('arrow', true); break;
+      case 'picot': setParameter('picot', true); break;
     }
   }
   const activeCuts = [
     parameters.swordSlit && 'Sword slit',
     parameters.armSlits && 'Arm slits',
-    parameters.starHoles && 'Worn holes',
+    parameters.starHoles && 'Weathering',
   ].filter(Boolean).join(', ') || 'None';
 
   return (
@@ -160,12 +184,16 @@ export default function ParameterPanel() {
           <FlagParameterPanel parameters={parameters} setParameter={setParameter} />
         )}
 
+        {elementType === 'custom' && (
+          <CustomImagePanel parameters={parameters} setParameter={setParameter} />
+        )}
+
         {(elementType === 'sail' || (elementType === 'wings' && templateVariant === 'custom-wing')) && (
           <SailParameterPanel parameters={parameters} setParameter={setParameter} />
         )}
 
         {/* --- Attachment Hole (all non-sail, non-flag, non-custom-wing elements) --- */}
-        {elementType !== 'sail' && elementType !== 'flag' && !(elementType === 'wings' && templateVariant === 'custom-wing') && (
+        {elementType !== 'sail' && elementType !== 'flag' && elementType !== 'custom' && !(elementType === 'wings' && templateVariant === 'custom-wing') && (
         <section className="panel-section border-t pt-4">
           <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('attachment')}>
             <h3 className="panel-section-title">Attachment Hole</h3>
@@ -314,6 +342,14 @@ export default function ParameterPanel() {
             <option value="dovetail">Dovetail</option>
             <option value="flame">Flame</option>
             <option value="stepped">Stepped</option>
+            <option value="serrated">Serrated</option>
+            <option value="thorned">Thorned</option>
+            <option value="torn">Torn</option>
+            <option value="feathered">Feathered</option>
+            <option value="cloud">Cloud</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="arrow">Arrow</option>
+            <option value="picot">Picot</option>
           </select>
 
           {/* Tattered options */}
@@ -476,6 +512,52 @@ export default function ParameterPanel() {
             </div>
           )}
 
+          {/* Serrated / Thorned / Sawtooth / Arrow / Picot — count + depth */}
+          {['serrated', 'thorned', 'sawtooth', 'arrow', 'picot'].includes(activeHemValue) && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Count" name="hemEdgeCount"
+                min={3} max={20} step={1}
+                value={parameters.hemEdgeCount as number || 8}
+                onChange={(v) => setParameter('hemEdgeCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="hemEdgeDepth"
+                min={0.5} max={8} step={0.5}
+                value={parameters.hemEdgeDepth as number || 3}
+                onChange={(v) => setParameter('hemEdgeDepth', v)} />
+            </div>
+          )}
+
+          {/* Feathered / Cloud — count + depth + seed */}
+          {['feathered', 'cloud'].includes(activeHemValue) && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Count" name="hemEdgeCount"
+                min={3} max={20} step={1}
+                value={parameters.hemEdgeCount as number || 8}
+                onChange={(v) => setParameter('hemEdgeCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="hemEdgeDepth"
+                min={0.5} max={8} step={0.5}
+                value={parameters.hemEdgeDepth as number || 3}
+                onChange={(v) => setParameter('hemEdgeDepth', v)} />
+              <ParameterSlider label="Seed" name="seed"
+                min={1} max={99999} step={1}
+                value={parameters.seed as number}
+                onChange={(v) => setParameter('seed', v)} />
+            </div>
+          )}
+
+          {/* Torn — depth + seed */}
+          {activeHemValue === 'torn' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Depth (mm)" name="hemEdgeDepth"
+                min={0.5} max={8} step={0.5}
+                value={parameters.hemEdgeDepth as number || 3}
+                onChange={(v) => setParameter('hemEdgeDepth', v)} />
+              <ParameterSlider label="Seed" name="seed"
+                min={1} max={99999} step={1}
+                value={parameters.seed as number}
+                onChange={(v) => setParameter('seed', v)} />
+            </div>
+          )}
+
           </div>
           )}
         </section>
@@ -503,6 +585,16 @@ export default function ParameterPanel() {
             <option value="serrated">Serrated</option>
             <option value="thorned">Thorned</option>
             <option value="torn">Torn</option>
+            <option value="pointed">Pointed</option>
+            <option value="flame">Flame</option>
+            <option value="stepped">Stepped</option>
+            <option value="dovetail">Dovetail</option>
+            <option value="fishtail">Fishtail</option>
+            <option value="feathered">Feathered</option>
+            <option value="cloud">Cloud</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="arrow">Arrow</option>
+            <option value="picot">Picot</option>
           </select>
 
           {(parameters.sideStyle as string || 'none') !== 'none' && (
@@ -588,12 +680,12 @@ export default function ParameterPanel() {
               )}
             </div>
 
-            {/* Worn holes */}
+            {/* Weathering */}
             <div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={parameters.starHoles as boolean}
                   onChange={(e) => setParameter('starHoles', e.target.checked)} className="w-4 h-4" />
-                <span>Worn holes</span>
+                <span>Weathering</span>
               </label>
               {parameters.starHoles && (
                 <div className="ml-6 mt-1">
@@ -753,7 +845,7 @@ function SailParameterPanel({ parameters, setParameter }: {
   const isSquare = templateVariant === 'square-sail' || isCustomWing;
   const isPolygon = templateVariant === 'polygon-sail';
   const holeType = (parameters.sailHoleType as string) || 'grommet';
-  const edgeStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn'] as const;
+  const edgeStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn', 'pointed', 'flame', 'stepped', 'dovetail', 'fishtail', 'feathered', 'cloud', 'sawtooth', 'arrow', 'picot'] as const;
 
   return (
     <>
@@ -890,8 +982,8 @@ function SailParameterPanel({ parameters, setParameter }: {
       </section>
       )}
 
-      {/* Edge Styles — hidden for custom wing */}
-      {!isCustomWing && (
+      {/* Edge Styles */}
+      {!isCustomWing ? (
       <section className="panel-section border-t pt-4">
         <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('edgeStyles')}>
           <h3 className="panel-section-title">Edge Styles</h3>
@@ -1021,6 +1113,48 @@ function SailParameterPanel({ parameters, setParameter }: {
           </div>
         )}
       </section>
+      ) : (
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('edgeStyles')}>
+          <h3 className="panel-section-title">Edge Style</h3>
+          <span className="text-gray-400 text-xs">{openSections.edgeStyles ? '▾' : '▸'}</span>
+        </button>
+        {openSections.edgeStyles && (
+          <div className="mt-2 space-y-3">
+            <p className="text-xs text-gray-500">Apply a decorative style to all wing edges.</p>
+            <select className="w-full mt-1 text-xs border rounded px-2 py-1"
+              value={(parameters.wingEdgeStyle as string) || 'none'}
+              onChange={(e) => setParameter('wingEdgeStyle', e.target.value)}>
+              {edgeStyles.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+            </select>
+            {(parameters.wingEdgeStyle as string || 'none') !== 'none' && (
+              <div className="space-y-1 pl-1">
+                <ParameterSlider label="Depth (mm)" name="wingEdgeDepth"
+                  min={1} max={12} step={0.5}
+                  value={(parameters.wingEdgeDepth as number) || 3}
+                  onChange={(v) => setParameter('wingEdgeDepth', v)} />
+                <ParameterSlider label="Count" name="wingEdgeCount"
+                  min={3} max={20} step={1}
+                  value={(parameters.wingEdgeCount as number) || 6}
+                  onChange={(v) => setParameter('wingEdgeCount', v)} />
+              </div>
+            )}
+            {['torn', 'flame', 'feathered', 'cloud'].includes((parameters.wingEdgeStyle as string) || 'none') && (
+              <div className="mt-2">
+                <ParameterSlider label="Pattern seed" name="wingTornSeed"
+                  min={1} max={9999} step={1}
+                  value={(parameters.wingTornSeed as number) || 42}
+                  onChange={(v) => setParameter('wingTornSeed', v)} />
+                <button type="button"
+                  className="mt-1.5 text-[10px] px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 w-full"
+                  onClick={() => setParameter('wingTornSeed', Math.floor(Math.random() * 10000))}>
+                  🎲 Random Pattern
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
       )}
 
       {/* Wing Options — shown only for custom wing */}
@@ -1035,7 +1169,33 @@ function SailParameterPanel({ parameters, setParameter }: {
             value={(parameters.sailGrommetMargin as number) ?? 2}
             onChange={(e) => setParameter('sailGrommetMargin', parseFloat(e.target.value))} />
           <p className="text-[10px] text-gray-500">Gap between connection points and wing outline</p>
-          <p className="text-[10px] text-gray-500 mt-2">Drag the 4 nodes in the preview to reshape the wing</p>
+          <p className="text-[10px] text-gray-500 mt-2">Double-click an edge to add a point · right-click a point to remove it</p>
+          <p className="text-[10px] text-gray-500">Drag nodes and edge points in the preview to reshape the wing</p>
+          {(() => {
+            const midCount = [0,1,2,3].reduce((sum, i) => {
+              try { return sum + JSON.parse((parameters[`wingEdge${i}Points`] as string) || '[]').length; } catch { return sum; }
+            }, 0);
+            return midCount > 0 ? (
+              <button type="button"
+                className="mt-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full"
+                onClick={() => {
+                  setParameter('wingEdge0Points', '[]');
+                  setParameter('wingEdge1Points', '[]');
+                  setParameter('wingEdge2Points', '[]');
+                  setParameter('wingEdge3Points', '[]');
+                  setParameter('sailGrommetTLx', 5);
+                  setParameter('sailGrommetTLy', 2);
+                  setParameter('sailGrommetTRx', 3);
+                  setParameter('sailGrommetTRy', 5);
+                  setParameter('sailGrommetBRx', 7);
+                  setParameter('sailGrommetBRy', 5);
+                  setParameter('sailGrommetBLx', 3);
+                  setParameter('sailGrommetBLy', 2);
+                }}>
+                Reset wing shape ({midCount} edge point{midCount !== 1 ? 's' : ''})
+              </button>
+            ) : null;
+          })()}
         </div>
       </section>
       )}
@@ -1196,6 +1356,652 @@ function SailParameterPanel({ parameters, setParameter }: {
 }
 
 /**
+ * Custom image tracing parameter panel.
+ * Works like Inkscape Trace Bitmap: live B/W preview, auto-retrace on parameter change.
+ */
+function CustomImagePanel({ parameters, setParameter }: {
+  parameters: Record<string, number | string | boolean>;
+  setParameter: (key: string, value: number | string | boolean) => void;
+}) {
+  const [isTracing, setIsTracing] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [contourInfo, setContourInfo] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const traceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasImage = !!(parameters.customImageData as string);
+  const hasTrace = !!(parameters.customTraceSvg as string);
+  const thresholdVal = (parameters.customThreshold as number) || 128;
+  const blurVal = (parameters.customBlur as number) || 0;
+  const invertVal = (parameters.customInvert as boolean) || false;
+  const simplifyVal = (parameters.customSimplify as number) ?? 1.5;
+  const smoothVal = parameters.customSmooth !== false;
+  const minAreaVal = (parameters.customMinArea as number) || 20;
+
+  // Auto-generate B/W threshold preview when threshold/blur/invert change
+  useEffect(() => {
+    if (!hasImage) { setPreviewUrl(null); return; }
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = setTimeout(async () => {
+      try {
+        const { generateThresholdPreview } = await import('../services/imageTracer');
+        const url = await generateThresholdPreview(
+          parameters.customImageData as string, thresholdVal, invertVal, blurVal
+        );
+        setPreviewUrl(url);
+      } catch { /* ignore */ }
+    }, 150);
+    return () => { if (previewTimerRef.current) clearTimeout(previewTimerRef.current); };
+  }, [hasImage, parameters.customImageData, thresholdVal, blurVal, invertVal]);
+
+  // Auto-trace when any trace parameter changes (debounced)
+  const runTrace = useCallback(async () => {
+    const imageData = parameters.customImageData as string;
+    if (!imageData) return;
+    setIsTracing(true);
+    setError(null);
+    try {
+      const { traceImage } = await import('../services/imageTracer');
+      const tw = (parameters.customTraceTargetW as number) || 40;
+      const th = (parameters.customTraceTargetH as number) || 40;
+      const result = await traceImage(imageData, {
+        threshold: thresholdVal,
+        invert: invertVal,
+        blur: blurVal,
+        simplify: simplifyVal,
+        smooth: smoothVal,
+        minArea: minAreaVal,
+        targetWidth: tw,
+        targetHeight: th,
+      });
+      setParameter('customTraceSvg', result.svgPath);
+      setParameter('customTraceContours', JSON.stringify(result.contourPaths));
+      // Update display dimensions from bounds (stable — doesn't feed back into targetWidth/Height)
+      if (result.bounds.width > 0 && result.bounds.height > 0) {
+        setParameter('width', Math.ceil(result.bounds.width * 10) / 10);
+        setParameter('length', Math.ceil(result.bounds.height * 10) / 10);
+      }
+      setContourInfo(`${result.contourCount} contour${result.contourCount !== 1 ? 's' : ''} found`);
+      if (result.contourCount === 0) {
+        setError('No contours found. Try adjusting the threshold or lowering the minimum area.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Tracing failed');
+    } finally {
+      setIsTracing(false);
+    }
+  }, [parameters.customImageData, thresholdVal, invertVal, blurVal, simplifyVal, smoothVal, minAreaVal, parameters.customTraceTargetW, parameters.customTraceTargetH]);
+
+  // Re-trace at a different scale (e.g. to match detected hole to real-world size)
+  const retraceAtScale = useCallback(async (scaleFactor: number) => {
+    const imageData = parameters.customImageData as string;
+    if (!imageData || Math.abs(scaleFactor - 1) < 0.01) return;
+    setIsTracing(true);
+    setError(null);
+    try {
+      const { traceImage } = await import('../services/imageTracer');
+      const tw = (parameters.customTraceTargetW as number) || 40;
+      const th = (parameters.customTraceTargetH as number) || 40;
+      const newTW = tw * scaleFactor;
+      const newTH = th * scaleFactor;
+      // Update stable target dimensions so future regenerations stay at this scale
+      setParameter('customTraceTargetW', Math.round(newTW * 10) / 10);
+      setParameter('customTraceTargetH', Math.round(newTH * 10) / 10);
+      const result = await traceImage(imageData, {
+        threshold: thresholdVal,
+        invert: invertVal,
+        blur: blurVal,
+        simplify: simplifyVal,
+        smooth: smoothVal,
+        minArea: minAreaVal,
+        targetWidth: newTW,
+        targetHeight: newTH,
+      });
+      setParameter('customTraceSvg', result.svgPath);
+      setParameter('customTraceContours', JSON.stringify(result.contourPaths));
+      if (result.bounds.width > 0 && result.bounds.height > 0) {
+        setParameter('width', Math.ceil(result.bounds.width * 10) / 10);
+        setParameter('length', Math.ceil(result.bounds.height * 10) / 10);
+      }
+      setContourInfo(`${result.contourCount} contour${result.contourCount !== 1 ? 's' : ''} found`);
+    } catch (err: any) {
+      setError(err.message || 'Tracing failed');
+    } finally {
+      setIsTracing(false);
+    }
+  }, [parameters.customImageData, thresholdVal, invertVal, blurVal, simplifyVal, smoothVal, minAreaVal, parameters.customTraceTargetW, parameters.customTraceTargetH, setParameter]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (PNG, JPG, BMP, etc.)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image too large. Maximum size is 10MB.');
+      return;
+    }
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setParameter('customImageData', dataUrl);
+      setParameter('customTraceSvg', '');
+      // Auto-set dimensions from image aspect ratio
+      try {
+        const { getImageDimensions } = await import('../services/imageTracer');
+        const dims = await getImageDimensions(dataUrl);
+        const aspect = dims.width / dims.height;
+        const targetSize = 40; // base size in mm
+        let tw: number, th: number;
+        if (aspect >= 1) {
+          tw = targetSize;
+          th = Math.round(targetSize / aspect);
+        } else {
+          th = targetSize;
+          tw = Math.round(targetSize * aspect);
+        }
+        setParameter('width', tw);
+        setParameter('length', th);
+        // Lock stable trace targets so regeneration doesn't shrink
+        setParameter('customTraceTargetW', tw);
+        setParameter('customTraceTargetH', th);
+      } catch { /* keep current dims */ }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  return (
+    <section className="panel-section border-t pt-4">
+      <h3 className="panel-section-title">Trace Bitmap</h3>
+      <div className="mt-2 space-y-3">
+        {/* Upload button */}
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full px-3 py-2 rounded bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+          >
+            {hasImage ? 'Replace Image' : 'Upload Image'}
+          </button>
+        </div>
+
+        {/* Side-by-side: original + threshold preview */}
+        {hasImage && (
+          <div className="relative">
+            <div className="grid grid-cols-2 gap-1 rounded border border-gray-200 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-gray-800">
+              <div className="relative" style={{ height: 80 }}>
+                <img src={parameters.customImageData as string} alt="Source" className="w-full h-full object-contain" />
+                <span className="absolute bottom-0 left-0 text-[9px] bg-black/50 text-white px-1">Original</span>
+              </div>
+              <div className="relative" style={{ height: 80 }}>
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Threshold" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">...</div>
+                )}
+                <span className="absolute bottom-0 left-0 text-[9px] bg-black/50 text-white px-1">Threshold</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setParameter('customImageData', ''); setParameter('customTraceSvg', ''); setPreviewUrl(null); }}
+              className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600 z-10"
+              title="Remove image"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {error && <p className="text-xs text-red-500">{error}</p>}
+
+        {hasImage && (
+          <>
+            <div className="space-y-2">
+              <label className="param-label">Brightness Threshold
+                <span className="text-gray-400 ml-1 font-normal">{thresholdVal}</span>
+              </label>
+              <input type="range" min={1} max={254} step={1}
+                value={thresholdVal}
+                onChange={e => setParameter('customThreshold', Number(e.target.value))}
+                className="param-slider" />
+
+              <label className="param-label">Pre-blur
+                <span className="text-gray-400 ml-1 font-normal">{blurVal}px</span>
+              </label>
+              <input type="range" min={0} max={10} step={1}
+                value={blurVal}
+                onChange={e => setParameter('customBlur', Number(e.target.value))}
+                className="param-slider" />
+
+              <label className="param-label">Path Simplification
+                <span className="text-gray-400 ml-1 font-normal">{simplifyVal}</span>
+              </label>
+              <input type="range" min={0} max={10} step={0.5}
+                value={simplifyVal}
+                onChange={e => setParameter('customSimplify', Number(e.target.value))}
+                className="param-slider" />
+
+              <label className="param-label">Min Contour Area
+                <span className="text-gray-400 ml-1 font-normal">{minAreaVal}px²</span>
+              </label>
+              <input type="range" min={1} max={500} step={1}
+                value={minAreaVal}
+                onChange={e => setParameter('customMinArea', Number(e.target.value))}
+                className="param-slider" />
+
+              <div className="flex items-center gap-4 text-sm">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={invertVal}
+                    onChange={e => setParameter('customInvert', e.target.checked)}
+                    className="rounded" />
+                  <span className="text-gray-700 dark:text-gray-300">Invert</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={smoothVal}
+                    onChange={e => setParameter('customSmooth', e.target.checked)}
+                    className="rounded" />
+                  <span className="text-gray-700 dark:text-gray-300">Smooth curves</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Status line */}
+            {contourInfo && !isTracing && hasTrace && (
+              <p className="text-xs text-green-600 dark:text-green-400">{contourInfo}</p>
+            )}
+
+            {/* Generate SVG — the single action to trace and push to the preview */}
+            <button
+              type="button"
+              onClick={runTrace}
+              disabled={isTracing}
+              className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold tracking-wide transition-colors shadow-sm ${
+                isTracing
+                  ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-wait'
+                  : hasTrace
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600'
+                    : 'bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-400 dark:hover:bg-emerald-500 dark:text-gray-900'
+              }`}
+            >
+              {isTracing ? 'Generating...' : hasTrace ? '⟳ Regenerate SVG' : '▶ Generate SVG'}
+            </button>
+
+            {/* Symmetry mirror buttons */}
+            {hasTrace && (
+              <div className="space-y-1">
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">Symmetry</p>
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const { mirrorContours } = await import('../services/imageTracer');
+                      let contours: string[] = [];
+                      try { contours = JSON.parse((parameters.customTraceContours as string) || '[]'); } catch { return; }
+                      if (contours.length === 0) return;
+                      const w = (parameters.width as number) || 40;
+                      const mirrored = mirrorContours(contours, w, 'ltr');
+                      setParameter('customTraceContours', JSON.stringify(mirrored));
+                      setParameter('customTraceSvg', mirrored.join(' '));
+                    }}
+                    className="px-2 py-1.5 rounded text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/40 transition-colors"
+                  >
+                    ← Mirror L → R
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const { mirrorContours } = await import('../services/imageTracer');
+                      let contours: string[] = [];
+                      try { contours = JSON.parse((parameters.customTraceContours as string) || '[]'); } catch { return; }
+                      if (contours.length === 0) return;
+                      const w = (parameters.width as number) || 40;
+                      const mirrored = mirrorContours(contours, w, 'rtl');
+                      setParameter('customTraceContours', JSON.stringify(mirrored));
+                      setParameter('customTraceSvg', mirrored.join(' '));
+                    }}
+                    className="px-2 py-1.5 rounded text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/40 transition-colors"
+                  >
+                    Mirror R → L →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Traced contours — allow removing individual contours (e.g. traced holes) */}
+            {hasTrace && (() => {
+              let contours: string[] = [];
+              try { contours = JSON.parse((parameters.customTraceContours as string) || '[]'); } catch { /* */ }
+              if (contours.length <= 1) return null;
+              // Find the largest contour (by path length) — that's the outline
+              let largestIdx = 0;
+              let largestLen = 0;
+              contours.forEach((path, i) => {
+                if (path.length > largestLen) { largestLen = path.length; largestIdx = i; }
+              });
+              const contourInfo2 = contours.map((path, i) => {
+                const cmdCount = (path.match(/[MCLZ]/gi) || []).length;
+                return { path, index: i, cmdCount, isOutline: i === largestIdx };
+              });
+              return (
+                <div className="border border-gray-200 dark:border-gray-600 rounded p-2 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
+                    Traced Contours ({contours.length})
+                  </p>
+                  <div className="space-y-0.5 max-h-28 overflow-y-auto">
+                    {contourInfo2.map((c) => (
+                      <div key={c.index} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {c.isOutline ? '🔲 Outline' : `⭕ Contour ${c.index + 1}`}
+                          <span className="text-gray-400 ml-1">({c.cmdCount} pts)</span>
+                        </span>
+                        {!c.isOutline && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = contours.filter((_, idx) => idx !== c.index);
+                              setParameter('customTraceContours', JSON.stringify(updated));
+                              setParameter('customTraceSvg', updated.join(' '));
+                            }}
+                            className="px-1.5 py-0.5 rounded text-[10px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            title="Remove this contour from the trace"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </>
+        )}
+
+        {/* Attachment Hole Detection — only show after trace is complete */}
+        {hasImage && hasTrace && (
+          <HoleDetectionSection
+            parameters={parameters}
+            setParameter={setParameter}
+            isDetecting={isDetecting}
+            setIsDetecting={setIsDetecting}
+            retraceAtScale={retraceAtScale}
+          />
+        )}
+
+        {!hasImage && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Upload a PNG, JPG, or BMP image. The outline will be automatically traced
+            into a cuttable vector shape, updating live as you adjust parameters.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function HoleDetectionSection({ parameters, setParameter, isDetecting, setIsDetecting, retraceAtScale }: {
+  parameters: Record<string, number | string | boolean>;
+  setParameter: (key: string, value: number | string | boolean) => void;
+  isDetecting: boolean;
+  setIsDetecting: (v: boolean) => void;
+  retraceAtScale: (scaleFactor: number) => Promise<void>;
+}) {
+  const [isScaling, setIsScaling] = useState(false);
+  const detectedHoles: Array<{ cx: number; cy: number; radius: number; enabled: boolean; circularity?: number; rawRadius?: number }> =
+    (() => { try { return JSON.parse((parameters.customDetectedHoles as string) || '[]'); } catch { return []; } })();
+
+  const hasHoles = detectedHoles.length > 0;
+  const enabledCount = detectedHoles.filter(h => h.enabled).length;
+
+  // Best hole for scale reference (most circular enabled, or most circular overall)
+  const referenceHole = detectedHoles.find(h => h.enabled) || detectedHoles[0];
+  const rawDiameter = referenceHole ? (referenceHole.rawRadius || referenceHole.radius) * 2 : 0;
+
+  // Check if the detected hole is close to a known standard
+  const isNearMinifigure = rawDiameter > 0 && Math.abs(rawDiameter - 5.3) < 1.5;
+  const isNearMinidoll = rawDiameter > 0 && Math.abs(rawDiameter - 4.8) < 1.5;
+  const hasScaled = !!(parameters.customHoleScaleApplied as boolean);
+
+  const runDetection = async () => {
+    setIsDetecting(true);
+    try {
+      const { detectHoles } = await import('../services/imageTracer');
+      const found = await detectHoles(
+        parameters.customImageData as string,
+        (parameters.customThreshold as number) || 128,
+        (parameters.customInvert as boolean) || false,
+        (parameters.customBlur as number) || 0,
+        (parameters.customTraceTargetW as number) || 40,
+        (parameters.customTraceTargetH as number) || 40,
+      );
+
+      // Store raw detected holes — no auto-scaling
+      const holesWithMeta = found.map(h => ({
+        cx: h.cx,
+        cy: h.cy,
+        radius: h.radius,
+        rawRadius: h.radius,
+        circularity: h.circularity,
+        enabled: true,
+      }));
+      setParameter('customDetectedHoles', JSON.stringify(holesWithMeta));
+      setParameter('customHoleScaleApplied', false);
+      if (found.length > 0) {
+        setParameter('customHoleRadius', Math.round(found[0].radius * 100) / 100);
+      }
+    } catch { /* ignore */ }
+    setIsDetecting(false);
+  };
+
+  const applyScale = async (targetDiameter: number) => {
+    if (!referenceHole || isScaling) return;
+    setIsScaling(true);
+    const detectedDiameter = (referenceHole.rawRadius || referenceHole.radius) * 2;
+    const scaleFactor = targetDiameter / detectedDiameter;
+    const targetRadius = targetDiameter / 2;
+
+    // Scale hole positions + radii
+    const scaled = detectedHoles.map(h => ({
+      ...h,
+      cx: Math.round(h.cx * scaleFactor * 100) / 100,
+      cy: Math.round(h.cy * scaleFactor * 100) / 100,
+      radius: Math.round(h.radius * scaleFactor * 100) / 100,
+    }));
+    setParameter('customDetectedHoles', JSON.stringify(scaled));
+    setParameter('customHoleRadius', targetRadius);
+    setParameter('customHoleScaleApplied', true);
+
+    // Re-trace the entire image at the new scale
+    if (Math.abs(scaleFactor - 1) >= 0.01) {
+      await retraceAtScale(scaleFactor);
+    }
+    setIsScaling(false);
+  };
+
+  const toggleHole = (idx: number) => {
+    const updated = [...detectedHoles];
+    updated[idx] = { ...updated[idx], enabled: !updated[idx].enabled };
+    setParameter('customDetectedHoles', JSON.stringify(updated));
+  };
+
+  const clearHoles = () => {
+    setParameter('customDetectedHoles', '[]');
+    setParameter('customHoleScaleApplied', false);
+  };
+
+  return (
+    <div className="border-t border-gray-200 dark:border-gray-600 pt-3 space-y-2">
+      <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Attachment Holes</h4>
+
+      <button
+        type="button"
+        onClick={runDetection}
+        disabled={isDetecting}
+        className={`w-full px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+          isDetecting
+            ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-wait'
+            : 'bg-indigo-500 text-white hover:bg-indigo-600'
+        }`}
+      >
+        {isDetecting ? 'Detecting...' : hasHoles ? 'Re-detect Holes' : 'Find Attachment Holes'}
+      </button>
+
+      {hasHoles && (
+        <>
+          {/* Detected hole info */}
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-2 space-y-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Found {detectedHoles.length} hole{detectedHoles.length !== 1 ? 's' : ''} · {enabledCount} enabled
+            </p>
+            {referenceHole && (
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                Detected hole diameter: <span className="text-blue-600 dark:text-blue-400">{rawDiameter.toFixed(2)}mm</span>
+                {isNearMinifigure && <span className="ml-1 text-green-600 dark:text-green-400">(≈ Minifigure 5.3mm)</span>}
+                {isNearMinidoll && !isNearMinifigure && <span className="ml-1 text-green-600 dark:text-green-400">(≈ Minidoll 4.8mm)</span>}
+              </p>
+            )}
+          </div>
+
+          {/* Scale to standard buttons */}
+          {!hasScaled && referenceHole && (
+            <div className="space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">Scale Cape to Hole Size</p>
+              <div className="grid grid-cols-2 gap-1">
+                {isNearMinifigure && (
+                  <button
+                    type="button"
+                    onClick={() => applyScale(5.3)}
+                    disabled={isScaling}
+                    className="px-2 py-1.5 rounded text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-50"
+                  >
+                    {isScaling ? 'Scaling...' : 'Minifigure (5.3mm)'}
+                  </button>
+                )}
+                {isNearMinidoll && (
+                  <button
+                    type="button"
+                    onClick={() => applyScale(4.8)}
+                    disabled={isScaling}
+                    className="px-2 py-1.5 rounded text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-50"
+                  >
+                    {isScaling ? 'Scaling...' : 'Minidoll (4.8mm)'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = prompt('Enter target hole diameter in mm:', '5.3');
+                    if (input) { const d = parseFloat(input); if (d > 0 && d <= 20) applyScale(d); }
+                  }}
+                  disabled={isScaling}
+                  className="px-2 py-1.5 rounded text-xs font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors disabled:opacity-50"
+                >
+                  Custom size...
+                </button>
+              </div>
+            </div>
+          )}
+
+          {hasScaled && (
+            <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+              ✓ Cape scaled — hole set to {((parameters.customHoleRadius as number) * 2).toFixed(1)}mm diameter
+            </p>
+          )}
+
+          {/* Hole list with checkboxes */}
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {detectedHoles.map((hole, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs">
+                <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hole.enabled}
+                    onChange={() => toggleHole(i)}
+                    className="rounded"
+                  />
+                  <span className="text-gray-700 dark:text-gray-300">
+                    Hole {i + 1}: ({hole.cx.toFixed(1)}, {hole.cy.toFixed(1)}) ⌀{(hole.radius * 2).toFixed(1)}mm
+                    {hole.circularity !== undefined && (
+                      <span className="text-gray-400 ml-1">({Math.round(hole.circularity * 100)}%)</span>
+                    )}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const remaining = detectedHoles.filter((_, idx) => idx !== i);
+                    setParameter('customDetectedHoles', JSON.stringify(remaining));
+                  }}
+                  className="w-4 h-4 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  title={`Remove hole ${i + 1}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Manual hole radius override */}
+          {enabledCount > 0 && (
+            <div className="space-y-1">
+              <label className="param-label">Hole Radius
+                <span className="text-gray-400 ml-1 font-normal">{((parameters.customHoleRadius as number) || 2.65).toFixed(2)}mm</span>
+              </label>
+              <input type="range" min={0.5} max={5} step={0.05}
+                value={(parameters.customHoleRadius as number) || 2.65}
+                onChange={e => setParameter('customHoleRadius', Number(e.target.value))}
+                className="param-slider" />
+            </div>
+          )}
+
+          <div className="flex gap-1">
+            {enabledCount > 0 && enabledCount < detectedHoles.length && (
+              <button
+                type="button"
+                onClick={() => {
+                  const remaining = detectedHoles.filter(h => !h.enabled);
+                  setParameter('customDetectedHoles', JSON.stringify(remaining));
+                }}
+                className="flex-1 px-2 py-1 rounded text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                Remove selected ({enabledCount})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clearHoles}
+              className="flex-1 px-2 py-1 rounded text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              Clear all holes
+            </button>
+          </div>
+        </>
+      )}
+
+      {!hasHoles && !isDetecting && (
+        <p className="text-xs text-gray-400">
+          Searches the traced image for circular openings that could be minifigure attachment holes.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * Flag-specific parameter panel.
  * Flags use the banner template — different dimensions, no cape options.
  */
@@ -1218,7 +2024,7 @@ function FlagParameterPanel({ parameters, setParameter }: {
   const bottomStyle = (parameters.flagBottomStyle as string) || 'none';
   const leftStyle = (parameters.flagLeftStyle as string) || 'none';
   const rightStyle = (parameters.flagRightStyle as string) || 'none';
-  const sideStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated'] as const;
+  const sideStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn', 'pointed', 'flame', 'stepped', 'dovetail', 'fishtail', 'feathered', 'cloud', 'sawtooth', 'arrow', 'picot'] as const;
 
   return (
     <>

@@ -32,8 +32,11 @@ export default function PreviewCanvas() {
   const [showFill, setShowFill] = useState(false);
   const [fillColor, setFillColor] = useState('#d4e6f1');
   const [centered, setCentered] = useState(false);
+  const prevShiftRef = useRef<{ x: number; y: number } | null>(null);
   const [draggingGrommet, setDraggingGrommet] = useState<string | null>(null);
   const [showDevMode, setShowDevMode] = useState(false);
+  const [showDisplayMenu, setShowDisplayMenu] = useState(false);
+  const displayMenuRef = useRef<HTMLDivElement>(null);
   const [devHoveredPoint, setDevHoveredPoint] = useState<number | null>(null);
   const [devSelectedPoint, setDevSelectedPoint] = useState<number | null>(null);
   const [devDraggingPoint, setDevDraggingPoint] = useState<number | null>(null);
@@ -60,10 +63,11 @@ export default function PreviewCanvas() {
   }, [pattern]);
 
   // ---------------------------------------------------------------------------
-  // Dev mode: parse outline SVG path into displayable control points
+  // Dev mode: parse all SVG cut paths into displayable control points
   // ---------------------------------------------------------------------------
   interface DevPoint {
-    index: number;        // sequential index
+    index: number;        // sequential index (global across all paths)
+    pathIndex: number;    // which cut path this belongs to (0 = outline)
     x: number;
     y: number;
     type: 'M' | 'L' | 'C_cp1' | 'C_cp2' | 'C_end' | 'Q_cp' | 'Q_end' | 'A_end';
@@ -74,60 +78,63 @@ export default function PreviewCanvas() {
 
   const devPoints = useMemo((): DevPoint[] => {
     if (!showDevMode || !pattern || pattern.cutPaths.length === 0) return [];
-    const pathData = pattern.cutPaths[0]; // outline
     const points: DevPoint[] = [];
-    const cmds = pathData.match(/[MLCQAZHVSTZ]|-?\d+\.?\d*/gi) || [];
-    let ci = 0;
-    let cmd = '';
-    let cmdIdx = 0;
     let ptIdx = 0;
+    let cmdIdx = 0;
 
-    while (ci < cmds.length) {
-      const token = cmds[ci];
-      if (/^[A-Za-z]$/.test(token)) {
-        cmd = token.toUpperCase();
-        ci++;
-        if (cmd === 'Z') { cmdIdx++; continue; }
-      } else {
-        switch (cmd) {
-          case 'M': {
-            const x = parseFloat(cmds[ci]), y = parseFloat(cmds[ci + 1]);
-            if (!isNaN(x) && !isNaN(y)) points.push({ index: ptIdx++, x, y, type: 'M', cmdIndex: cmdIdx, cmdType: 'M' });
-            ci += 2; cmdIdx++; break;
+    for (let pi = 0; pi < pattern.cutPaths.length; pi++) {
+      const pathData = pattern.cutPaths[pi];
+      const cmds = pathData.match(/[MLCQAZHVSTZ]|-?\d+\.?\d*/gi) || [];
+      let ci = 0;
+      let cmd = '';
+
+      while (ci < cmds.length) {
+        const token = cmds[ci];
+        if (/^[A-Za-z]$/.test(token)) {
+          cmd = token.toUpperCase();
+          ci++;
+          if (cmd === 'Z') { cmdIdx++; continue; }
+        } else {
+          switch (cmd) {
+            case 'M': {
+              const x = parseFloat(cmds[ci]), y = parseFloat(cmds[ci + 1]);
+              if (!isNaN(x) && !isNaN(y)) points.push({ index: ptIdx++, pathIndex: pi, x, y, type: 'M', cmdIndex: cmdIdx, cmdType: 'M' });
+              ci += 2; cmdIdx++; break;
+            }
+            case 'L': {
+              const x = parseFloat(cmds[ci]), y = parseFloat(cmds[ci + 1]);
+              if (!isNaN(x) && !isNaN(y)) points.push({ index: ptIdx++, pathIndex: pi, x, y, type: 'L', cmdIndex: cmdIdx, cmdType: 'L' });
+              ci += 2; cmdIdx++; break;
+            }
+            case 'C': {
+              const cp1x = parseFloat(cmds[ci]), cp1y = parseFloat(cmds[ci + 1]);
+              const cp2x = parseFloat(cmds[ci + 2]), cp2y = parseFloat(cmds[ci + 3]);
+              const ex = parseFloat(cmds[ci + 4]), ey = parseFloat(cmds[ci + 5]);
+              points.push({ index: ptIdx++, pathIndex: pi, x: cp1x, y: cp1y, type: 'C_cp1', cmdIndex: cmdIdx, cmdType: 'C' });
+              points.push({ index: ptIdx++, pathIndex: pi, x: cp2x, y: cp2y, type: 'C_cp2', cmdIndex: cmdIdx, cmdType: 'C' });
+              points.push({ index: ptIdx++, pathIndex: pi, x: ex, y: ey, type: 'C_end', cmdIndex: cmdIdx, cmdType: 'C' });
+              ci += 6; cmdIdx++; break;
+            }
+            case 'Q': {
+              const cpx = parseFloat(cmds[ci]), cpy = parseFloat(cmds[ci + 1]);
+              const ex = parseFloat(cmds[ci + 2]), ey = parseFloat(cmds[ci + 3]);
+              points.push({ index: ptIdx++, pathIndex: pi, x: cpx, y: cpy, type: 'Q_cp', cmdIndex: cmdIdx, cmdType: 'Q' });
+              points.push({ index: ptIdx++, pathIndex: pi, x: ex, y: ey, type: 'Q_end', cmdIndex: cmdIdx, cmdType: 'Q' });
+              ci += 4; cmdIdx++; break;
+            }
+            case 'A': {
+              const rx = parseFloat(cmds[ci]), ry = parseFloat(cmds[ci + 1]);
+              const rot = parseFloat(cmds[ci + 2]), large = parseFloat(cmds[ci + 3]), sweep = parseFloat(cmds[ci + 4]);
+              const ex = parseFloat(cmds[ci + 5]), ey = parseFloat(cmds[ci + 6]);
+              if (!isNaN(ex) && !isNaN(ey)) points.push({
+                index: ptIdx++, pathIndex: pi, x: ex, y: ey, type: 'A_end', cmdIndex: cmdIdx, cmdType: 'A',
+                arcParams: { rx, ry, rot, large, sweep },
+              });
+              ci += 7; cmdIdx++; break;
+            }
+            default:
+              ci++; break;
           }
-          case 'L': {
-            const x = parseFloat(cmds[ci]), y = parseFloat(cmds[ci + 1]);
-            if (!isNaN(x) && !isNaN(y)) points.push({ index: ptIdx++, x, y, type: 'L', cmdIndex: cmdIdx, cmdType: 'L' });
-            ci += 2; cmdIdx++; break;
-          }
-          case 'C': {
-            const cp1x = parseFloat(cmds[ci]), cp1y = parseFloat(cmds[ci + 1]);
-            const cp2x = parseFloat(cmds[ci + 2]), cp2y = parseFloat(cmds[ci + 3]);
-            const ex = parseFloat(cmds[ci + 4]), ey = parseFloat(cmds[ci + 5]);
-            points.push({ index: ptIdx++, x: cp1x, y: cp1y, type: 'C_cp1', cmdIndex: cmdIdx, cmdType: 'C' });
-            points.push({ index: ptIdx++, x: cp2x, y: cp2y, type: 'C_cp2', cmdIndex: cmdIdx, cmdType: 'C' });
-            points.push({ index: ptIdx++, x: ex, y: ey, type: 'C_end', cmdIndex: cmdIdx, cmdType: 'C' });
-            ci += 6; cmdIdx++; break;
-          }
-          case 'Q': {
-            const cpx = parseFloat(cmds[ci]), cpy = parseFloat(cmds[ci + 1]);
-            const ex = parseFloat(cmds[ci + 2]), ey = parseFloat(cmds[ci + 3]);
-            points.push({ index: ptIdx++, x: cpx, y: cpy, type: 'Q_cp', cmdIndex: cmdIdx, cmdType: 'Q' });
-            points.push({ index: ptIdx++, x: ex, y: ey, type: 'Q_end', cmdIndex: cmdIdx, cmdType: 'Q' });
-            ci += 4; cmdIdx++; break;
-          }
-          case 'A': {
-            const rx = parseFloat(cmds[ci]), ry = parseFloat(cmds[ci + 1]);
-            const rot = parseFloat(cmds[ci + 2]), large = parseFloat(cmds[ci + 3]), sweep = parseFloat(cmds[ci + 4]);
-            const ex = parseFloat(cmds[ci + 5]), ey = parseFloat(cmds[ci + 6]);
-            if (!isNaN(ex) && !isNaN(ey)) points.push({
-              index: ptIdx++, x: ex, y: ey, type: 'A_end', cmdIndex: cmdIdx, cmdType: 'A',
-              arcParams: { rx, ry, rot, large, sweep },
-            });
-            ci += 7; cmdIdx++; break;
-          }
-          default:
-            ci++; break;
         }
       }
     }
@@ -231,17 +238,29 @@ export default function PreviewCanvas() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedDecorationId, removeDecoration]);
 
+  // Close display menu when clicking outside
+  useEffect(() => {
+    if (!showDisplayMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (displayMenuRef.current && !displayMenuRef.current.contains(e.target as Node)) {
+        setShowDisplayMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showDisplayMenu]);
+
   // Center the pattern in the canvas on first render and when element type changes
   const prevElementRef = useRef<string>('');
   useEffect(() => {
     if (!pattern || !canvasRef.current) return;
-    // Only re-center when element type or variant changes, not on every parameter tweak
     const elementKey = `${elementType}:${templateVariant}`;
+    // Only re-center when the element type/variant changes, not on dimension changes
     if (prevElementRef.current === elementKey && centered) return;
     prevElementRef.current = elementKey;
 
-    const rect = canvasRef.current.getBoundingClientRect();
     const bb = pattern.boundingBox;
+    const rect = canvasRef.current.getBoundingClientRect();
     const patternW = (bb.x + bb.width + 20) * CSS_MM_TO_PX;
     const patternH = (bb.y + bb.height + 20) * CSS_MM_TO_PX;
     const initScale = Math.min(
@@ -336,6 +355,24 @@ export default function PreviewCanvas() {
         y: h - ((parameters.sailGrommetBRy as number) || 4),
         paramX: 'sailGrommetBRx', paramY: 'sailGrommetBRy',
       });
+
+      // Add edge midpoint handles for custom wing
+      if (isCustomWing) {
+        for (let edgeIdx = 0; edgeIdx < 4; edgeIdx++) {
+          let pts: Array<{ x: number; y: number }> = [];
+          try { pts = JSON.parse((parameters[`wingEdge${edgeIdx}Points`] as string) || '[]'); } catch { pts = []; }
+          for (let m = 0; m < pts.length; m++) {
+            grommets.push({
+              id: `E${edgeIdx}M${m}`,
+              label: '',
+              corner: `Edge ${edgeIdx + 1} pt ${m + 1}`,
+              x: pts[m].x,
+              y: pts[m].y,
+              paramX: '', paramY: '', // handled via JSON
+            });
+          }
+        }
+      }
     }
     return grommets;
   }, [hasGrommets, isSquareSail, isPolygonSail, isCustomWing, pattern, parameters]);
@@ -458,6 +495,18 @@ export default function PreviewCanvas() {
             setParameter('sailPolygonGrommetPositions', JSON.stringify(positions));
           }
         }
+        // Wing edge midpoint: E0M0, E1M2, etc.
+        else if (/^E\d+M\d+$/.test(draggingGrommet)) {
+          const edgeIdx = parseInt(draggingGrommet.charAt(1), 10);
+          const midIdx = parseInt(draggingGrommet.slice(3), 10);
+          const key = `wingEdge${edgeIdx}Points`;
+          let pts: Array<{ x: number; y: number }> = [];
+          try { pts = JSON.parse((parameters[key] as string) || '[]'); } catch { pts = []; }
+          if (midIdx >= 0 && midIdx < pts.length) {
+            pts[midIdx] = { x: cx, y: cy };
+            setParameter(key, JSON.stringify(pts));
+          }
+        }
         break;
       }
     }
@@ -469,6 +518,68 @@ export default function PreviewCanvas() {
       setDraggingGrommet(null);
     }
   }, [draggingGrommet]);
+
+  /** Double-click on canvas: add a midpoint on the nearest wing edge */
+  const handleCanvasDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (!isCustomWing || !pattern) return;
+    const mm = screenToMM(e.clientX, e.clientY);
+    const w = (parameters.width as number) || 60;
+    const h = (parameters.length as number) || 60;
+    // Only act if click is within the bounding box
+    if (mm.x < 0 || mm.y < 0 || mm.x > w || mm.y > h) return;
+
+    // Get current corner positions (same logic as sailGrommets)
+    const corners = [
+      { x: (parameters.sailGrommetTLx as number) || 4, y: (parameters.sailGrommetTLy as number) || 4 },
+      { x: w - ((parameters.sailGrommetTRx as number) || 4), y: (parameters.sailGrommetTRy as number) || 4 },
+      { x: w - ((parameters.sailGrommetBRx as number) || 4), y: h - ((parameters.sailGrommetBRy as number) || 4) },
+      { x: (parameters.sailGrommetBLx as number) || 4, y: h - ((parameters.sailGrommetBLy as number) || 4) },
+    ];
+
+    // Build full polygon for each edge (corner -> midpoints -> next corner)
+    const edgeArrays: Array<Array<{ x: number; y: number }>> = [];
+    for (let i = 0; i < 4; i++) {
+      let pts: Array<{ x: number; y: number }> = [];
+      try { pts = JSON.parse((parameters[`wingEdge${i}Points`] as string) || '[]'); } catch { pts = []; }
+      edgeArrays.push(pts);
+    }
+
+    // Find closest edge segment
+    let bestDist = Infinity;
+    let bestEdge = -1;
+    let bestInsertIdx = 0; // index within the edge midpoint array to insert at
+
+    for (let edgeIdx = 0; edgeIdx < 4; edgeIdx++) {
+      const start = corners[edgeIdx];
+      const end = corners[(edgeIdx + 1) % 4];
+      // Full sequence: [start, ...midpoints, end]
+      const seq = [start, ...edgeArrays[edgeIdx], end];
+      for (let s = 0; s < seq.length - 1; s++) {
+        const a = seq[s], b = seq[s + 1];
+        // Project mm onto segment a→b
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const len2 = dx * dx + dy * dy;
+        if (len2 < 0.001) continue;
+        const t = Math.max(0, Math.min(1, ((mm.x - a.x) * dx + (mm.y - a.y) * dy) / len2));
+        const px = a.x + t * dx, py = a.y + t * dy;
+        const dist = Math.sqrt((mm.x - px) * (mm.x - px) + (mm.y - py) * (mm.y - py));
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestEdge = edgeIdx;
+          bestInsertIdx = s; // Insert after element s in midpoint array (s=0 means before first midpoint)
+        }
+      }
+    }
+
+    // Only add if within 8mm of an edge
+    if (bestDist > 8 || bestEdge < 0) return;
+
+    const key = `wingEdge${bestEdge}Points`;
+    let pts: Array<{ x: number; y: number }> = [];
+    try { pts = JSON.parse((parameters[key] as string) || '[]'); } catch { pts = []; }
+    pts.splice(bestInsertIdx, 0, { x: Math.round(mm.x * 2) / 2, y: Math.round(mm.y * 2) / 2 });
+    setParameter(key, JSON.stringify(pts));
+  }, [isCustomWing, pattern, parameters, screenToMM, setParameter]);
 
   // Dev mode point dragging handlers
   const handleDevPointerDown = useCallback((e: React.PointerEvent, ptIndex: number) => {
@@ -561,6 +672,22 @@ export default function PreviewCanvas() {
   const originOffsetMM = 10 + shiftX; // 10mm SVG padding + any negative-BB shift
   const originOffsetMMY = 10 + shiftY;
 
+  // Compensate panOffset when shiftX/shiftY change (e.g. hemWidth alters bb.x)
+  // so the pattern doesn't visually jump on the screen.
+  useEffect(() => {
+    if (prevShiftRef.current !== null) {
+      const dx = shiftX - prevShiftRef.current.x;
+      const dy = shiftY - prevShiftRef.current.y;
+      if (dx !== 0 || dy !== 0) {
+        setPanOffset(prev => ({
+          x: prev.x - dx * CSS_MM_TO_PX * scale,
+          y: prev.y - dy * CSS_MM_TO_PX * scale,
+        }));
+      }
+    }
+    prevShiftRef.current = { x: shiftX, y: shiftY };
+  }, [shiftX, shiftY, scale]);
+
   // LEGO grid as a CSS background on the outer canvas.
   // 1mm in the SVG = CSS_MM_TO_PX screen pixels, then scaled by the zoom factor.
   const gridSpacingPx = CANVAS_GRID_SPACING * CSS_MM_TO_PX * scale;
@@ -596,6 +723,7 @@ export default function PreviewCanvas() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onDoubleClick={handleCanvasDoubleClick}
       className="w-full h-full bg-white dark:bg-gray-900"
       style={{ 
         overflow: 'hidden',
@@ -904,34 +1032,57 @@ export default function PreviewCanvas() {
             height={`${(shiftY + pattern.boundingBox.height + 20).toFixed(2)}mm`}
           >
             {sailGrommets.map((g) => {
+              const isMidpoint = g.id.startsWith('E');
               const holeType = (parameters.sailHoleType as string) || 'grommet';
               const std = SAIL_HOLE_STANDARDS[holeType as SailHoleType] || SAIL_HOLE_STANDARDS.grommet;
-              const handleR = Math.max(std.radius * 1.8, 2.5);
+              const handleR = isMidpoint ? Math.max(std.radius * 1.2, 1.8) : Math.max(std.radius * 1.8, 2.5);
               const cx = g.x + originOffsetMM;
               const cy = g.y + originOffsetMMY;
+              const activeColor = isMidpoint ? '#16a34a' : '#3b82f6'; // green for midpoints, blue for corners
+              const activeFill = isMidpoint
+                ? (draggingGrommet === g.id ? 'rgba(22,163,74,0.40)' : 'rgba(22,163,74,0.20)')
+                : (draggingGrommet === g.id ? 'rgba(59,130,246,0.35)' : 'rgba(59,130,246,0.15)');
+              const activeStroke = draggingGrommet === g.id ? (isMidpoint ? '#15803d' : '#2563eb') : activeColor;
               return (
                 <g key={g.id}>
                   {/* Visible ring */}
                   <circle cx={cx} cy={cy} r={handleR}
-                    fill={draggingGrommet === g.id ? 'rgba(59,130,246,0.35)' : 'rgba(59,130,246,0.15)'}
-                    stroke={draggingGrommet === g.id ? '#2563eb' : '#3b82f6'}
+                    fill={activeFill}
+                    stroke={activeStroke}
                     strokeWidth={0.4}
                     strokeDasharray={draggingGrommet === g.id ? 'none' : '1,0.5'}
                   />
                   {/* Larger invisible hit target */}
                   <circle cx={cx} cy={cy} r={handleR + 2}
                     fill="transparent"
-                    style={{ pointerEvents: 'all', cursor: 'move' }}
+                    style={{ pointerEvents: 'all', cursor: isMidpoint ? 'grab' : 'move' }}
                     onMouseDown={(e) => e.stopPropagation()}
                     onPointerDown={(e) => handleGrommetPointerDown(e, g.id)}
                     onPointerMove={handleGrommetPointerMove}
                     onPointerUp={handleGrommetPointerUp}
+                    onContextMenu={(e) => {
+                      if (!isMidpoint) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Remove this midpoint
+                      const match = g.id.match(/^E(\d+)M(\d+)$/);
+                      if (!match) return;
+                      const edgeIdx = parseInt(match[1], 10);
+                      const midIdx = parseInt(match[2], 10);
+                      const key = `wingEdge${edgeIdx}Points`;
+                      let pts: Array<{ x: number; y: number }> = [];
+                      try { pts = JSON.parse((parameters[key] as string) || '[]'); } catch { pts = []; }
+                      pts.splice(midIdx, 1);
+                      setParameter(key, JSON.stringify(pts));
+                    }}
                   />
-                  {/* Label */}
+                  {/* Label (only for corners) */}
+                  {g.label && (
                   <text x={cx} y={cy - handleR - 1} textAnchor="middle"
-                    fontSize={2} fill="#3b82f6" fontFamily="sans-serif">
+                    fontSize={2} fill={activeColor} fontFamily="sans-serif">
                     {g.label}
                   </text>
+                  )}
                 </g>
               );
             })}
@@ -1022,13 +1173,14 @@ export default function PreviewCanvas() {
               {devPoints.map((pt) => {
                 const pos = devPointOverrides[pt.index] ?? pt;
                 const isCP = pt.type.includes('cp');
+                const isSecondary = pt.pathIndex > 0;
                 const isHovered = devHoveredPoint === pt.index;
                 const isSelected = devSelectedPoint === pt.index;
                 const isDragging = devDraggingPoint === pt.index;
                 const hasMoved = !!devPointOverrides[pt.index];
                 const r = (isCP ? 0.6 : 0.8) * s;
-                const fill = isDragging ? '#f59e0b' : isSelected ? '#fbbf24' : isHovered ? '#f97316' : hasMoved ? '#a855f7' : isCP ? '#ef4444' : '#10b981';
-                const stroke = isDragging ? '#92400e' : isSelected ? '#b45309' : isHovered ? '#c2410c' : hasMoved ? '#6b21a8' : isCP ? '#991b1b' : '#065f46';
+                const fill = isDragging ? '#f59e0b' : isSelected ? '#fbbf24' : isHovered ? '#f97316' : hasMoved ? '#a855f7' : isCP ? '#ef4444' : isSecondary ? '#3b82f6' : '#10b981';
+                const stroke = isDragging ? '#92400e' : isSelected ? '#b45309' : isHovered ? '#c2410c' : hasMoved ? '#6b21a8' : isCP ? '#991b1b' : isSecondary ? '#1e3a5f' : '#065f46';
                 return (
                   <g key={`pt-${pt.index}`}>
                     {/* Original position ghost dot for moved points */}
@@ -1071,7 +1223,7 @@ export default function PreviewCanvas() {
                           fontSize={1.8 * s} fill="white" fontFamily="monospace"
                           style={{ pointerEvents: 'none' }}
                         >
-                          #{pt.index} {pt.type} ({pos.x.toFixed(2)}, {pos.y.toFixed(2)}){hasMoved ? ` ← (${pt.x.toFixed(2)}, ${pt.y.toFixed(2)})` : ''}
+                          #{pt.index}{pt.pathIndex > 0 ? ` P${pt.pathIndex}` : ''} {pt.type} ({pos.x.toFixed(2)}, {pos.y.toFixed(2)}){hasMoved ? ` ← (${pt.x.toFixed(2)}, ${pt.y.toFixed(2)})` : ''}
                         </text>
                       </g>
                     )}
@@ -1131,8 +1283,9 @@ export default function PreviewCanvas() {
             </div>
           </div>
           <div className="text-gray-400 text-[10px] mb-1">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1" />Endpoint
-            <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1 ml-2" />Control point
+            <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1" />Outline
+            <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1 ml-2" />Hole/Cut
+            <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1 ml-2" />Control pt
             <span className="inline-block w-2 h-2 rounded-full bg-purple-500 mr-1 ml-2" />Moved
             <span className="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1 ml-2" />Selected
           </div>
@@ -1186,7 +1339,8 @@ export default function PreviewCanvas() {
                   onClick={() => setDevSelectedPoint(pt.index === devSelectedPoint ? null : pt.index)}
                 >
                   <span className="text-gray-500">#{String(pt.index).padStart(3)}</span>{' '}
-                  <span className={hasMoved ? 'text-purple-400' : pt.type.includes('cp') ? 'text-red-400' : 'text-green-400'}>{pt.type.padEnd(6)}</span>{' '}
+                  {pt.pathIndex > 0 && <span className="text-blue-400">P{pt.pathIndex} </span>}
+                  <span className={hasMoved ? 'text-purple-400' : pt.type.includes('cp') ? 'text-red-400' : pt.pathIndex > 0 ? 'text-blue-400' : 'text-green-400'}>{pt.type.padEnd(6)}</span>{' '}
                   ({pos.x.toFixed(2)}, {pos.y.toFixed(2)}){hasMoved ? ' ✦' : ''}
                 </div>
               );
@@ -1195,44 +1349,69 @@ export default function PreviewCanvas() {
         </div>
       )}
 
-      {/* Zoom and scale indicator */}
-      <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 px-3 py-2 rounded shadow text-xs text-gray-700 dark:text-gray-300 border-l-4 border-blue-500">
-        <div className="font-bold">{Math.round(scale * 100)}% Zoom</div>
-        <div className="text-gray-500 mt-1">{svgWidth.toFixed(1)}mm × {svgHeight.toFixed(1)}mm</div>
-        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
-          <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="w-3 h-3" />
-          <span className="text-gray-600">Stud grid (8mm)</span>
-        </label>
-        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
-          <input type="checkbox" checked={showMinifig} onChange={(e) => setShowMinifig(e.target.checked)} className="w-3 h-3" />
-          <span className="text-gray-600">Minifig reference</span>
-        </label>
-        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
-          <input type="checkbox" checked={showXYGrid} onChange={(e) => setShowXYGrid(e.target.checked)} className="w-3 h-3" />
-          <span className="text-gray-600">XY axis</span>
-        </label>
-        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
-          <input type="checkbox" checked={snapToGrid} onChange={toggleSnapToGrid} className="w-3 h-3" />
-          <span className="text-cyan-600 dark:text-cyan-400">Snap to grid</span>
-        </label>
-        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
-          <input type="checkbox" checked={showDevMode} onChange={(e) => { setShowDevMode(e.target.checked); setDevSelectedPoint(null); setDevHoveredPoint(null); setDevDraggingPoint(null); setDevPointOverrides({}); }} className="w-3 h-3" />
-          <span className="text-orange-600 font-semibold">Dev mode</span>
-        </label>
+      {/* Zoom indicator + Display Options dropdown */}
+      <div ref={displayMenuRef} className="absolute top-4 right-4 z-20">
+        {/* Always-visible zoom bar */}
+        <div className="bg-white dark:bg-gray-800 rounded shadow text-xs text-gray-700 dark:text-gray-300 border-l-4 border-blue-500 flex items-center gap-2 px-3 py-2">
+          <div>
+            <div className="font-bold">{Math.round(scale * 100)}% Zoom</div>
+            <div className="text-gray-500">{svgWidth.toFixed(1)}mm × {svgHeight.toFixed(1)}mm</div>
+          </div>
+          <button
+            type="button"
+            className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+              showDisplayMenu
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+            onClick={() => setShowDisplayMenu(!showDisplayMenu)}
+            title="Display options"
+          >
+            ⚙
+          </button>
+        </div>
+
+        {/* Floating dropdown */}
+        {showDisplayMenu && (
+        <div className="mt-1 bg-white dark:bg-gray-800 rounded shadow-lg border border-gray-200 dark:border-gray-700 text-xs p-3 space-y-1.5 min-w-[180px]">
+          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Display Options</div>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="w-3 h-3" />
+            <span className="text-gray-600 dark:text-gray-300">Stud grid (8mm)</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={showMinifig} onChange={(e) => setShowMinifig(e.target.checked)} className="w-3 h-3" />
+            <span className="text-gray-600 dark:text-gray-300">Minifig reference</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={showXYGrid} onChange={(e) => setShowXYGrid(e.target.checked)} className="w-3 h-3" />
+            <span className="text-gray-600 dark:text-gray-300">XY axis</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={showFill} onChange={(e) => setShowFill(e.target.checked)} className="w-3 h-3" />
+            <span className="text-gray-600 dark:text-gray-300">Fill shape</span>
+            {showFill && (
+              <input type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)}
+                className="w-4 h-4 rounded border border-gray-300 cursor-pointer ml-1" />
+            )}
+          </label>
+          <hr className="border-gray-200 dark:border-gray-700" />
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={snapToGrid} onChange={toggleSnapToGrid} className="w-3 h-3" />
+            <span className="text-cyan-600 dark:text-cyan-400">Snap to grid</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={showDevMode} onChange={(e) => { setShowDevMode(e.target.checked); setDevSelectedPoint(null); setDevHoveredPoint(null); setDevDraggingPoint(null); setDevPointOverrides({}); }} className="w-3 h-3" />
+            <span className="text-orange-600 dark:text-orange-400 font-semibold">Dev mode</span>
+          </label>
+        </div>
+        )}
       </div>
 
-      {/* Pattern info */}
+      {/* Pattern info (top-left) */}
       <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 px-3 py-2 rounded shadow text-xs border-l-4 border-green-500">
-        <div className="font-bold text-gray-900">{pattern.name}</div>
+        <div className="font-bold text-gray-900 dark:text-gray-100">{pattern.name}</div>
         <div className="text-gray-500">Scroll to zoom · drag to pan</div>
-        <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
-          <input type="checkbox" checked={showFill} onChange={(e) => setShowFill(e.target.checked)} className="w-3 h-3" />
-          <span className="text-gray-600">Fill shape</span>
-          {showFill && (
-            <input type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)}
-              className="w-4 h-4 rounded border border-gray-300 cursor-pointer ml-1" />
-          )}
-        </label>
       </div>
     </div>
   );

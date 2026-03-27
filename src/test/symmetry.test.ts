@@ -171,14 +171,18 @@ function checkPathSymmetry(
   paths: string[],
   width: number,
   tolerance: number = 1.1,
-  centerExclude?: number
+  centerExclude?: number,
+  centerOverride?: number
 ): { symmetric: boolean; violations: string[] } {
   const allPoints: PathPoint[] = [];
   for (const p of paths) {
     allPoints.push(...samplePath(p));
   }
 
-  const center = width / 2;
+  // Auto-detect symmetry center from path data bounding box
+  let minPx = Infinity, maxPx = -Infinity;
+  for (const pt of allPoints) { if (pt.x < minPx) minPx = pt.x; if (pt.x > maxPx) maxPx = pt.x; }
+  const center = centerOverride ?? (minPx + maxPx) / 2;
   const centerZone = centerExclude ?? tolerance;
   const violations: string[] = [];
 
@@ -186,7 +190,7 @@ function checkPathSymmetry(
     // Skip points on the centerline
     if (Math.abs(pt.x - center) < centerZone) continue;
 
-    const mirrorX = width - pt.x;
+    const mirrorX = 2 * center - pt.x;
     const hasMirror = allPoints.some(
       (other) =>
         Math.abs(other.x - mirrorX) < tolerance &&
@@ -346,6 +350,11 @@ function gen(
     holeCount: 2,
     ...extraParams,
   });
+}
+
+/** Compute the symmetry center x from a pattern's bounding box. */
+function symCenter(pattern: ReturnType<typeof gen>): number {
+  return pattern.boundingBox.x + pattern.boundingBox.width / 2;
 }
 
 // ---------------------------------------------------------------------------

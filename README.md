@@ -9,7 +9,7 @@
 ## Features
 
 ### Pattern Generation
-- **6 element types** with multiple variants each
+- **6 element types** with multiple variants each, plus custom image tracing
 - **Parametric design** — adjust dimensions, holes, edges, and styles in real-time
 - **Live preview** with grid overlay and mm-scale measurements
 
@@ -17,22 +17,22 @@
 
 | Element | Variants | Default Size | Notes |
 |---------|----------|-------------|-------|
-| **Cape** | Standard, Short, Long, Tattered, Narrow, Top, Stepped, Wind-Swept, Phantom Shroud, Seven Points | 40×39 mm | Attachment holes, edge styles, sword/arm slits, worn holes, rounding |
+| **Cape** | Standard, Wind-Swept, Phantom Shroud, Seven Points, Narrow, Top, Stepped | 40×39 mm | Attachment holes, edge styles, sword/arm slits, worn holes, rounding |
 | **Flag/Banner** | Small, Large, Custom | 22×60 / 40×64 / 30×60 mm | Custom has configurable edges and 1–6 clip holes |
 | **Sail** | Square, Triangular, Polygon | 60×60 mm | Draggable grommets (4 types + extra), per-edge styling, stud-based sizing, 5–12 sided polygon |
-| **Kama/Skirt** | Wrap Skirt, Split Skirt, Waist Cape | 47×19 / 50×22 / 44×16 mm | 2–4 attachment holes, bottom hem edge styles |
-| **Pauldron** | Shoulder Armor, Single Shoulder, Double Wide | 23×26 / 20×24 / 28×24 mm | Head pin holes, bottom rim rounding, edge styles |
-| **Wing** | Dragon Wing *(in development)* | 45×25 mm | Membrane score lines, attachment hole |
+| **Kama/Skirt** | Wrap Skirt, Full Skirt | 47×19 mm | 2–4 attachment holes, bottom hem edge styles |
+| **Pauldron** | Shoulder Armor, High Collar | 23×26 mm | Head pin holes, bottom rim rounding, edge styles |
+| **Wing** | Tattered Wing, Custom Wing | 173×101 mm | Ball-joint holes, pin hole, decorative tear holes |
+| **Custom** | Traced Image | varies | Import PNG/JPG, auto-trace to cut path |
 
 ### Edge Styles
 
 Different elements support different edge style options:
 
-- **Cape bottom**: Tattered, scalloped, zigzag, wavy, castellated, dovetail, flame, stepped, pointed, fishtail, asymmetric
-- **Cape sides**: Scalloped, zigzag, wavy, castellated
-- **Sail edges** (per-edge): Scalloped, zigzag, wavy, castellated, torn (with seed presets)
-- **Flag Custom** bottom: Straight, pointed, swallowtail, flames, scalloped, zigzag, wavy
-- **Flag Custom** sides: Scalloped, zigzag, wavy, castellated
+- **Cape bottom**: Tattered, scalloped, arched, notched, zigzag, wavy, castellated, dovetail, flame, stepped, pointed, serrated, thorned, torn, feathered, cloud, sawtooth, arrow, picot
+- **Cape sides**: Tattered, scalloped, zigzag, wavy, castellated, serrated, thorned, torn, pointed, flame, stepped, dovetail, fishtail, feathered, cloud, sawtooth, arrow, picot
+- **Sail edges** (per-edge): Scalloped, zigzag, wavy, castellated, torn, pointed, flame, stepped, dovetail, fishtail, feathered, cloud, sawtooth, arrow, picot
+- **Flag Custom** edges: Same as sail edges
 - **Kama / Pauldron** bottom: Scalloped, zigzag, wavy, castellated, torn
 
 ### Save & Load Designs
@@ -42,7 +42,7 @@ Different elements support different edge style options:
 
 ### LEGO-Accurate Geometry
 - **Hole types**: Minifigure (5.3 mm) or Minidoll (4.8 mm) with adjustable clearance
-- **Override hole options**: Custom shape (round, square, oval, pill), size, and mirrored XY position offset
+- **Override Attachment**: Custom shape (round, square, oval, pill), size, and mirrored XY position offset
 - **Keyhole slit**: Single-line cut with stress-relief circle — laser/knife kerf creates the physical opening
 - **Calibration test strip**: Hole sizes 4.8–5.2 mm to verify fit with your equipment and fabric
 - **Stud-based sizing**: Sail dimensions can be set in LEGO stud units (8 mm grid)
@@ -190,11 +190,13 @@ src/
 │   ├── ParameterPanel.tsx
 │   └── ExportPanel.tsx
 ├── geometry/            # SVG path primitives
-│   └── primitives.ts
+│   ├── primitives.ts
+│   └── edgeStyles.ts    # Shared edge style functions
 ├── templates/           # Shape generators
 │   ├── base.ts          # Base Template class
 │   ├── cape.ts          # Cape + edge styles
 │   ├── other.ts         # Flag, Sail, Kama, Pauldron, Wings
+│   ├── custom.ts        # Custom traced image
 │   ├── svgVariants.ts   # SVG-traced outlines (single-hole capes)
 │   └── calibration.ts   # Test strip
 ├── export/              # SVG/ZIP export
@@ -224,7 +226,7 @@ npm test              # Run all tests in watch mode
 npm run test:symmetry  # Watch symmetry tests only
 ```
 
-The **symmetry test suite** (222 tests) automatically verifies that all symmetric element variants remain symmetric when parameters are adjusted, and that intentionally asymmetric variants are correctly identified. Tests run in watch mode during development — any change to template or geometry files triggers an immediate re-run.
+The **symmetry test suite** (245 tests) automatically verifies that all symmetric element variants remain symmetric when parameters are adjusted, and that intentionally asymmetric variants are correctly identified. Tests run in watch mode during development — any change to template or geometry files triggers an immediate re-run.
 
 ---
 
@@ -233,7 +235,6 @@ The **symmetry test suite** (222 tests) automatically verifies that all symmetri
 - Print sheet packing is grid-based (not advanced nesting)
 - No undo/redo
 - No on-canvas bezier path editing
-- Wing template still in development
 
 ---
 
@@ -248,6 +249,25 @@ Do not embed copyrighted images or designs without permission.
 ## Support & Feedback
 
 Found a bug or have a feature request? [Open an issue on GitHub](https://github.com/OneBrickToRuleThem/BrickClothStudio/issues).
+
+---
+
+## Community Cape Scans Wanted
+
+We're looking for **high-quality flatbed scans of official LEGO capes and fabric accessories** to use as references for implementing new template variants. If you have access to capes not yet supported, we'd love your help!
+
+**What we need:**
+- **600 DPI flatbed scans** (or higher) of the cape laid flat
+- Both sides if the fabric has a distinct front/back
+- Include a ruler or known-scale reference in the scan if possible
+- Any LEGO part number or set number for identification
+
+**How to contribute:**
+- Place scans in the [`community-scans/`](community-scans/) folder via pull request
+- Or [open an issue](https://github.com/OneBrickToRuleThem/BrickClothStudio/issues) with your scan attached
+- File naming: `PartNumber_Description.png` (e.g., `522px1_Standard_Black_Cape.png`)
+
+All contributions will be credited. Scans are used solely as dimensional references — no copyrighted artwork is redistributed.
 
 ---
 

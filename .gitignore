@@ -21,3 +21,10 @@ archive/
 # SVG template source files and generated PNG previews (root level only)
 /*.svg
 /*.png
+
+# One-off SVG processing scripts
+scripts/
+
+# Stale preset files
+*.preset.json
+square-sail-preset.json

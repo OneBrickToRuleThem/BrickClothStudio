@@ -5,6 +5,7 @@
 
 import { Template, TemplateParams, generateAttachmentHole } from './base';
 import { SVGPath, stadiumPath, circlePath } from '../geometry/primitives';
+import { drawStyledEdge } from '../geometry/edgeStyles';
 import { SAIL_HOLE_STANDARDS, SailHoleType } from '../utils/constants';
 import { SeededRNG } from '../utils/rng';
 
@@ -279,7 +280,8 @@ class BannerFlag extends Template {
         break;
       }
       default:
-        path.lineTo(x, y2);
+        // Delegate to shared edge style system for all other styles
+        drawStyledEdge(path, x, y1, x, y2, style, depthMm, segCount, outward, 0, 0, 42);
     }
   }
 
@@ -674,13 +676,231 @@ export class Wings extends Template {
   }
 }
 
+// ── Tattered Wing fractional path data ──
+// Extracted from archive/wingtemplate.svg — asymmetric organic wing shape.
+// Coordinates are fractions [0..1] of (width, height). Aspect ratio ≈ 1.755:1.
+type FracCmd = number[];
+
+const TATTERED_WING_OUTLINE: FracCmd[] = [
+  [1, 0.05775, 0.99266],
+  [3, 0.04858, 0.98909, 0.04275, 0.98095, 0.03534, 0.96141],
+  [3, 0.01927, 0.91896, 0.00804, 0.86221, 0.00323, 0.79903],
+  [3, 0.00051, 0.76340, 0, 0.67111, 0.00234, 0.63810],
+  [3, 0.00585, 0.58854, 0.01131, 0.57387, 0.03059, 0.56226],
+  [3, 0.04664, 0.55261, 0.05438, 0.55104, 0.08666, 0.55095],
+  [3, 0.13294, 0.55083, 0.17666, 0.55465, 0.22187, 0.56278],
+  [2, 0.24783, 0.56744],
+  [2, 0.25344, 0.55992],
+  [3, 0.26783, 0.54066, 0.26994, 0.51669, 0.26047, 0.48002],
+  [3, 0.25409, 0.45534, 0.25314, 0.44159, 0.25682, 0.42722],
+  [3, 0.25977, 0.41571, 0.27061, 0.36664, 0.27061, 0.36478],
+  [3, 0.27061, 0.36400, 0.27268, 0.35543, 0.27521, 0.34573],
+  [3, 0.27775, 0.33603, 0.28290, 0.31541, 0.28667, 0.29990],
+  [3, 0.29468, 0.26687, 0.32649, 0.15260, 0.33730, 0.11801],
+  [3, 0.34534, 0.09228, 0.35020, 0.07887, 0.35876, 0.05880],
+  [3, 0.37803, 0.01366, 0.40658, 0, 0.43688, 0.02141],
+  [3, 0.44827, 0.02946, 0.46200, 0.03992, 0.47865, 0.05323],
+  [3, 0.50893, 0.07743, 0.53686, 0.08689, 0.57828, 0.08695],
+  [3, 0.64222, 0.08704, 0.68916, 0.09604, 0.73629, 0.11722],
+  [3, 0.75185, 0.12421, 0.78305, 0.14139, 0.78871, 0.14609],
+  [3, 0.79047, 0.14755, 0.79915, 0.15404, 0.80798, 0.16049],
+  [3, 0.85605, 0.19563, 0.90106, 0.24665, 0.94626, 0.31725],
+  [3, 0.96137, 0.34084, 0.97870, 0.37954, 0.98709, 0.40842],
+  [3, 0.99890, 0.44902, 1, 0.48379, 0.98989, 0.49643],
+  [3, 0.98355, 0.50435, 0.97407, 0.50394, 0.95283, 0.49483],
+  [3, 0.90946, 0.47621, 0.86659, 0.48005, 0.81256, 0.50738],
+  [3, 0.79321, 0.51717, 0.79203, 0.51727, 0.78389, 0.50999],
+  [3, 0.78042, 0.50688, 0.77673, 0.50435, 0.77569, 0.50435],
+  [3, 0.77340, 0.50435, 0.77144, 0.51223, 0.77279, 0.51604],
+  [3, 0.77528, 0.52312, 0.77148, 0.53246, 0.76272, 0.54079],
+  [3, 0.75273, 0.55029, 0.74744, 0.55139, 0.74131, 0.54523],
+  [3, 0.73592, 0.53982, 0.72934, 0.54001, 0.72243, 0.54576],
+  [3, 0.71714, 0.55017, 0.71599, 0.55019, 0.70693, 0.54603],
+  [3, 0.69016, 0.53834, 0.68961, 0.54504, 0.70391, 0.58228],
+  [3, 0.71379, 0.60798, 0.71384, 0.60951, 0.70546, 0.63124],
+  [3, 0.69681, 0.65369, 0.68959, 0.66790, 0.68684, 0.66790],
+  [3, 0.68537, 0.66790, 0.68135, 0.66539, 0.67792, 0.66232],
+  [3, 0.67327, 0.65815, 0.67114, 0.65753, 0.66955, 0.65984],
+  [3, 0.66647, 0.66433, 0.66686, 0.66947, 0.67217, 0.69441],
+  [2, 0.67691, 0.71668],
+  [2, 0.67481, 0.74376],
+  [3, 0.67236, 0.77538, 0.67289, 0.80785, 0.67626, 0.83339],
+  [3, 0.67758, 0.84338, 0.67866, 0.86179, 0.67866, 0.87430],
+  [3, 0.67866, 0.91016, 0.67179, 0.92384, 0.65550, 0.92041],
+  [3, 0.64134, 0.91743, 0.63330, 0.90748, 0.60637, 0.85962],
+  [3, 0.58729, 0.82571, 0.56336, 0.79167, 0.54934, 0.77848],
+  [3, 0.53208, 0.76226, 0.51046, 0.75893, 0.49755, 0.77051],
+  [3, 0.47780, 0.78823, 0.46915, 0.81970, 0.46656, 0.88322],
+  [3, 0.46495, 0.92275, 0.46303, 0.94318, 0.45992, 0.95378],
+  [3, 0.45070, 0.98526, 0.43468, 0.97779, 0.40302, 0.92726],
+  [3, 0.36898, 0.87291, 0.35481, 0.85186, 0.34145, 0.83579],
+  [3, 0.32839, 0.82009, 0.30470, 0.79762, 0.30119, 0.79762],
+  [3, 0.29947, 0.79762, 0.29879, 0.79523, 0.29066, 0.76096],
+  [3, 0.28827, 0.75088, 0.28520, 0.73954, 0.28385, 0.73577],
+  [2, 0.28140, 0.72891],
+  [2, 0.27843, 0.73533],
+  [3, 0.27680, 0.73886, 0.27470, 0.74703, 0.27377, 0.75347],
+  [3, 0.27094, 0.77296, 0.26875, 0.78069, 0.26600, 0.78090],
+  [3, 0.26456, 0.78101, 0.25751, 0.78166, 0.25033, 0.78235],
+  [2, 0.23729, 0.78360],
+  [2, 0.23296, 0.77364],
+  [3, 0.23058, 0.76816, 0.22802, 0.76434, 0.22727, 0.76515],
+  [3, 0.22652, 0.76596, 0.22543, 0.77163, 0.22484, 0.77773],
+  [3, 0.22353, 0.79137, 0.22254, 0.79285, 0.20863, 0.80202],
+  [3, 0.18524, 0.81746, 0.15501, 0.84941, 0.13865, 0.87598],
+  [3, 0.13349, 0.88438, 0.12346, 0.90561, 0.11636, 0.92316],
+  [3, 0.09335, 0.98010, 0.07657, 1, 0.05775, 0.99266],
+  [0],
+];
+
+const TATTERED_WING_HOLES: FracCmd[][] = [
+  // Decorative tear holes (~40mm from top)
+  [
+    [1, 0.72121, 0.42929],
+    [3, 0.72362, 0.42281, 0.72356, 0.42167, 0.72018, 0.41112],
+    [3, 0.71757, 0.40297, 0.71326, 0.39640, 0.70450, 0.38725],
+    [3, 0.69174, 0.37392, 0.68719, 0.37190, 0.68566, 0.37891],
+    [3, 0.68330, 0.38967, 0.69657, 0.42206, 0.70782, 0.43299],
+    [3, 0.71498, 0.43996, 0.71748, 0.43926, 0.72121, 0.42929],
+    [0],
+  ],
+  [
+    [1, 0.64165, 0.42275],
+    [3, 0.64451, 0.41337, 0.64350, 0.40652, 0.63801, 0.39805],
+    [3, 0.62088, 0.37165, 0.61238, 0.38520, 0.62735, 0.41505],
+    [3, 0.63440, 0.42910, 0.63897, 0.43156, 0.64165, 0.42275],
+    [0],
+  ],
+  // Decorative tear holes (~70mm from top)
+  [
+    [1, 0.50093, 0.71219],
+    [2, 0.50413, 0.70467],
+    [2, 0.50037, 0.69059],
+    [3, 0.49830, 0.68284, 0.49488, 0.67365, 0.49277, 0.67016],
+    [3, 0.48951, 0.66479, 0.48870, 0.66445, 0.48743, 0.66798],
+    [3, 0.48419, 0.67696, 0.48680, 0.70672, 0.49164, 0.71612],
+    [3, 0.49507, 0.72275, 0.49674, 0.72205, 0.50093, 0.71219],
+    [0],
+  ],
+  [
+    [1, 0.33147, 0.71124],
+    [3, 0.33454, 0.70747, 0.33506, 0.70489, 0.33434, 0.69709],
+    [3, 0.33315, 0.68424, 0.32372, 0.65900, 0.32050, 0.66007],
+    [3, 0.31517, 0.66184, 0.31716, 0.69893, 0.32323, 0.71091],
+    [3, 0.32630, 0.71697, 0.32679, 0.71699, 0.33147, 0.71123],
+    [0],
+  ],
+];
+
+// 6 ball joint holes with their smaller companion holes, plus 1 pin hole.
+// Positions are fractional (relX, relY) within (width, height).
+// Ball joints: ~3-4mm diameter in the original 173×101mm SVG
+// Companions: ~1-1.5mm diameter, positioned nearby
+// Pin hole: ~5mm diameter, near the top
+
+const TATTERED_WING_BALL_JOINTS: Array<{
+  ball: { relX: number; relY: number; radiusFrac: number };
+  companion: { relX: number; relY: number; radiusFrac: number };
+}> = [
+  { // Lower center-left (arm area)
+    ball:      { relX: 0.434, relY: 0.856, radiusFrac: 0.0098 },
+    companion: { relX: 0.425, relY: 0.821, radiusFrac: 0.0036 },
+  },
+  { // Lower center-right
+    ball:      { relX: 0.645, relY: 0.795, radiusFrac: 0.0104 },
+    companion: { relX: 0.632, relY: 0.766, radiusFrac: 0.0040 },
+  },
+  { // Far left arm
+    ball:      { relX: 0.062, relY: 0.601, radiusFrac: 0.0109 },
+    companion: { relX: 0.066, relY: 0.641, radiusFrac: 0.0036 },
+  },
+  { // Left mid (leading edge)
+    ball:      { relX: 0.301, relY: 0.452, radiusFrac: 0.0081 },
+    companion: { relX: 0.300, relY: 0.488, radiusFrac: 0.0021 },
+  },
+  { // Far right trailing edge
+    ball:      { relX: 0.942, relY: 0.369, radiusFrac: 0.0097 },
+    companion: { relX: 0.924, relY: 0.348, radiusFrac: 0.0034 },
+  },
+];
+
+const TATTERED_WING_PIN_HOLE = { relX: 0.422, relY: 0.103, radiusFrac: 0.0153 };
+
+/**
+ * Render fractional path commands into an SVG path string, scaled by w/h.
+ */
+function renderWingFracPath(cmds: FracCmd[], w: number, h: number): string {
+  const path = new SVGPath();
+  for (const cmd of cmds) {
+    switch (cmd[0]) {
+      case 0: path.closePath(); break;
+      case 1: path.moveTo(w * cmd[1], h * cmd[2]); break;
+      case 2: path.lineTo(w * cmd[1], h * cmd[2]); break;
+      case 3: path.cubicBezierTo(w * cmd[1], h * cmd[2], w * cmd[3], h * cmd[4], w * cmd[5], h * cmd[6]); break;
+    }
+  }
+  return path.toString();
+}
+
+/**
+ * WingsTattered: Asymmetric organic wing with tattered holes.
+ * Traced from archive/wingtemplate.svg. Not symmetric by design.
+ * Original aspect ratio ≈ 1.755:1.
+ * Default size: 45 × 26mm (similar to standard wing).
+ */
+export class WingsTattered extends Template {
+  generateCutPath(params: TemplateParams): string {
+    return renderWingFracPath(TATTERED_WING_OUTLINE, params.width, params.length);
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length, holeRadius, slitWidth, enableSlit } = params;
+    const paths = [this.generateCutPath(params)];
+
+    // Decorative tear holes (organic FracCmd outlines)
+    for (const hole of TATTERED_WING_HOLES) {
+      paths.push(renderWingFracPath(hole, width, length));
+    }
+
+    // Ball-joint attachment holes with companion holes
+    for (const joint of TATTERED_WING_BALL_JOINTS) {
+      const bx = width * joint.ball.relX;
+      const by = length * joint.ball.relY;
+      const br = width * joint.ball.radiusFrac;
+      paths.push(generateAttachmentHole(bx, by, br, slitWidth, 8, enableSlit, params));
+
+      const cx = width * joint.companion.relX;
+      const cy = length * joint.companion.relY;
+      const cr = width * joint.companion.radiusFrac;
+      paths.push(generateAttachmentHole(cx, cy, cr, slitWidth, 4, false, params));
+    }
+
+    // Pin connector hole near top
+    const px = width * TATTERED_WING_PIN_HOLE.relX;
+    const py = length * TATTERED_WING_PIN_HOLE.relY;
+    const pr = width * TATTERED_WING_PIN_HOLE.radiusFrac;
+    paths.push(generateAttachmentHole(px, py, pr, slitWidth, 8, enableSlit, params));
+
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] {
+    return [];
+  }
+
+  generateEngravePaths(_params: TemplateParams): string[] {
+    return [];
+  }
+}
+
 /**
  * WingsCustom: Asymmetric custom wing with 4 draggable connection points.
  * Outline is a quadrilateral connecting the 4 nodes with straight edges.
  * Each node gets a ball-joint attachment hole.
  */
 export class WingsCustom extends Template {
-  private getNodes(params: TemplateParams) {
+  /** Get the 4 corner nodes */
+  private getCorners(params: TemplateParams) {
     const w = params.width;
     const h = params.length;
     return [
@@ -691,39 +911,68 @@ export class WingsCustom extends Template {
     ];
   }
 
+  /** Parse per-edge midpoints from params */
+  private getEdgeMidpoints(params: TemplateParams): Array<Array<{ x: number; y: number }>> {
+    const edges: Array<Array<{ x: number; y: number }>> = [];
+    for (let i = 0; i < 4; i++) {
+      try {
+        edges.push(JSON.parse((params[`wingEdge${i}Points`] as string) || '[]'));
+      } catch { edges.push([]); }
+    }
+    return edges;
+  }
+
+  /** Merge corners + edge midpoints into a full polygon */
+  private getNodes(params: TemplateParams) {
+    const corners = this.getCorners(params);
+    const edgeMids = this.getEdgeMidpoints(params);
+    const nodes: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < 4; i++) {
+      nodes.push(corners[i]);
+      nodes.push(...edgeMids[i]);
+    }
+    return nodes;
+  }
+
   generateCutPath(params: TemplateParams): string {
     const holeR = getSailHoleRadius(params);
     const gap = (params.sailGrommetMargin as number) ?? 2;
     const nodes = this.getNodes(params);
     const margin = holeR + gap;
-    // Always build outline from node polygon — plain edges, no decorative styles
-    const edgeStyles = ['none', 'none', 'none', 'none'];
-    const edgeDepths = [3, 3, 3, 3];
-    return buildSailCutPath(nodes, margin, edgeStyles, edgeDepths, 6, 2, 42);
+    const n = nodes.length;
+    const style = (params.wingEdgeStyle as string) || 'none';
+    const depth = (params.wingEdgeDepth as number) || 3;
+    const count = (params.wingEdgeCount as number) || 6;
+    const seed = (params.wingTornSeed as number) || 42;
+    const edgeStyles = Array(n).fill(style);
+    const edgeDepths = Array(n).fill(depth);
+    return buildSailCutPath(nodes, margin, edgeStyles, edgeDepths, count, 2, seed);
   }
 
   generateCutPaths(params: TemplateParams): string[] {
     const r = getSailHoleRadius(params);
     const paths = [this.generateCutPath(params)];
-    for (const g of this.getNodes(params)) paths.push(circlePath(g.x, g.y, r));
+    // Only cut holes at the 4 corners, not at midpoints
+    for (const g of this.getCorners(params)) paths.push(circlePath(g.x, g.y, r));
     return paths;
   }
 
   generateScorePaths(params: TemplateParams): string[] {
     const holeR = getSailHoleRadius(params);
+    const corners = this.getCorners(params);
     const nodes = this.getNodes(params);
     const scores: string[] = [];
 
-    // Inner boundary connecting node positions
-    const inner = new SVGPath();
-    inner.moveTo(nodes[0].x, nodes[0].y);
-    inner.lineTo(nodes[1].x, nodes[1].y);
-    inner.lineTo(nodes[2].x, nodes[2].y);
-    inner.lineTo(nodes[3].x, nodes[3].y);
-    inner.closePath();
-    scores.push(inner.toString());
+    // Inner boundary connecting all node positions
+    if (nodes.length > 0) {
+      const inner = new SVGPath();
+      inner.moveTo(nodes[0].x, nodes[0].y);
+      for (let i = 1; i < nodes.length; i++) inner.lineTo(nodes[i].x, nodes[i].y);
+      inner.closePath();
+      scores.push(inner.toString());
+    }
 
-    scores.push(...buildGrommetCrosshairs(nodes, holeR));
+    scores.push(...buildGrommetCrosshairs(corners, holeR));
     return scores;
   }
 
@@ -1222,168 +1471,6 @@ export class PauldronWide extends Template {
 
   generateScorePaths(_params: TemplateParams): string[] { return []; }
   generateEngravePaths(_params: TemplateParams): string[] { return []; }
-}
-
-/**
- * Draw a styled edge segment from (x0,y0) to (x1,y1).
- * Style applies perpendicular decoration. `outward` direction: +1 or -1.
- * The grommetSafe parameter defines regions to skip decoration near grommets.
- */
-function drawStyledEdge(
-  path: SVGPath,
-  x0: number, y0: number, x1: number, y1: number,
-  style: string, depth: number, count: number,
-  outwardX: number, outwardY: number,
-  safeInset: number,
-  seed: number = 0
-): void {
-  if (style === 'none' || style === 'straight') {
-    path.lineTo(x1, y1);
-    return;
-  }
-
-  // Compute safe start/end to avoid grommet collisions
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  const edgeLen = Math.hypot(dx, dy);
-  if (edgeLen < safeInset * 2 + 2) {
-    // Edge too short for decoration
-    path.lineTo(x1, y1);
-    return;
-  }
-
-  const ux = dx / edgeLen;
-  const uy = dy / edgeLen;
-  const sx0 = x0 + ux * safeInset;
-  const sy0 = y0 + uy * safeInset;
-  const sx1 = x1 - ux * safeInset;
-  const sy1 = y1 - uy * safeInset;
-  const safeLen = edgeLen - safeInset * 2;
-
-  // Draw safe inset straight line at start
-  path.lineTo(sx0, sy0);
-
-  // Now draw the decorated portion
-  const segW = safeLen / count;
-
-  switch (style) {
-    case 'scalloped':
-      for (let i = 0; i < count; i++) {
-        const ax = sx0 + ux * (i * segW);
-        const ay = sy0 + uy * (i * segW);
-        const bx = sx0 + ux * ((i + 1) * segW);
-        const by = sy0 + uy * ((i + 1) * segW);
-        const cx = (ax + bx) / 2 + outwardX * depth;
-        const cy = (ay + by) / 2 + outwardY * depth;
-        path.quadraticBezierTo(cx, cy, bx, by);
-      }
-      break;
-    case 'zigzag':
-      for (let i = 0; i < count; i++) {
-        const midX = sx0 + ux * ((i + 0.5) * segW);
-        const midY = sy0 + uy * ((i + 0.5) * segW);
-        const dir = (i % 2 === 0) ? 1 : -1;
-        path.lineTo(midX + outwardX * depth * dir, midY + outwardY * depth * dir);
-      }
-      path.lineTo(sx1, sy1);
-      break;
-    case 'wavy':
-      for (let i = 0; i < count; i++) {
-        const ax = sx0 + ux * (i * segW);
-        const ay = sy0 + uy * (i * segW);
-        const bx = sx0 + ux * ((i + 1) * segW);
-        const by = sy0 + uy * ((i + 1) * segW);
-        const dir = (i % 2 === 0) ? 1 : -1;
-        const cx = (ax + bx) / 2 + outwardX * depth * dir;
-        const cy = (ay + by) / 2 + outwardY * depth * dir;
-        path.quadraticBezierTo(cx, cy, bx, by);
-      }
-      break;
-    case 'castellated': {
-      const merlonW = segW * 0.5;
-      for (let i = 0; i < count; i++) {
-        const baseX = sx0 + ux * (i * segW);
-        const baseY = sy0 + uy * (i * segW);
-        // Up
-        path.lineTo(baseX + outwardX * depth, baseY + outwardY * depth);
-        // Across top
-        path.lineTo(
-          baseX + ux * merlonW + outwardX * depth,
-          baseY + uy * merlonW + outwardY * depth
-        );
-        // Down
-        path.lineTo(baseX + ux * merlonW, baseY + uy * merlonW);
-        // Across bottom to next
-        const nextX = sx0 + ux * ((i + 1) * segW);
-        const nextY = sy0 + uy * ((i + 1) * segW);
-        path.lineTo(nextX, nextY);
-      }
-      break;
-    }
-    case 'torn': {
-      // Ripped/torn edge: organic curvy tears with seeded noise + endpoint fraying.
-      // Scramble seed with golden ratio hash for better variance between adjacent seeds
-      const scrambled = seed != null ? ((seed * 2654435761) >>> 0) : Math.round(x0 * 100 + y0 * 37 + count * 7);
-      const rng = new SeededRNG(scrambled);
-      // Dense sub-segments for detailed tears
-      const tearSegs = count * 4;
-      const tearSegW = safeLen / tearSegs;
-
-      // Generate tear points with depth and lateral variance
-      const points: Array<{ x: number; y: number }> = [];
-      for (let i = 0; i <= tearSegs; i++) {
-        const t = i / tearSegs;
-        const baseX = sx0 + ux * (t * safeLen);
-        const baseY = sy0 + uy * (t * safeLen);
-
-        if (i === 0 || i === tearSegs) {
-          points.push({ x: baseX, y: baseY });
-          continue;
-        }
-
-        const r1 = rng.nextRange(0, 1);
-        const r2 = rng.nextRange(0, 1);
-        // Deep gashes (~25%) vs shallow erosion; deeper tears cluster in the middle
-        const midBias = Math.sin(t * Math.PI); // peaks at center, fades at edges
-        const isDeepTear = r1 < 0.25;
-        const tearDepth = isDeepTear
-          ? depth * (0.6 + r2 * 0.4) * (0.5 + midBias * 0.5)
-          : depth * r2 * 0.35 * (0.3 + midBias * 0.7);
-        // Mostly outward, occasional inward bites
-        const dir = rng.nextRange(0, 1) < 0.7 ? 1 : -0.25;
-        // Lateral jitter for organic feel
-        const lateralJitter = rng.nextRange(-0.4, 0.4) * tearSegW;
-
-        points.push({
-          x: baseX + ux * lateralJitter + outwardX * tearDepth * dir,
-          y: baseY + uy * lateralJitter + outwardY * tearDepth * dir,
-        });
-      }
-
-      // Draw with cubic beziers for smooth, organic curves
-      for (let i = 0; i < points.length - 1; i++) {
-        const p0 = points[i];
-        const p1 = points[i + 1];
-        // Randomized control point offsets for natural curves
-        const cpOff1 = rng.nextRange(0.2, 0.5);
-        const cpOff2 = rng.nextRange(0.5, 0.8);
-        const cpPerp1 = rng.nextRange(-0.3, 0.3) * depth;
-        const cpPerp2 = rng.nextRange(-0.3, 0.3) * depth;
-        const cp1x = p0.x + (p1.x - p0.x) * cpOff1 + outwardX * cpPerp1;
-        const cp1y = p0.y + (p1.y - p0.y) * cpOff1 + outwardY * cpPerp1;
-        const cp2x = p0.x + (p1.x - p0.x) * cpOff2 + outwardX * cpPerp2;
-        const cp2y = p0.y + (p1.y - p0.y) * cpOff2 + outwardY * cpPerp2;
-        path.cubicBezierTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
-      }
-
-      break;
-    }
-    default:
-      path.lineTo(sx1, sy1);
-  }
-
-  // Draw safe inset straight line at end
-  path.lineTo(x1, y1);
 }
 
 /**

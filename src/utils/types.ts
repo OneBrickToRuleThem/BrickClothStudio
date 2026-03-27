@@ -2,7 +2,7 @@
  * Type definitions for the Brick Cloth Studio application
  */
 
-export type ElementType = 'cape' | 'flag' | 'wings' | 'kama' | 'mantle' | 'sail';
+export type ElementType = 'cape' | 'flag' | 'wings' | 'kama' | 'mantle' | 'sail' | 'custom';
 export type TemplateVariant = 
   | 'standard'
   | 'short'
@@ -26,6 +26,8 @@ export type TemplateVariant =
   | 'triangular-sail'
   | 'polygon-sail'
   | 'custom-wing'
+  | 'tattered-wing'
+  | 'traced-image'
   | 'calibration-test';
 
 export interface Point {

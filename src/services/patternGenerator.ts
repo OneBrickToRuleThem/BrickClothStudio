@@ -18,6 +18,7 @@ import {
   FlagLarge,
   FlagCustom,
   Wings,
+  WingsTattered,
   WingsCustom,
   Kama,
   SailSquare,
@@ -34,6 +35,7 @@ import {
   MantleHighCollar,
   MantleShoulderArmor,
 } from '../templates/svgVariants';
+import { CustomTraced } from '../templates/custom';
 
 /**
  * Main pattern generator
@@ -116,13 +118,17 @@ export function generatePattern(
     }
   } else if (elementType === 'wings') {
     switch (templateVariant) {
+      case 'tattered-wing':
+        template = new WingsTattered();
+        name = 'Tattered Wing';
+        break;
       case 'custom-wing':
         template = new WingsCustom();
         name = 'Custom Wing';
         break;
       default:
-        template = new Wings();
-        name = 'Wing';
+        template = new WingsTattered();
+        name = 'Tattered Wing';
     }
   } else if (elementType === 'kama') {
     switch (templateVariant) {
@@ -159,6 +165,9 @@ export function generatePattern(
         template = new SailSquare();
         name = 'Square Sail';
     }
+  } else if (elementType === 'custom') {
+    template = new CustomTraced();
+    name = 'Custom (Traced Image)';
   } else {
     // Default fallback
     template = new CapeStandard();

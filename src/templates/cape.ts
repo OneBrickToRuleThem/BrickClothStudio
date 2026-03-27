@@ -327,6 +327,23 @@ function drawStyledLeftSide(
     return (sh + (h - sh) * t) * yFrac;
   }
 
+  // Pre-compute tattered offsets with step-limiting for smooth transitions
+  let tatteredOffsets: number[] | undefined;
+  if (style === 'tattered') {
+    const rng = new SeededRNG(seed + 1000);
+    const maxStep = depth * 0.4;
+    tatteredOffsets = [];
+    let prev = 0;
+    for (let i = 0; i <= segments; i++) {
+      let off = -rng.nextRange(0, depth);
+      if (Math.abs(off - prev) > maxStep) {
+        off = prev + Math.sign(off - prev) * maxStep;
+      }
+      prev = off;
+      tatteredOffsets.push(off);
+    }
+  }
+
   for (let i = 1; i <= segments; i++) {
     const t = i / segments;
     const yFrac = topYFrac + range * t;
@@ -342,8 +359,7 @@ function drawStyledLeftSide(
     const st = t; // 0..1 along the side
 
     if (style === 'tattered') {
-      const rng = new SeededRNG(seed + i);
-      offset = -rng.nextRange(0, depth);
+      offset = tatteredOffsets![i];
     } else if (style === 'scalloped') {
       const phase = (st * count) % 1;
       offset = -depth * Math.sin(phase * Math.PI);
@@ -370,10 +386,45 @@ function drawStyledLeftSide(
       const rng = new SeededRNG(seed + i * 7 + 31);
       const r1 = rng.nextRange(0, 1);
       const r2 = rng.nextRange(0, 1);
-      // Deep gashes mixed with shallow jags
       offset = r1 < 0.2 ? -depth * (0.7 + r2 * 0.3) : -depth * r2 * 0.4;
-      // Slight inward variance for realism
       if (rng.nextRange(0, 1) > 0.65) offset *= -0.3;
+    } else if (style === 'pointed') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? -depth * (phase * 2) : -depth * (2 - phase * 2);
+    } else if (style === 'flame') {
+      const rng = new SeededRNG(seed + i * 3 + 17);
+      const phase = (st * count) % 1;
+      const flicker = rng.nextRange(0.5, 1.3);
+      offset = -depth * flicker * Math.sin(phase * Math.PI);
+    } else if (style === 'stepped') {
+      const phase = (st * count) % 1;
+      offset = -depth * Math.floor(phase * 3) / 3;
+    } else if (style === 'dovetail') {
+      const phase = (st * count) % 1;
+      const dir = Math.floor(st * count) % 2 === 0 ? 1 : 0.3;
+      offset = phase > 0.2 && phase < 0.8 ? -depth * dir : 0;
+    } else if (style === 'fishtail') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? depth * 0.3 * (phase * 2) : -depth * 0.7 * ((phase - 0.5) * 2);
+    } else if (style === 'feathered') {
+      const rng = new SeededRNG(seed + i * 5 + 11);
+      const phase = (st * count) % 1;
+      const h = depth * (0.6 + rng.nextRange(0, 1) * 0.4);
+      offset = -h * Math.sin(phase * Math.PI);
+    } else if (style === 'cloud') {
+      const rng = new SeededRNG(seed + i * 2 + 7);
+      const phase = (st * count * 3) % 1;
+      const h = depth * (0.4 + rng.nextRange(0, 1) * 0.6);
+      offset = -h * Math.sin(phase * Math.PI);
+    } else if (style === 'sawtooth') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.25 ? -depth * (phase / 0.25) : -depth * (1 - (phase - 0.25) / 0.75);
+    } else if (style === 'arrow') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? -depth * (phase * 2) : depth * 0.3 - depth * 0.3 * ((phase - 0.5) * 2);
+    } else if (style === 'picot') {
+      const phase = (st * count) % 1;
+      offset = (phase > 0.35 && phase < 0.65) ? -depth * Math.sin((phase - 0.35) / 0.3 * Math.PI) : 0;
     }
 
     path.lineTo(adjustedX + offset, y);
@@ -407,6 +458,23 @@ function drawStyledRightSide(
     return (sh + (h - sh) * t) * yFrac;
   }
 
+  // Pre-compute tattered offsets with step-limiting for smooth transitions
+  let tatteredOffsets: number[] | undefined;
+  if (style === 'tattered') {
+    const rng = new SeededRNG(seed + 2000);
+    const maxStep = depth * 0.4;
+    tatteredOffsets = [];
+    let prev = 0;
+    for (let i = 0; i <= segments; i++) {
+      let off = rng.nextRange(0, depth);
+      if (Math.abs(off - prev) > maxStep) {
+        off = prev + Math.sign(off - prev) * maxStep;
+      }
+      prev = off;
+      tatteredOffsets.push(off);
+    }
+  }
+
   for (let i = 0; i < segments; i++) {
     // Right side goes from bottom to top — same number of points as left side
     const t = 1 - (i / segments);
@@ -421,8 +489,7 @@ function drawStyledRightSide(
     const st = t;
 
     if (style === 'tattered') {
-      const rng = new SeededRNG(seed + (segments - i));
-      offset = rng.nextRange(0, depth);
+      offset = tatteredOffsets![i];
     } else if (style === 'scalloped') {
       const phase = (st * count) % 1;
       offset = depth * Math.sin(phase * Math.PI);
@@ -449,6 +516,43 @@ function drawStyledRightSide(
       const r2 = rng.nextRange(0, 1);
       offset = r1 < 0.2 ? depth * (0.7 + r2 * 0.3) : depth * r2 * 0.4;
       if (rng.nextRange(0, 1) > 0.65) offset *= -0.3;
+    } else if (style === 'pointed') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? depth * (phase * 2) : depth * (2 - phase * 2);
+    } else if (style === 'flame') {
+      const rng = new SeededRNG(seed + (segments - i) * 3 + 17);
+      const phase = (st * count) % 1;
+      const flicker = rng.nextRange(0.5, 1.3);
+      offset = depth * flicker * Math.sin(phase * Math.PI);
+    } else if (style === 'stepped') {
+      const phase = (st * count) % 1;
+      offset = depth * Math.floor(phase * 3) / 3;
+    } else if (style === 'dovetail') {
+      const phase = (st * count) % 1;
+      const dir = Math.floor(st * count) % 2 === 0 ? 1 : 0.3;
+      offset = phase > 0.2 && phase < 0.8 ? depth * dir : 0;
+    } else if (style === 'fishtail') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? -depth * 0.3 * (phase * 2) : depth * 0.7 * ((phase - 0.5) * 2);
+    } else if (style === 'feathered') {
+      const rng = new SeededRNG(seed + (segments - i) * 5 + 11);
+      const phase = (st * count) % 1;
+      const h = depth * (0.6 + rng.nextRange(0, 1) * 0.4);
+      offset = h * Math.sin(phase * Math.PI);
+    } else if (style === 'cloud') {
+      const rng = new SeededRNG(seed + (segments - i) * 2 + 7);
+      const phase = (st * count * 3) % 1;
+      const h = depth * (0.4 + rng.nextRange(0, 1) * 0.6);
+      offset = h * Math.sin(phase * Math.PI);
+    } else if (style === 'sawtooth') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.25 ? depth * (phase / 0.25) : depth * (1 - (phase - 0.25) / 0.75);
+    } else if (style === 'arrow') {
+      const phase = (st * count) % 1;
+      offset = phase < 0.5 ? depth * (phase * 2) : -depth * 0.3 + depth * 0.3 * ((phase - 0.5) * 2);
+    } else if (style === 'picot') {
+      const phase = (st * count) % 1;
+      offset = (phase > 0.35 && phase < 0.65) ? depth * Math.sin((phase - 0.35) / 0.3 * Math.PI) : 0;
     }
 
     path.lineTo(adjustedX + offset, y);
@@ -589,10 +693,18 @@ function drawModifiedOutline(
   const dovetail = params.dovetail as boolean;
   const flame = params.flame as boolean;
   const stepped = params.stepped as boolean;
+  const serrated = params.serrated as boolean;
+  const thorned = params.thorned as boolean;
+  const torn = params.torn as boolean;
+  const feathered = params.feathered as boolean;
+  const cloud = params.cloud as boolean;
+  const sawtooth = params.sawtooth as boolean;
+  const arrow = params.arrow as boolean;
+  const picot = params.picot as boolean;
   const rounding = params.rounding as boolean;
   const roundingAmt = (params.roundingAmount as number) || 0.5;
 
-  const hasHemStyle = tattered || scalloped || fishtail || asymmetric || pointed || zigzag || wavy || castellated || dovetail || flame || stepped;
+  const hasHemStyle = tattered || scalloped || fishtail || asymmetric || pointed || zigzag || wavy || castellated || dovetail || flame || stepped || serrated || thorned || torn || feathered || cloud || sawtooth || arrow || picot;
 
   const sideStyle = (params.sideStyle as string) || 'none';
   const sideDepth = (params.sideStyleDepth as number) || 3;
@@ -923,6 +1035,53 @@ function drawModifiedOutline(
       }
     }
     path.lineTo(rightX, leftY);
+  } else if (serrated || thorned || sawtooth || arrow || picot || feathered || cloud || torn) {
+    // Segment-based styles adapted from side edges
+    const count = (params.hemEdgeCount as number) || 8;
+    const depth = (params.hemEdgeDepth as number) || 3;
+    const seed = (params.seed as number) || 12345;
+    const segments = Math.max(count * 4, 40);
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const xPos = leftX + hemSpan * t;
+      const bY = baseY(t);
+      const st = t;
+      let off = 0;
+      if (serrated) {
+        const phase = (st * count) % 1;
+        off = depth * phase;
+      } else if (thorned) {
+        const phase = (st * count) % 1;
+        off = phase < 0.15 ? depth * (phase / 0.15) : phase < 0.3 ? depth * (1 - (phase - 0.15) / 0.15) : 0;
+      } else if (sawtooth) {
+        const phase = (st * count) % 1;
+        off = phase < 0.25 ? depth * (phase / 0.25) : depth * (1 - (phase - 0.25) / 0.75);
+      } else if (arrow) {
+        const phase = (st * count) % 1;
+        off = phase < 0.5 ? depth * (phase * 2) : -depth * 0.3 + depth * 0.3 * ((phase - 0.5) * 2);
+      } else if (picot) {
+        const phase = (st * count) % 1;
+        off = (phase > 0.35 && phase < 0.65) ? depth * Math.sin((phase - 0.35) / 0.3 * Math.PI) : 0;
+      } else if (feathered) {
+        const rng = new SeededRNG(seed + i * 5 + 11);
+        const phase = (st * count) % 1;
+        const h = depth * (0.6 + rng.nextRange(0, 1) * 0.4);
+        off = h * Math.sin(phase * Math.PI);
+      } else if (cloud) {
+        const rng = new SeededRNG(seed + i * 2 + 7);
+        const phase = (st * count * 3) % 1;
+        const h = depth * (0.4 + rng.nextRange(0, 1) * 0.6);
+        off = h * Math.sin(phase * Math.PI);
+      } else if (torn) {
+        const rng = new SeededRNG(seed + i * 7 + 31);
+        const r1 = rng.nextRange(0, 1);
+        const r2 = rng.nextRange(0, 1);
+        off = r1 < 0.2 ? depth * (0.7 + r2 * 0.3) : depth * r2 * 0.4;
+        if (rng.nextRange(0, 1) > 0.65) off *= -0.3;
+      }
+      const pt = offsetPoint(xPos, bY, off);
+      path.lineTo(pt.x, pt.y);
+    }
   }
 
   // Draw the right side back up at actual length with hemWidth taper
@@ -966,8 +1125,8 @@ function generateWornHoles(
   const sideEndY = refH * 0.89712;
   const safeMinX = w * 0.15;
   const safeMaxX = w * 0.85;
-  const safeMinY = refH * 0.20;
-  const safeMaxY = sideEndY - size - 2;
+  const safeMinY = h * 0.20;
+  const safeMaxY = Math.max(safeMinY + size, sideEndY - size - 2);
 
   // Hole shape types for variety
   const shapeTypes = ['tear', 'crescent', 'ragged', 'elongated', 'moth'] as const;
@@ -993,19 +1152,23 @@ function generateWornHoles(
     const path = new SVGPath();
 
     if (shapeType === 'tear') {
-      // Teardrop/water-drop torn shape
+      // Teardrop/water-drop torn shape — radius clamped to prevent crossing
       const vertCount = 6 + Math.floor(rng.next() * 4);
       const pts: Array<{x: number; y: number}> = [];
+      let prevR = 0;
       for (let v = 0; v < vertCount; v++) {
         const a = rotation + (v / vertCount) * Math.PI * 2;
         const stretch = 1.0 + Math.sin(a - rotation) * 0.5;
-        const r = holeSize * (0.3 + rng.next() * 0.8) * stretch;
+        let r = holeSize * (0.35 + rng.next() * 0.7) * stretch;
+        if (prevR > 0) r = Math.max(r, prevR * 0.35); // prevent extreme shrinkage between adjacent
+        prevR = r;
         pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
       }
       path.moveTo(pts[0].x, pts[0].y);
       for (let v = 0; v < vertCount; v++) {
         const curr = pts[v], next = pts[(v + 1) % vertCount];
-        const cpOff = holeSize * (0.2 + rng.next() * 0.4);
+        const segLen = Math.hypot(next.x - curr.x, next.y - curr.y);
+        const cpOff = Math.min(segLen * 0.35, holeSize * 0.3);
         const mx = (curr.x + next.x) / 2, my = (curr.y + next.y) / 2;
         const nx = -(next.y - curr.y), ny = (next.x - curr.x);
         const nl = Math.hypot(nx, ny) || 1;
@@ -1042,12 +1205,14 @@ function generateWornHoles(
         );
       }
     } else if (shapeType === 'ragged') {
-      // Ragged/spiky torn hole
+      // Ragged/spiky torn hole — min radius clamped to prevent self-intersection
       const vertCount = 8 + Math.floor(rng.next() * 6);
+      const stepAngle = (Math.PI * 2) / vertCount;
+      const minRadiusFrac = Math.sin(stepAngle / 2) * 1.1; // star-convex safety bound
       const pts: Array<{x: number; y: number}> = [];
       for (let v = 0; v < vertCount; v++) {
         const a = rotation + (v / vertCount) * Math.PI * 2;
-        const spike = (v % 2 === 0) ? (0.6 + rng.next() * 0.6) : (0.15 + rng.next() * 0.35);
+        const spike = (v % 2 === 0) ? (0.6 + rng.next() * 0.6) : Math.max(minRadiusFrac, 0.3 + rng.next() * 0.25);
         const r = holeSize * spike;
         pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
       }
@@ -1079,27 +1244,33 @@ function generateWornHoles(
         path.quadraticBezierTo(mx + (rng.next() - 0.5) * cpOff, my + (rng.next() - 0.5) * cpOff, next.x, next.y);
       }
     } else {
-      // Moth-eaten: cluster of small overlapping irregular circles
+      // Moth-eaten: cluster of small non-overlapping irregular circles
       const clusterCount = 2 + Math.floor(rng.next() * 3);
+      const subCenters: Array<{x: number; y: number; r: number}> = [];
       for (let c = 0; c < clusterCount; c++) {
-        const offA = rng.next() * Math.PI * 2;
-        const offR = rng.next() * holeSize * 0.6;
-        const subCx = cx + offR * Math.cos(offA);
-        const subCy = cy + offR * Math.sin(offA);
-        const subR = holeSize * (0.25 + rng.next() * 0.4);
+        // Place each sub-circle ensuring no overlap with previous ones
+        let subCx = cx, subCy = cy, subR = holeSize * (0.25 + rng.next() * 0.35);
+        for (let a = 0; a < 10; a++) {
+          const offA = rng.next() * Math.PI * 2;
+          const offR = holeSize * (0.4 + rng.next() * 0.6);
+          subCx = cx + offR * Math.cos(offA);
+          subCy = cy + offR * Math.sin(offA);
+          const overlaps = subCenters.some(sc => Math.hypot(sc.x - subCx, sc.y - subCy) < sc.r + subR + 0.2);
+          if (!overlaps) break;
+        }
+        subCenters.push({ x: subCx, y: subCy, r: subR });
         const subVerts = 5 + Math.floor(rng.next() * 3);
         const subPts: Array<{x: number; y: number}> = [];
         for (let v = 0; v < subVerts; v++) {
           const a = (v / subVerts) * Math.PI * 2;
-          const r = subR * (0.6 + rng.next() * 0.8);
+          const r = subR * (0.7 + rng.next() * 0.6);
           subPts.push({ x: subCx + r * Math.cos(a), y: subCy + r * Math.sin(a) });
         }
-        if (c > 0) path.moveTo(subPts[0].x, subPts[0].y);
-        else path.moveTo(subPts[0].x, subPts[0].y);
+        path.moveTo(subPts[0].x, subPts[0].y);
         for (let v = 0; v < subVerts; v++) {
           const next = subPts[(v + 1) % subVerts];
           const curr = subPts[v];
-          const cpOff = subR * 0.5;
+          const cpOff = subR * 0.3;
           path.quadraticBezierTo(
             (curr.x + next.x) / 2 + (rng.next() - 0.5) * cpOff,
             (curr.y + next.y) / 2 + (rng.next() - 0.5) * cpOff,
@@ -1361,14 +1532,21 @@ export class CapeStandard extends Template {
     if (maxY > result.boundingBox.height) {
       result.boundingBox.height = maxY;
     }
-    // When side styles are active, the left side extends into negative X.
-    // Set bb.x to the negative offset so the SVG export can translate accordingly.
+    // Compute actual X extents from hemWidth, sideStyle, and default bounds
+    let minX = 0;
+    let maxX = w;
+    if (hemW !== 1.0) {
+      minX = Math.min(minX, leftX);
+      maxX = Math.max(maxX, rightX);
+    }
     const sideStyle = (params.sideStyle as string) || 'none';
     if (sideStyle !== 'none') {
       const sideDepth = (params.sideStyleDepth as number) || 3;
-      result.boundingBox.x = -sideDepth;
-      result.boundingBox.width = w + sideDepth * 2;
+      minX = Math.min(minX, -sideDepth);
+      maxX = Math.max(maxX, w + sideDepth);
     }
+    result.boundingBox.x = minX;
+    result.boundingBox.width = maxX - minX;
     return result;
   }
 }
@@ -1482,12 +1660,20 @@ export class CapeNarrowSingleHole extends Template {
     if (maxY > result.boundingBox.height) {
       result.boundingBox.height = maxY;
     }
+    let minX = 0;
+    let maxX = w;
+    if (hemW !== 1.0) {
+      minX = Math.min(minX, leftX);
+      maxX = Math.max(maxX, rightX);
+    }
     const sideStyle = (params.sideStyle as string) || 'none';
     if (sideStyle !== 'none') {
       const sideDepth = (params.sideStyleDepth as number) || 3;
-      result.boundingBox.x = -sideDepth;
-      result.boundingBox.width = w + sideDepth * 2;
+      minX = Math.min(minX, -sideDepth);
+      maxX = Math.max(maxX, w + sideDepth);
     }
+    result.boundingBox.x = minX;
+    result.boundingBox.width = maxX - minX;
     return result;
   }
 }
