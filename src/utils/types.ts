@@ -14,6 +14,7 @@ export type TemplateVariant =
   | 'narrow-single-hole'
   | 'top-single-hole'
   | 'stepped-single-hole'
+  | 'man-bat-single-hole'
 
   | 'small-flag'
   | 'large-flag'

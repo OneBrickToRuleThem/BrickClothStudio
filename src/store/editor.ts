@@ -248,6 +248,7 @@ export const ELEMENT_DIMENSION_DEFAULTS: Record<string, { width: number; length:
   'cape:narrow-single-hole': { width: 28, length: 36 },
   'cape:top-single-hole': { width: 37, length: 37 },
   'cape:stepped-single-hole': { width: 41, length: 37 },
+  'cape:man-bat-single-hole': { width: 89.5, length: 50 },
   'mantle:high-collar': { width: 32, length: 18 },
   'sail': { width: 60, length: 60 },
   'sail:polygon-sail': { width: 60, length: 60 },

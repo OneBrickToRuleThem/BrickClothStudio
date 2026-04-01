@@ -815,6 +815,70 @@ export class CapeSteppedSingleHole extends Template {
   }
 }
 
+// ManBat Single Hole cape (traced from ManBatSingleHole.png, symmetrized)
+const MAN_BAT_OUTLINE: FracCmd[] = [
+  [1, 0.5000, 0.0085],
+  [3, 0.4905, 0.0108, 0.4838, 0.0145, 0.4807, 0.0166],
+  [3, 0.4749, 0.0206, 0.4505, 0.0458, 0.4256, 0.0736],
+  [3, 0.4179, 0.0822, 0.4066, 0.0939, 0.4004, 0.0996],
+  [3, 0.3796, 0.1188, 0.3900, 0.1176, 0.2513, 0.1174],
+  [3, 0.0907, 0.1172, 0.0735, 0.1191, 0.0369, 0.1415],
+  [3, 0.0014, 0.1631, 0.0000, 0.1740, 0.0304, 0.1905],
+  [3, 0.0905, 0.2233, 0.1502, 0.2809, 0.1793, 0.3341],
+  [3, 0.2008, 0.3732, 0.2058, 0.4045, 0.2020, 0.4755],
+  [3, 0.2004, 0.5055, 0.1958, 0.5352, 0.1872, 0.5705],
+  [3, 0.1789, 0.6049, 0.1812, 0.6104, 0.2053, 0.6134],
+  [3, 0.2298, 0.6165, 0.2347, 0.6173, 0.2474, 0.6206],
+  [3, 0.2911, 0.6319, 0.3277, 0.6510, 0.3473, 0.6728],
+  [3, 0.3576, 0.6842, 0.3683, 0.7059, 0.3717, 0.7227],
+  [3, 0.3752, 0.7396, 0.3755, 0.7620, 0.3725, 0.7886],
+  [3, 0.3688, 0.8212, 0.3711, 0.8246, 0.3935, 0.8187],
+  [3, 0.4079, 0.8149, 0.4262, 0.8161, 0.4355, 0.8214],
+  [3, 0.4533, 0.8316, 0.4695, 0.8665, 0.4919, 0.9423],
+  [3, 0.4960, 0.9700, 0.4985, 0.9880, 0.5000, 0.9970],
+  [3, 0.5015, 0.9880, 0.5040, 0.9700, 0.5081, 0.9423],
+  [3, 0.5305, 0.8665, 0.5467, 0.8316, 0.5645, 0.8214],
+  [3, 0.5738, 0.8161, 0.5921, 0.8149, 0.6065, 0.8187],
+  [3, 0.6289, 0.8246, 0.6312, 0.8212, 0.6275, 0.7886],
+  [3, 0.6245, 0.7620, 0.6248, 0.7396, 0.6283, 0.7227],
+  [3, 0.6317, 0.7059, 0.6424, 0.6842, 0.6527, 0.6728],
+  [3, 0.6723, 0.6510, 0.7089, 0.6319, 0.7526, 0.6206],
+  [3, 0.7653, 0.6173, 0.7702, 0.6165, 0.7947, 0.6134],
+  [3, 0.8188, 0.6104, 0.8211, 0.6049, 0.8128, 0.5705],
+  [3, 0.8042, 0.5352, 0.7996, 0.5055, 0.7980, 0.4755],
+  [3, 0.7942, 0.4045, 0.7992, 0.3732, 0.8207, 0.3341],
+  [3, 0.8498, 0.2809, 0.9095, 0.2233, 0.9696, 0.1905],
+  [3, 1.0000, 0.1740, 0.9986, 0.1631, 0.9631, 0.1415],
+  [3, 0.9265, 0.1191, 0.9093, 0.1172, 0.7487, 0.1174],
+  [3, 0.6100, 0.1176, 0.6204, 0.1188, 0.5996, 0.0996],
+  [3, 0.5934, 0.0939, 0.5821, 0.0822, 0.5744, 0.0736],
+  [3, 0.5495, 0.0458, 0.5251, 0.0206, 0.5193, 0.0166],
+  [3, 0.5162, 0.0145, 0.5095, 0.0108, 0.5000, 0.0085],
+  [0],
+];
+const MAN_BAT_HOLE = { relX: 0.5000, relY: 0.1077 };
+
+export class CapeManBatSingleHole extends Template {
+  generateCutPath(params: TemplateParams): string {
+    return renderFracPath(MAN_BAT_OUTLINE, params.width, params.length);
+  }
+
+  generateCutPaths(params: TemplateParams): string[] {
+    const { width, length } = params;
+    const paths = [this.generateCutPath(params)];
+    paths.push(generateAttachmentHole(width * MAN_BAT_HOLE.relX, length * MAN_BAT_HOLE.relY, STD_HOLE_R, 0, 0, false, params));
+    return paths;
+  }
+
+  generateScorePaths(_params: TemplateParams): string[] { return []; }
+  generateEngravePaths(_params: TemplateParams): string[] { return []; }
+
+  export(id: string, name: string, elementType: string, variantName: string, params: TemplateParams) {
+    const p = { ...params, width: params.width || 89.5, length: params.length || 50 };
+    return super.export(id, name, elementType, variantName, p);
+  }
+}
+
 export class MantleShoulderArmor extends Template {
   generateCutPath(params: TemplateParams): string {
     return renderFracPath(SHOULDER_ARMOR_OUTLINE, params.width, params.length);

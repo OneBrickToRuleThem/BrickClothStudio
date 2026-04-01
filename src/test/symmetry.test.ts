@@ -242,6 +242,8 @@ const VARIANT_SYMMETRY: VariantConfig[] = [
   { elementType: 'cape', templateVariant: 'narrow-single-hole',  defaults: { width: 28, length: 36 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
   { elementType: 'cape', templateVariant: 'top-single-hole',     defaults: { width: 37, length: 37 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
   { elementType: 'cape', templateVariant: 'stepped-single-hole', defaults: { width: 41, length: 37 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
+  // ManBat cape — symmetrized by mirroring left half
+  { elementType: 'cape', templateVariant: 'man-bat-single-hole', defaults: { width: 89.5, length: 50 }, outlineSymmetric: true, cutPathsSymmetric: true },
   // Intentionally asymmetric (SVG-traced from non-symmetric originals)
   { elementType: 'cape', templateVariant: 'wind-swept',          defaults: { width: 47, length: 51 }, outlineSymmetric: false, cutPathsSymmetric: false },
   { elementType: 'cape', templateVariant: 'phantom-shroud',      defaults: { width: 48, length: 51 }, outlineSymmetric: false, cutPathsSymmetric: false },

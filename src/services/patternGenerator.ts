@@ -31,6 +31,7 @@ import {
   CapeSevenPoints,
   CapeTopSingleHole,
   CapeSteppedSingleHole,
+  CapeManBatSingleHole,
   KamaFullSkirt,
   MantleHighCollar,
   MantleShoulderArmor,
@@ -97,6 +98,10 @@ export function generatePattern(
       case 'stepped-single-hole':
         template = new CapeSteppedSingleHole();
         name = 'Stepped Single Hole Cape';
+        break;
+      case 'man-bat-single-hole':
+        template = new CapeManBatSingleHole();
+        name = 'Man-Bat Single Hole Cape';
         break;
       default:
         template = new CapeStandard();

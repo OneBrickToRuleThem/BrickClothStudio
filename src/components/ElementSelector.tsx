@@ -229,6 +229,7 @@ function ElementVariantSelector() {
       { value: 'narrow-single-hole', label: 'Narrow (Single Hole)' },
       { value: 'top-single-hole', label: 'Top (Single Hole)' },
       { value: 'stepped-single-hole', label: 'Stepped (Single Hole)' },
+      { value: 'man-bat-single-hole', label: 'Man-Bat (Single Hole)' },
     ],
 
     flag: [
