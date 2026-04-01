@@ -55,8 +55,8 @@ export default function Editor() {
     <div className="flex h-screen flex-col bg-gray-100 dark:bg-gray-900 dark:text-gray-200">
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-800 dark:to-blue-950 text-white px-4 sm:px-6 py-3 sm:py-4 shadow-lg">
-        <h1 className="text-xl sm:text-3xl font-semibold tracking-tight" style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>Brick Cloth Studio</h1>
-        <p className="text-blue-100 text-xs sm:text-sm" style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>Minifig-scale fabric pattern generator</p>
+        <h1 className="text-xl sm:text-3xl font-semibold tracking-tight" style={{ fontFamily: "'Exo 2', sans-serif", fontWeight: 700 }}>Brick Cloth Studio</h1>
+        <p className="text-blue-100 text-xs sm:text-sm" style={{ fontFamily: "'Exo 2', sans-serif", fontWeight: 400 }}>Minifig-scale fabric pattern generator</p>
       </header>
 
       {/* Mobile tab bar — visible only on small screens */}
