@@ -183,25 +183,38 @@ class BannerFlag extends Template {
     const bottomExt = this.getBottomExtension(bottomStyle, depth, count, h, margin);
     const bodyBottom = h - margin - bottomExt;
 
+    // Bottom corners are straight when a bottom edge style is active,
+    // rounded otherwise (issue #1: arcs create improper curves with edge styles)
+    const hasBottomEdge = bottomStyle !== 'none' && bottomStyle !== 'straight';
+    const br = hasBottomEdge ? 0 : r; // bottom corner radius
+
     // Start top-left, go clockwise
     path.moveTo(margin + r, margin);
     path.lineTo(w - margin - r, margin);
     path.arcTo(r, r, 0, 0, 1, w - margin, margin + r);
 
-    // Right edge (top to bottom) — ends at bodyBottom - r for bottom corner arc
-    this.drawStyledSideEdge(path, w - margin, margin + r, w - margin, bodyBottom - r, rightStyle, sideDepth, sideCount, 1);
+    // Right edge (top to bottom)
+    this.drawStyledSideEdge(path, w - margin, margin + r, w - margin, bodyBottom - br, rightStyle, sideDepth, sideCount, 1);
 
-    // Bottom-right rounded corner
-    path.arcTo(r, r, 0, 0, 1, w - margin - r, bodyBottom);
+    // Bottom-right corner: rounded only when no bottom edge style
+    if (hasBottomEdge) {
+      path.lineTo(w - margin, bodyBottom);
+    } else {
+      path.arcTo(r, r, 0, 0, 1, w - margin - r, bodyBottom);
+    }
 
     // Bottom edge — decorations extend from bodyBottom down to h-margin (within bounds)
-    this.drawStyledBottomEdge(path, w, h, margin, bottomStyle, depth, count, bottomExt, r);
+    this.drawStyledBottomEdge(path, w, h, margin, bottomStyle, depth, count, bottomExt, br);
 
-    // Bottom-left rounded corner
-    path.arcTo(r, r, 0, 0, 1, margin, bodyBottom - r);
+    // Bottom-left corner: rounded only when no bottom edge style
+    if (hasBottomEdge) {
+      path.lineTo(margin, bodyBottom);
+    } else {
+      path.arcTo(r, r, 0, 0, 1, margin, bodyBottom - r);
+    }
 
-    // Left edge (bottom to top) — starts from bodyBottom - r
-    this.drawStyledSideEdge(path, margin, bodyBottom - r, margin, margin + r, leftStyle, sideDepth, sideCount, -1);
+    // Left edge (bottom to top)
+    this.drawStyledSideEdge(path, margin, bodyBottom - br, margin, margin + r, leftStyle, sideDepth, sideCount, -1);
     path.arcTo(r, r, 0, 0, 1, margin + r, margin);
     path.closePath();
     return path.toString();
