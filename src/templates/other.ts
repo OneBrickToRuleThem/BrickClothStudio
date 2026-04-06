@@ -183,9 +183,9 @@ class BannerFlag extends Template {
     const bottomExt = this.getBottomExtension(bottomStyle, depth, count, h, margin);
     const bodyBottom = h - margin - bottomExt;
 
-    // Bottom corners are straight when a bottom edge style is active,
-    // rounded otherwise (issue #1: arcs create improper curves with edge styles)
-    const hasBottomEdge = bottomStyle !== 'none' && bottomStyle !== 'straight';
+    // Bottom corners are straight when a bottom edge style is active or 'straight',
+    // rounded only when 'none' (issue #1 + #4.2)
+    const hasBottomEdge = bottomStyle !== 'none';
     const br = hasBottomEdge ? 0 : r; // bottom corner radius
 
     // Start top-left, go clockwise
@@ -204,7 +204,7 @@ class BannerFlag extends Template {
     }
 
     // Bottom edge — decorations extend from bodyBottom down to h-margin (within bounds)
-    this.drawStyledBottomEdge(path, w, h, margin, bottomStyle, depth, count, bottomExt, br);
+    this.drawStyledBottomEdge(path, w, h, margin, bottomStyle, depth, count, bottomExt, br, params as Record<string, unknown>);
 
     // Bottom-left corner: rounded only when no bottom edge style
     if (hasBottomEdge) {
@@ -232,7 +232,6 @@ class BannerFlag extends Template {
       case 'torn': return depthParam || 3;
       case 'stepped': return depthParam || 3;
       case 'dovetail': return depthParam || 3;
-      case 'fishtail': return depthParam || 3;
       case 'feathered': return depthParam || 3;
       case 'cloud': return depthParam || 3;
       case 'sawtooth': return depthParam || 3;
@@ -311,7 +310,7 @@ class BannerFlag extends Template {
   private drawStyledBottomEdge(
     path: SVGPath, w: number, h: number, margin: number,
     style: string, depthParam: number, count: number, bottomExt: number,
-    cornerRadius: number = 0
+    cornerRadius: number = 0, params: Record<string, unknown> = {}
   ): void {
     const bottomY = h - margin;           // absolute bottom edge of bounding box
     const bodyBottom = bottomY - bottomExt; // raised baseline where the body ends
@@ -336,16 +335,25 @@ class BannerFlag extends Template {
         break;
       }
       case 'flames': {
-        // Shifted up so flame tips reach bottomY but don't exceed it
+        // Pointed flame tongues with curling spurs
         const flameCount = count || 5;
         const segW = usableW / flameCount;
-        const flameH = bottomExt; // = h * Math.min(depthParam || 0.15, 0.4)
+        const flameH = bottomExt;
         for (let i = 0; i < flameCount; i++) {
           const x0 = rightX - i * segW;
           const x1 = rightX - (i + 1) * segW;
-          const cx1 = x0 - segW * 0.3;
-          const cx2 = x0 - segW * 0.7;
-          path.cubicBezierTo(cx1, bottomY, cx2, bodyBottom - flameH * 0.5, x1, bodyBottom);
+          const midX = (x0 + x1) / 2;
+          // Rising curl spur
+          const spur1X = x0 - segW * 0.15;
+          const spur1Y = bodyBottom + flameH * 0.3;
+          path.quadraticBezierTo(spur1X, spur1Y, midX + segW * 0.1, bodyBottom + flameH * 0.55);
+          // Sharp pointed tip
+          path.lineTo(midX, bottomY);
+          // Falling curl spur
+          const spur2X = x1 + segW * 0.15;
+          const spur2Y = bodyBottom + flameH * 0.3;
+          path.quadraticBezierTo(midX - segW * 0.1, bodyBottom + flameH * 0.55, spur2X, spur2Y);
+          path.quadraticBezierTo(x1 + segW * 0.05, bodyBottom + flameH * 0.05, x1, bodyBottom);
         }
         break;
       }
@@ -362,14 +370,16 @@ class BannerFlag extends Template {
         break;
       }
       case 'zigzag': {
-        // Teeth alternate between bottomY and bodyBottom
+        // Teeth alternate between bottomY and bodyBottom, centered for even counts
         const zzCount = count || 8;
         const segW = usableW / zzCount;
         for (let i = 0; i < zzCount; i++) {
           const x = rightX - (i + 0.5) * segW;
+          // Start with a downward tooth so pattern is symmetric around center
           const y = (i % 2 === 0) ? bottomY : bodyBottom;
           path.lineTo(x, y);
         }
+        // End at bodyBottom on left, ensuring symmetry
         path.lineTo(leftX, bodyBottom);
         break;
       }
@@ -387,11 +397,201 @@ class BannerFlag extends Template {
         break;
       }
       case 'straight':
+        // Visible straight line at bodyBottom (distinct from 'none' which has no bottom style)
+        path.lineTo(leftX, bodyBottom);
+        break;
       case 'none':
         path.lineTo(leftX, bodyBottom);
         break;
+      case 'castellated': {
+        // Battlements: square notches along the bottom
+        const castCount = count || 5;
+        const segW = usableW / castCount;
+        const notchW = segW * 0.5;
+        for (let i = 0; i < castCount; i++) {
+          const baseX = rightX - i * segW;
+          // Drop down to notch
+          path.lineTo(baseX, bottomY);
+          path.lineTo(baseX - notchW, bottomY);
+          // Back up to merlon
+          path.lineTo(baseX - notchW, bodyBottom);
+          const nextX = rightX - (i + 1) * segW;
+          path.lineTo(nextX, bodyBottom);
+        }
+        break;
+      }
+      case 'torn': {
+        // Torn/ripped edge — delegates to shared system with user seed
+        const tornSeed = (params as Record<string, number>).flagBottomSeed ?? 42;
+        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, 'torn', bottomExt, count, 0, 1, 0, tornSeed);
+        break;
+      }
+      case 'stepped': {
+        // Staircase steps descending then ascending per segment
+        const stepCount = count || 5;
+        const segW = usableW / stepCount;
+        const steps = 3;
+        for (let i = 0; i < stepCount; i++) {
+          const segStart = rightX - i * segW;
+          const stepW = segW / (steps * 2);
+          // Descend
+          for (let s = 0; s < steps; s++) {
+            const d = bottomExt * ((s + 1) / steps);
+            const sx = segStart - s * 2 * stepW;
+            path.lineTo(sx, bodyBottom + d);
+            path.lineTo(sx - stepW, bodyBottom + d);
+          }
+          // Ascend
+          for (let s = steps - 1; s >= 0; s--) {
+            const d = bottomExt * ((s + 1) / steps);
+            const sx = segStart - (steps + (steps - 1 - s)) * stepW * 2;
+            if (s < steps - 1) {
+              path.lineTo(sx + stepW, bodyBottom + d);
+            }
+            path.lineTo(sx, bodyBottom + d);
+          }
+          path.lineTo(rightX - (i + 1) * segW, bodyBottom);
+        }
+        break;
+      }
+      case 'dovetail': {
+        // Trapezoidal dovetail notches
+        const dtCount = count || 5;
+        const segW = usableW / dtCount;
+        for (let i = 0; i < dtCount; i++) {
+          const segStart = rightX - i * segW;
+          const dir = (i % 2 === 0) ? 1 : 0.3;
+          const d = bottomExt * dir;
+          // Narrow top entry
+          const topInset = segW * 0.35;
+          const botInset = segW * 0.2;
+          path.lineTo(segStart - topInset, bodyBottom + d);
+          path.lineTo(segStart - botInset, bodyBottom + d);
+          path.lineTo(segStart - (segW - botInset), bodyBottom + d);
+          path.lineTo(segStart - (segW - topInset), bodyBottom + d);
+          path.lineTo(rightX - (i + 1) * segW, bodyBottom);
+        }
+        break;
+      }
+      case 'feathered': {
+        // Overlapping feather shapes with pointed tips
+        const fCount = count || 5;
+        const segW = usableW / fCount;
+        for (let i = 0; i < fCount; i++) {
+          const x0 = rightX - i * segW;
+          const x1 = rightX - (i + 1) * segW;
+          const midX = (x0 + x1) / 2;
+          const tipY = bottomY;
+          // Smooth pointed feather: rise to sharp point then curve back
+          path.cubicBezierTo(
+            x0 - segW * 0.1, bodyBottom + bottomExt * 0.2,
+            midX + segW * 0.15, tipY - bottomExt * 0.05,
+            midX, tipY
+          );
+          path.cubicBezierTo(
+            midX - segW * 0.15, tipY - bottomExt * 0.05,
+            x1 + segW * 0.1, bodyBottom + bottomExt * 0.2,
+            x1, bodyBottom
+          );
+        }
+        break;
+      }
+      case 'cloud': {
+        // Rounded cloud puffs — 3 arcs per segment with varying radii forming rounded bumps
+        const clCount = count || 4;
+        const segW = usableW / clCount;
+        const rng = new SeededRNG((params as Record<string, number>).flagBottomSeed ?? 42);
+        for (let i = 0; i < clCount; i++) {
+          const segStart = rightX - i * segW;
+          const puffs = 3;
+          const puffW = segW / puffs;
+          for (let j = 0; j < puffs; j++) {
+            const px0 = segStart - j * puffW;
+            const px1 = segStart - (j + 1) * puffW;
+            const h = bottomExt * (0.5 + rng.nextRange(0, 1) * 0.5);
+            const cx = (px0 + px1) / 2;
+            // Rounded arc bulge
+            path.cubicBezierTo(
+              px0 - puffW * 0.1, bodyBottom + h * 0.8,
+              cx + puffW * 0.15, bodyBottom + h,
+              cx, bodyBottom + h
+            );
+            path.cubicBezierTo(
+              cx - puffW * 0.15, bodyBottom + h,
+              px1 + puffW * 0.1, bodyBottom + h * 0.8,
+              px1, bodyBottom
+            );
+          }
+        }
+        break;
+      }
+      case 'sawtooth': {
+        // Asymmetric sawtooth — steep side, gradual slope; direction toggleable
+        const stCount = count || 8;
+        const segW = usableW / stCount;
+        const reverse = !!(params as Record<string, boolean>).flagSawtoothReverse;
+        const curve = (params as Record<string, number>).flagSawtoothCurve ?? 0;
+        for (let i = 0; i < stCount; i++) {
+          const x0 = rightX - i * segW;
+          const x1 = rightX - (i + 1) * segW;
+          if (reverse) {
+            // Gradual rise then steep drop
+            const peakX = x0 - segW * 0.75;
+            if (curve > 0) {
+              const cpX = (x0 + peakX) / 2;
+              path.quadraticBezierTo(cpX, bodyBottom + bottomExt * curve * 0.3, peakX, bottomY);
+            } else {
+              path.lineTo(peakX, bottomY);
+            }
+            path.lineTo(x1, bodyBottom);
+          } else {
+            // Steep rise then gradual slope
+            const peakX = x0 - segW * 0.25;
+            path.lineTo(peakX, bottomY);
+            if (curve > 0) {
+              const cpX = (peakX + x1) / 2;
+              path.quadraticBezierTo(cpX, bodyBottom + bottomExt * curve * 0.3, x1, bodyBottom);
+            } else {
+              path.lineTo(x1, bodyBottom);
+            }
+          }
+        }
+        break;
+      }
+      case 'arrow': {
+        // Arrow pattern: stem with triangular arrowhead
+        const arCount = count || 5;
+        const segW = usableW / arCount;
+        const stemW = segW * 0.15;
+        const headW = segW * 0.4;
+        for (let i = 0; i < arCount; i++) {
+          const cx = rightX - (i + 0.5) * segW;
+          const stemTop = bodyBottom;
+          const stemBot = bodyBottom + bottomExt * 0.5;
+          const tipY = bottomY;
+          // Left side of stem
+          path.lineTo(cx + stemW, stemTop);
+          path.lineTo(cx + stemW, stemBot);
+          // Arrowhead widens
+          path.lineTo(cx + headW, stemBot);
+          // Tip
+          path.lineTo(cx, tipY);
+          // Right side of arrowhead
+          path.lineTo(cx - headW, stemBot);
+          // Right side of stem
+          path.lineTo(cx - stemW, stemBot);
+          path.lineTo(cx - stemW, stemTop);
+          // Back to baseline
+          path.lineTo(rightX - (i + 1) * segW, bodyBottom);
+        }
+        break;
+      }
+      case 'picot':
+        // Delegate picot to shared system
+        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, 'picot', bottomExt, count, 0, 1, 0, 42);
+        break;
       default:
-        // Delegate to shared edge style system (castellated, torn, stepped, etc.)
+        // Delegate any remaining styles to shared edge style system
         drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, style, bottomExt, count, 0, 1, 0, 42);
         break;
     }

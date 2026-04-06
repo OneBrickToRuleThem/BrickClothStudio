@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditorStore } from '../store/editor';
 import { HOLE_STANDARDS, DEFAULT_HOLE_TYPE, SAIL_HOLE_STANDARDS, LEGO_GRID_SIZE } from '../utils/constants';
+import { EDGE_STYLE_NAMES } from '../geometry/edgeStyles';
 
 const LDU_PER_MM = 2.5; // 1 LDU = 0.4mm
 
@@ -786,12 +787,9 @@ export default function ParameterPanel() {
                   setParameter(`${elementType}EdgeDepth`, 2);
                   setParameter(`${elementType}EdgeCount`, 6);
                 }}>
-                <option value="none">none</option>
-                <option value="scalloped">scalloped</option>
-                <option value="zigzag">zigzag</option>
-                <option value="wavy">wavy</option>
-                <option value="castellated">castellated</option>
-                <option value="torn">torn</option>
+                {EDGE_STYLE_NAMES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
               </select>
             </div>
             {(parameters[`${elementType}EdgeStyle`] as string || 'none') !== 'none' && (
@@ -2233,7 +2231,7 @@ function FlagParameterPanel({ parameters, setParameter }: {
         {openSections.flagBottom && (
           <div className="mt-2 space-y-2">
             <p className="text-xs text-gray-500 mb-2">Style of the bottom edge</p>
-            {(['none', 'flames', 'pointed', 'swallowtail', 'straight', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn', 'stepped', 'dovetail', 'fishtail', 'feathered', 'cloud', 'sawtooth', 'arrow', 'picot'] as const).map((style) => (
+            {(['none', 'flames', 'pointed', 'swallowtail', 'straight', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn', 'stepped', 'dovetail', 'feathered', 'cloud', 'sawtooth', 'arrow', 'picot'] as const).map((style) => (
               <div key={style}>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" name="flagBottomStyle" className="w-4 h-4"
@@ -2242,7 +2240,19 @@ function FlagParameterPanel({ parameters, setParameter }: {
                   <span className="capitalize">{style}</span>
                 </label>
                 {/* Inline sub-options for this style */}
-                {bottomStyle === style && (style === 'scalloped' || style === 'zigzag' || style === 'wavy' || style === 'castellated' || style === 'torn' || style === 'stepped' || style === 'dovetail' || style === 'fishtail' || style === 'feathered' || style === 'cloud' || style === 'sawtooth' || style === 'arrow' || style === 'picot') && (
+                {bottomStyle === style && (style === 'scalloped' || style === 'zigzag' || style === 'wavy' || style === 'castellated' || style === 'stepped' || style === 'dovetail' || style === 'feathered' || style === 'arrow' || style === 'picot') && (
+                  <div className="ml-6 mt-1">
+                    <ParameterSlider label="Count" name="flagBottomCount"
+                      min={2} max={12} step={1}
+                      value={parameters.flagBottomCount as number || 5}
+                      onChange={(v) => setParameter('flagBottomCount', v)} />
+                    <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
+                      min={style === 'scalloped' ? 5 : 1} max={style === 'scalloped' ? 20 : 10} step={0.5}
+                      value={parameters.flagBottomDepth as number || (style === 'scalloped' ? 5 : 3)}
+                      onChange={(v) => setParameter('flagBottomDepth', v)} />
+                  </div>
+                )}
+                {bottomStyle === style && (style === 'torn' || style === 'cloud') && (
                   <div className="ml-6 mt-1">
                     <ParameterSlider label="Count" name="flagBottomCount"
                       min={2} max={12} step={1}
@@ -2252,6 +2262,32 @@ function FlagParameterPanel({ parameters, setParameter }: {
                       min={1} max={10} step={0.5}
                       value={parameters.flagBottomDepth as number || 3}
                       onChange={(v) => setParameter('flagBottomDepth', v)} />
+                    <ParameterSlider label="Seed" name="flagBottomSeed"
+                      min={1} max={100} step={1}
+                      value={parameters.flagBottomSeed as number || 42}
+                      onChange={(v) => setParameter('flagBottomSeed', v)} />
+                  </div>
+                )}
+                {bottomStyle === style && style === 'sawtooth' && (
+                  <div className="ml-6 mt-1">
+                    <ParameterSlider label="Count" name="flagBottomCount"
+                      min={2} max={12} step={1}
+                      value={parameters.flagBottomCount as number || 8}
+                      onChange={(v) => setParameter('flagBottomCount', v)} />
+                    <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
+                      min={1} max={10} step={0.5}
+                      value={parameters.flagBottomDepth as number || 3}
+                      onChange={(v) => setParameter('flagBottomDepth', v)} />
+                    <ParameterSlider label="Curve" name="flagSawtoothCurve"
+                      min={0} max={1} step={0.1}
+                      value={parameters.flagSawtoothCurve as number || 0}
+                      onChange={(v) => setParameter('flagSawtoothCurve', v)} />
+                    <label className="flex items-center gap-2 text-xs mt-1">
+                      <input type="checkbox" className="w-3 h-3"
+                        checked={!!(parameters.flagSawtoothReverse)}
+                        onChange={(e) => setParameter('flagSawtoothReverse', e.target.checked)} />
+                      Reverse direction
+                    </label>
                   </div>
                 )}
                 {bottomStyle === style && style === 'swallowtail' && (
