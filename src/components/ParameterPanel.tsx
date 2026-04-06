@@ -2233,7 +2233,7 @@ function FlagParameterPanel({ parameters, setParameter }: {
         {openSections.flagBottom && (
           <div className="mt-2 space-y-2">
             <p className="text-xs text-gray-500 mb-2">Style of the bottom edge</p>
-            {(['none', 'flames', 'pointed', 'swallowtail', 'straight', 'scalloped', 'zigzag', 'wavy'] as const).map((style) => (
+            {(['none', 'flames', 'pointed', 'swallowtail', 'straight', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn', 'stepped', 'dovetail', 'fishtail', 'feathered', 'cloud', 'sawtooth', 'arrow', 'picot'] as const).map((style) => (
               <div key={style}>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="radio" name="flagBottomStyle" className="w-4 h-4"
@@ -2242,7 +2242,7 @@ function FlagParameterPanel({ parameters, setParameter }: {
                   <span className="capitalize">{style}</span>
                 </label>
                 {/* Inline sub-options for this style */}
-                {bottomStyle === style && (style === 'scalloped' || style === 'zigzag' || style === 'wavy') && (
+                {bottomStyle === style && (style === 'scalloped' || style === 'zigzag' || style === 'wavy' || style === 'castellated' || style === 'torn' || style === 'stepped' || style === 'dovetail' || style === 'fishtail' || style === 'feathered' || style === 'cloud' || style === 'sawtooth' || style === 'arrow' || style === 'picot') && (
                   <div className="ml-6 mt-1">
                     <ParameterSlider label="Count" name="flagBottomCount"
                       min={2} max={12} step={1}

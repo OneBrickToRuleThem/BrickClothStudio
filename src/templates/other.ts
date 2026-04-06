@@ -228,6 +228,16 @@ class BannerFlag extends Template {
       case 'scalloped': return depthParam || 3;
       case 'zigzag': return depthParam || 3;
       case 'wavy': return depthParam || 3;
+      case 'castellated': return depthParam || 3;
+      case 'torn': return depthParam || 3;
+      case 'stepped': return depthParam || 3;
+      case 'dovetail': return depthParam || 3;
+      case 'fishtail': return depthParam || 3;
+      case 'feathered': return depthParam || 3;
+      case 'cloud': return depthParam || 3;
+      case 'sawtooth': return depthParam || 3;
+      case 'arrow': return depthParam || 3;
+      case 'picot': return depthParam || 3;
       default: return 0; // 'none', 'straight', 'swallowtail' stay within bounds
     }
   }
@@ -377,8 +387,12 @@ class BannerFlag extends Template {
         break;
       }
       case 'straight':
-      default:
+      case 'none':
         path.lineTo(leftX, bodyBottom);
+        break;
+      default:
+        // Delegate to shared edge style system (castellated, torn, stepped, etc.)
+        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, style, bottomExt, count, 0, 1, 0, 42);
         break;
     }
   }
