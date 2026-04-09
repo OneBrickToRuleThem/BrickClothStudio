@@ -11,6 +11,7 @@ import type { ColorDesignParams } from '../export/svg';
 import { generateStandardCalibration } from '../templates/calibration';
 import { downloadPreset, loadPresetFromFile } from '../utils/presets';
 import type { DesignPreset } from '../utils/types';
+import { hasIntersections } from '../geometry/intersections';
 
 export default function ExportPanel() {
   const {
@@ -29,6 +30,11 @@ export default function ExportPanel() {
   const pattern = useMemo(() => {
     return generatePattern(elementType, templateVariant, parameters);
   }, [elementType, templateVariant, parameters]);
+
+  const intersecting = useMemo(() => {
+    if (!pattern) return false;
+    return hasIntersections(pattern.cutPaths);
+  }, [pattern]);
 
   const colorDesign = useMemo((): ColorDesignParams | undefined => {
     if (!exportOptions.includeDesigns) return undefined;
@@ -145,6 +151,18 @@ export default function ExportPanel() {
           Save/load all parameters, decorations, and settings as a .json design file
         </p>
       </section>
+
+      {/* Intersection Warning */}
+      {intersecting && (
+        <section className="panel-section bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-700 rounded-lg p-3">
+          <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+            ⚠️ Self-intersecting cut lines detected
+          </p>
+          <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+            The current outline has crossing lines that may cause issues with laser cutters, Cricut, or Silhouette machines. Try reducing edge depth, count, or side curve.
+          </p>
+        </section>
+      )}
 
       {/* Quick Download Button */}
       <section className="panel-section bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">

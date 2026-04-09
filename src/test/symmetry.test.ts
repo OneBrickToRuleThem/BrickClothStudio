@@ -233,8 +233,6 @@ interface VariantConfig {
 const VARIANT_SYMMETRY: VariantConfig[] = [
   // ── Capes (procedural — symmetric by construction) ──────────────
   { elementType: 'cape', templateVariant: 'standard',            defaults: { width: 40, length: 39 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
-  { elementType: 'cape', templateVariant: 'short',               defaults: { width: 40, length: 30 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
-  { elementType: 'cape', templateVariant: 'long',                defaults: { width: 40, length: 50 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
   // Tattered cape — CapeTattered uses position-dependent jitter so left/right
   // hem points have different Y values even with the same seed.
   { elementType: 'cape', templateVariant: 'tattered',            defaults: { width: 40, length: 39 }, outlineSymmetric: false, cutPathsSymmetric: false },
@@ -297,19 +295,19 @@ const ACTUALLY_SYMMETRIC_PARAMS: Record<string, Record<string, number | string |
  */
 const SYMMETRY_PRESERVING_PARAMS: Record<string, Record<string, number | string | boolean>> = {
   'scalloped hem':         { scalloped: true, scallopCount: 8, scallopDepth: 3 },
-  'zigzag hem':            { zigzag: true, zigzagCount: 10, zigzagDepth: 4 },
+  'zigzag hem':            { zigzag: true, zigzagCount: 6, zigzagDepth: 3 },
   'wavy hem':              { wavy: true, wavyCount: 6, wavyDepth: 3 },
   'castellated hem':       { castellated: true, castellatedCount: 8, castellatedDepth: 3 },
-  'dovetail hem':          { dovetail: true, dovetailDepth: 0.25, dovetailWidth: 0.3 },
-  'flame hem':             { flame: true, flameCount: 5, flameDepth: 6 },
+  'dovetail hem':          { dovetail: true, dovetailDepth: 3, dovetailWidth: 0.3 },
   'stepped hem':           { stepped: true, steppedCount: 5, steppedDepth: 4 },
-  'fishtail':              { fishtail: true, fishtailDepth: 0.15, fishtailNotches: 3 },
-  'pointed':               { pointed: true, pointedDepth: 0.3, pointedRoundness: 0.4 },
+  'notched':               { notched: true, notchedDepth: 3, notchedCount: 3 },
   'scalloped sides':       { sideStyle: 'scalloped', sideStyleDepth: 3, sideStyleCount: 8 },
   'zigzag sides':          { sideStyle: 'zigzag', sideStyleDepth: 3, sideStyleCount: 8 },
   'wavy sides':            { sideStyle: 'wavy', sideStyleDepth: 3, sideStyleCount: 8 },
   'castellated sides':     { sideStyle: 'castellated', sideStyleDepth: 3, sideStyleCount: 8 },
-  'rounding':              { rounding: true, roundingAmount: 0.5 },
+  'sawtooth sides':        { sideStyle: 'sawtooth', sideStyleDepth: 3, sideStyleCount: 8 },
+  'feathered sides':       { sideStyle: 'feathered', sideStyleDepth: 3, sideStyleCount: 8, seed: 42 },
+  'bottom curve':          { bottomCurve: 0.5 },
   'arm slits (symmetric)': { armSlits: true, armSlitY: 0.35, armSlitLength: 6 },
   'hole Y offset':         { holeOverride: true, holeOverrideOffsetY: 2, holeOverrideOffsetX: 0 },
   'changed dimensions':    { width: 50, length: 50 },
@@ -460,14 +458,12 @@ describe('Symmetry — preserved when applying symmetric parameters to capes', (
 describe('Symmetry — preserved across all symmetric cape variants with hem styles', () => {
   const hemStyles: Record<string, Record<string, number | string | boolean>> = {
     scalloped: { scalloped: true, scallopCount: 8, scallopDepth: 3 },
-    zigzag:    { zigzag: true, zigzagCount: 10, zigzagDepth: 4 },
+    zigzag:    { zigzag: true, zigzagCount: 6, zigzagDepth: 3 },
     wavy:      { wavy: true, wavyCount: 6, wavyDepth: 3 },
     castellated: { castellated: true, castellatedCount: 8, castellatedDepth: 3 },
-    flame:     { flame: true, flameCount: 5, flameDepth: 6 },
     stepped:   { stepped: true, steppedCount: 5, steppedDepth: 4 },
-    dovetail:  { dovetail: true, dovetailDepth: 0.25, dovetailWidth: 0.3 },
-    fishtail:  { fishtail: true, fishtailDepth: 0.15, fishtailNotches: 3 },
-    pointed:   { pointed: true, pointedDepth: 0.3, pointedRoundness: 0.4 },
+    dovetail:  { dovetail: true, dovetailDepth: 3, dovetailWidth: 0.3 },
+    notched:   { notched: true, notchedDepth: 3, notchedCount: 3 },
   };
 
   const symmetricCapes = VARIANT_SYMMETRY.filter(
@@ -740,14 +736,6 @@ describe('Symmetry — combined hem + side style on capes', () => {
     expect(result.symmetric).toBe(true);
   });
 
-  it('short cape with zigzag hem + scalloped sides remains symmetric', () => {
-    const pattern = gen('cape', 'short', { width: 40, length: 30 }, {
-      zigzag: true, zigzagCount: 10, zigzagDepth: 4,
-      sideStyle: 'scalloped', sideStyleDepth: 3, sideStyleCount: 8,
-    });
-    const result = checkPathSymmetry([pattern.cutPaths[0]], 40);
-    expect(result.symmetric).toBe(true);
-  });
 });
 
 describe('Symmetry — polygon sail with even vertex counts', () => {

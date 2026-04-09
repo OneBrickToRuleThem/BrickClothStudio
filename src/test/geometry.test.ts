@@ -86,18 +86,6 @@ describe('Pattern Generation', () => {
     expect(pattern.cutPaths.length).toBeGreaterThan(0);
   });
 
-  it('should generate short cape', () => {
-    const pattern = generatePattern('cape', 'short', {
-      length: 40,
-      width: 40,
-      holeRadius: 2.5,
-      clearance: 0.2,
-      slitWidth: 1.2,
-      enableSlit: false,
-    });
-    expect(pattern.name).toBe('Short Cape');
-  });
-
   it('should generate flag pattern', () => {
     const pattern = generatePattern('flag', 'standard', {
       length: 80,

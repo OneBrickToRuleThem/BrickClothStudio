@@ -48,15 +48,13 @@ export default function ParameterPanel() {
   const activeHemValue: string = parameters.tattered ? 'tattered'
     : parameters.scalloped && !parameters.scallopInverted ? 'scalloped'
     : parameters.scalloped && parameters.scallopInverted ? 'arched'
-    : parameters.fishtail ? 'notched'
-    : parameters.pointed ? 'pointed'
+    : parameters.notched ? 'notched'
     : parameters.zigzag ? 'zigzag'
     : parameters.wavy ? 'wavy'
     : parameters.castellated ? 'castellated'
     : parameters.dovetail ? 'dovetail'
     : parameters.flame ? 'flame'
     : parameters.stepped ? 'stepped'
-    : parameters.serrated ? 'serrated'
     : parameters.thorned ? 'thorned'
     : parameters.torn ? 'torn'
     : parameters.feathered ? 'feathered'
@@ -73,15 +71,13 @@ export default function ParameterPanel() {
     setParameter('tattered', false);
     setParameter('scalloped', false);
     setParameter('scallopInverted', false);
-    setParameter('fishtail', false);
-    setParameter('pointed', false);
+    setParameter('notched', false);
     setParameter('zigzag', false);
     setParameter('wavy', false);
     setParameter('castellated', false);
     setParameter('dovetail', false);
     setParameter('flame', false);
     setParameter('stepped', false);
-    setParameter('serrated', false);
     setParameter('thorned', false);
     setParameter('torn', false);
     setParameter('feathered', false);
@@ -93,15 +89,13 @@ export default function ParameterPanel() {
       case 'tattered': setParameter('tattered', true); break;
       case 'scalloped': setParameter('scalloped', true); break;
       case 'arched': setParameter('scalloped', true); setParameter('scallopInverted', true); break;
-      case 'notched': setParameter('fishtail', true); break;
-      case 'pointed': setParameter('pointed', true); break;
+      case 'notched': setParameter('notched', true); break;
       case 'zigzag': setParameter('zigzag', true); break;
       case 'wavy': setParameter('wavy', true); break;
       case 'castellated': setParameter('castellated', true); break;
       case 'dovetail': setParameter('dovetail', true); break;
       case 'flame': setParameter('flame', true); break;
       case 'stepped': setParameter('stepped', true); break;
-      case 'serrated': setParameter('serrated', true); break;
       case 'thorned': setParameter('thorned', true); break;
       case 'torn': setParameter('torn', true); break;
       case 'feathered': setParameter('feathered', true); break;
@@ -298,21 +292,14 @@ export default function ParameterPanel() {
               value={parameters.hemWidth as number || 1.0}
               onChange={(value) => setParameter('hemWidth', value)}
             />
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={parameters.rounding as boolean}
-                  onChange={(e) => setParameter('rounding', e.target.checked)} className="w-4 h-4" />
-                <span>Rounding</span>
-              </label>
-              {parameters.rounding && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Amount" name="roundingAmount"
-                    min={0.1} max={1.0} step={0.05}
-                    value={parameters.roundingAmount as number || 0.5}
-                    onChange={(v) => setParameter('roundingAmount', v)} />
-                </div>
-              )}
-            </div>
+            <ParameterSlider label="Bottom Curve" name="bottomCurve"
+              min={0} max={1.0} step={0.05}
+              value={parameters.bottomCurve as number || 0}
+              onChange={(v) => setParameter('bottomCurve', v)} />
+            <ParameterSlider label="Side Curve" name="sideCurve"
+              min={-1} max={1} step={0.1}
+              value={parameters.sideCurve as number || 0}
+              onChange={(v) => setParameter('sideCurve', v)} />
           </div>
           )}
         </section>
@@ -332,25 +319,23 @@ export default function ParameterPanel() {
             value={activeHemValue}
             onChange={(e) => setBottomEdge(e.target.value)}>
             <option value="none">None</option>
-            <option value="tattered">Tattered</option>
-            <option value="scalloped">Scalloped</option>
             <option value="arched">Arched</option>
-            <option value="notched">Notched</option>
-            <option value="pointed">Pointed</option>
-            <option value="zigzag">Zigzag</option>
-            <option value="wavy">Wavy</option>
+            <option value="arrow">Arrow</option>
             <option value="castellated">Castellated</option>
+            <option value="cloud">Cloud</option>
             <option value="dovetail">Dovetail</option>
+            <option value="feathered">Feathered</option>
             <option value="flame">Flame</option>
+            <option value="notched">Notched</option>
+            <option value="picot">Picot</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="scalloped">Scalloped</option>
             <option value="stepped">Stepped</option>
-            <option value="serrated">Serrated</option>
+            <option value="tattered">Tattered</option>
             <option value="thorned">Thorned</option>
             <option value="torn">Torn</option>
-            <option value="feathered">Feathered</option>
-            <option value="cloud">Cloud</option>
-            <option value="sawtooth">Sawtooth</option>
-            <option value="arrow">Arrow</option>
-            <option value="picot">Picot</option>
+            <option value="wavy">Wavy</option>
+            <option value="zigzag">Zigzag</option>
           </select>
 
           {/* Tattered options */}
@@ -376,12 +361,12 @@ export default function ParameterPanel() {
           {/* Scalloped options */}
           {activeHemValue === 'scalloped' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Scallops" name="scallopCount"
-                min={4} max={16} step={1}
-                value={parameters.scallopCount as number || 8}
+              <ParameterSlider label="Count" name="scallopCount"
+                min={1} max={16} step={1}
+                value={parameters.scallopCount as number || 6}
                 onChange={(v) => setParameter('scallopCount', v)} />
               <ParameterSlider label="Depth (mm)" name="scallopDepth"
-                min={1} max={20} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.scallopDepth as number || 3}
                 onChange={(v) => setParameter('scallopDepth', v)} />
             </div>
@@ -390,12 +375,12 @@ export default function ParameterPanel() {
           {/* Arched options */}
           {activeHemValue === 'arched' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Arches" name="scallopCount"
-                min={2} max={16} step={1}
-                value={parameters.scallopCount as number || 8}
+              <ParameterSlider label="Count" name="scallopCount"
+                min={1} max={16} step={1}
+                value={parameters.scallopCount as number || 6}
                 onChange={(v) => setParameter('scallopCount', v)} />
               <ParameterSlider label="Depth (mm)" name="scallopDepth"
-                min={1} max={20} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.scallopDepth as number || 3}
                 onChange={(v) => setParameter('scallopDepth', v)} />
             </div>
@@ -404,41 +389,27 @@ export default function ParameterPanel() {
           {/* Notched options */}
           {activeHemValue === 'notched' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Notches" name="fishtailNotches"
-                min={1} max={5} step={1}
-                value={parameters.fishtailNotches as number || 3}
-                onChange={(v) => setParameter('fishtailNotches', v)} />
-              <ParameterSlider label="Depth (%)" name="fishtailDepth"
-                min={0.05} max={0.65} step={0.05}
-                value={parameters.fishtailDepth as number || 0.15}
-                onChange={(v) => setParameter('fishtailDepth', v)} />
-            </div>
-          )}
-
-          {/* Pointed options */}
-          {activeHemValue === 'pointed' && (
-            <div className="space-y-1 pl-1">
-              <ParameterSlider label="Depth" name="pointedDepth"
-                min={0.1} max={0.6} step={0.05}
-                value={parameters.pointedDepth as number || 0.3}
-                onChange={(v) => setParameter('pointedDepth', v)} />
-              <ParameterSlider label="Roundness" name="pointedRoundness"
-                min={0} max={1} step={0.05}
-                value={parameters.pointedRoundness as number ?? 0.4}
-                onChange={(v) => setParameter('pointedRoundness', v)} />
+              <ParameterSlider label="Count" name="notchedCount"
+                min={1} max={16} step={1}
+                value={parameters.notchedCount as number || 6}
+                onChange={(v) => setParameter('notchedCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="notchedDepth"
+                min={1} max={12} step={0.5}
+                value={parameters.notchedDepth as number || 3}
+                onChange={(v) => setParameter('notchedDepth', v)} />
             </div>
           )}
 
           {/* Zigzag options */}
           {activeHemValue === 'zigzag' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Points" name="zigzagCount"
-                min={3} max={20} step={1}
-                value={parameters.zigzagCount as number || 10}
+              <ParameterSlider label="Count" name="zigzagCount"
+                min={1} max={16} step={1}
+                value={parameters.zigzagCount as number || 6}
                 onChange={(v) => setParameter('zigzagCount', v)} />
               <ParameterSlider label="Depth (mm)" name="zigzagDepth"
-                min={1} max={15} step={0.5}
-                value={parameters.zigzagDepth as number || 4}
+                min={1} max={12} step={0.5}
+                value={parameters.zigzagDepth as number || 3}
                 onChange={(v) => setParameter('zigzagDepth', v)} />
             </div>
           )}
@@ -446,12 +417,12 @@ export default function ParameterPanel() {
           {/* Wavy options */}
           {activeHemValue === 'wavy' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Waves" name="wavyCount"
-                min={2} max={12} step={1}
+              <ParameterSlider label="Count" name="wavyCount"
+                min={1} max={16} step={1}
                 value={parameters.wavyCount as number || 6}
                 onChange={(v) => setParameter('wavyCount', v)} />
               <ParameterSlider label="Depth (mm)" name="wavyDepth"
-                min={1} max={10} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.wavyDepth as number || 3}
                 onChange={(v) => setParameter('wavyDepth', v)} />
             </div>
@@ -460,12 +431,12 @@ export default function ParameterPanel() {
           {/* Castellated options */}
           {activeHemValue === 'castellated' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Merlons" name="castellatedCount"
-                min={3} max={16} step={1}
-                value={parameters.castellatedCount as number || 8}
+              <ParameterSlider label="Count" name="castellatedCount"
+                min={1} max={16} step={1}
+                value={parameters.castellatedCount as number || 6}
                 onChange={(v) => setParameter('castellatedCount', v)} />
               <ParameterSlider label="Depth (mm)" name="castellatedDepth"
-                min={1} max={15} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.castellatedDepth as number || 3}
                 onChange={(v) => setParameter('castellatedDepth', v)} />
             </div>
@@ -474,26 +445,22 @@ export default function ParameterPanel() {
           {/* Dovetail options */}
           {activeHemValue === 'dovetail' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Depth" name="dovetailDepth"
-                min={0.1} max={0.5} step={0.05}
-                value={parameters.dovetailDepth as number || 0.25}
+              <ParameterSlider label="Count" name="dovetailCount"
+                min={1} max={16} step={1}
+                value={parameters.dovetailCount as number || 6}
+                onChange={(v) => setParameter('dovetailCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="dovetailDepth"
+                min={1} max={12} step={0.5}
+                value={parameters.dovetailDepth as number || 3}
                 onChange={(v) => setParameter('dovetailDepth', v)} />
-              <ParameterSlider label="Width" name="dovetailWidth"
-                min={0.1} max={0.6} step={0.05}
-                value={parameters.dovetailWidth as number || 0.3}
-                onChange={(v) => setParameter('dovetailWidth', v)} />
             </div>
           )}
 
           {/* Flame options */}
           {activeHemValue === 'flame' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Flames" name="flameCount"
-                min={3} max={10} step={1}
-                value={parameters.flameCount as number || 5}
-                onChange={(v) => setParameter('flameCount', v)} />
               <ParameterSlider label="Depth (mm)" name="flameDepth"
-                min={2} max={20} step={1}
+                min={1} max={12} step={0.5}
                 value={parameters.flameDepth as number || 6}
                 onChange={(v) => setParameter('flameDepth', v)} />
             </div>
@@ -502,48 +469,52 @@ export default function ParameterPanel() {
           {/* Stepped options */}
           {activeHemValue === 'stepped' && (
             <div className="space-y-1 pl-1">
-              <ParameterSlider label="Steps" name="steppedCount"
-                min={2} max={10} step={1}
-                value={parameters.steppedCount as number || 5}
+              <ParameterSlider label="Count" name="steppedCount"
+                min={1} max={16} step={1}
+                value={parameters.steppedCount as number || 6}
                 onChange={(v) => setParameter('steppedCount', v)} />
               <ParameterSlider label="Depth (mm)" name="steppedDepth"
-                min={1} max={15} step={0.5}
-                value={parameters.steppedDepth as number || 4}
+                min={1} max={12} step={0.5}
+                value={parameters.steppedDepth as number || 3}
                 onChange={(v) => setParameter('steppedDepth', v)} />
             </div>
           )}
 
-          {/* Serrated — count + depth + direction */}
-          {activeHemValue === 'serrated' && (
+          {/* Thorned / Arrow / Picot — count + depth */}
+          {['thorned', 'arrow', 'picot'].includes(activeHemValue) && (
             <div className="space-y-1 pl-1">
               <ParameterSlider label="Count" name="hemEdgeCount"
-                min={3} max={20} step={1}
-                value={parameters.hemEdgeCount as number || 8}
+                min={1} max={16} step={1}
+                value={parameters.hemEdgeCount as number || 6}
                 onChange={(v) => setParameter('hemEdgeCount', v)} />
               <ParameterSlider label="Depth (mm)" name="hemEdgeDepth"
-                min={0.5} max={8} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.hemEdgeDepth as number || 3}
                 onChange={(v) => setParameter('hemEdgeDepth', v)} />
-              <label className="flex items-center gap-2 text-sm mt-1">
-                <input type="checkbox" className="w-4 h-4"
-                  checked={parameters.hemSerratedReverse as boolean || false}
-                  onChange={(e) => setParameter('hemSerratedReverse', e.target.checked)} />
-                <span>Reverse direction</span>
-              </label>
             </div>
           )}
 
-          {/* Thorned / Sawtooth / Arrow / Picot — count + depth */}
-          {['thorned', 'sawtooth', 'arrow', 'picot'].includes(activeHemValue) && (
+          {/* Sawtooth — count + depth + curve + reverse */}
+          {activeHemValue === 'sawtooth' && (
             <div className="space-y-1 pl-1">
               <ParameterSlider label="Count" name="hemEdgeCount"
-                min={3} max={20} step={1}
-                value={parameters.hemEdgeCount as number || 8}
+                min={1} max={16} step={1}
+                value={parameters.hemEdgeCount as number || 6}
                 onChange={(v) => setParameter('hemEdgeCount', v)} />
               <ParameterSlider label="Depth (mm)" name="hemEdgeDepth"
-                min={0.5} max={8} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.hemEdgeDepth as number || 3}
                 onChange={(v) => setParameter('hemEdgeDepth', v)} />
+              <ParameterSlider label="Curve" name="sawtoothCurve"
+                min={0} max={1} step={0.1}
+                value={parameters.sawtoothCurve as number || 0}
+                onChange={(v) => setParameter('sawtoothCurve', v)} />
+              <label className="flex items-center gap-2 text-xs mt-1">
+                <input type="checkbox" className="w-3 h-3"
+                  checked={!!(parameters.sawtoothReverse)}
+                  onChange={(e) => setParameter('sawtoothReverse', e.target.checked)} />
+                Reverse direction
+              </label>
             </div>
           )}
 
@@ -551,11 +522,11 @@ export default function ParameterPanel() {
           {['feathered', 'cloud'].includes(activeHemValue) && (
             <div className="space-y-1 pl-1">
               <ParameterSlider label="Count" name="hemEdgeCount"
-                min={3} max={20} step={1}
-                value={parameters.hemEdgeCount as number || 8}
+                min={1} max={16} step={1}
+                value={parameters.hemEdgeCount as number || 6}
                 onChange={(v) => setParameter('hemEdgeCount', v)} />
               <ParameterSlider label="Depth (mm)" name="hemEdgeDepth"
-                min={0.5} max={8} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.hemEdgeDepth as number || 3}
                 onChange={(v) => setParameter('hemEdgeDepth', v)} />
               <ParameterSlider label="Seed" name="seed"
@@ -565,11 +536,15 @@ export default function ParameterPanel() {
             </div>
           )}
 
-          {/* Torn — depth + seed */}
+          {/* Torn — count + depth + seed */}
           {activeHemValue === 'torn' && (
             <div className="space-y-1 pl-1">
+              <ParameterSlider label="Count" name="hemEdgeCount"
+                min={1} max={16} step={1}
+                value={parameters.hemEdgeCount as number || 6}
+                onChange={(v) => setParameter('hemEdgeCount', v)} />
               <ParameterSlider label="Depth (mm)" name="hemEdgeDepth"
-                min={0.5} max={8} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.hemEdgeDepth as number || 3}
                 onChange={(v) => setParameter('hemEdgeDepth', v)} />
               <ParameterSlider label="Seed" name="seed"
@@ -598,36 +573,49 @@ export default function ParameterPanel() {
             value={(parameters.sideStyle as string) || 'none'}
             onChange={(e) => setParameter('sideStyle', e.target.value)}>
             <option value="none">None</option>
-            <option value="tattered">Tattered</option>
-            <option value="scalloped">Scalloped</option>
-            <option value="zigzag">Zigzag</option>
-            <option value="wavy">Wavy</option>
+            <option value="arched">Arched</option>
+            <option value="arrow">Arrow</option>
             <option value="castellated">Castellated</option>
-            <option value="serrated">Serrated</option>
+            <option value="cloud">Cloud</option>
+            <option value="dovetail">Dovetail</option>
+            <option value="feathered">Feathered</option>
+            <option value="flame">Flame</option>
+            <option value="notched">Notched</option>
+            <option value="picot">Picot</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="scalloped">Scalloped</option>
+            <option value="stepped">Stepped</option>
+            <option value="tattered">Tattered</option>
             <option value="thorned">Thorned</option>
             <option value="torn">Torn</option>
-            <option value="pointed">Pointed</option>
-            <option value="flame">Flame</option>
-            <option value="stepped">Stepped</option>
-            <option value="dovetail">Dovetail</option>
-            <option value="fishtail">Fishtail</option>
-            <option value="feathered">Feathered</option>
-            <option value="cloud">Cloud</option>
-            <option value="sawtooth">Sawtooth</option>
-            <option value="arrow">Arrow</option>
-            <option value="picot">Picot</option>
+            <option value="wavy">Wavy</option>
+            <option value="zigzag">Zigzag</option>
           </select>
 
           {(parameters.sideStyle as string || 'none') !== 'none' && (
             <div className="space-y-1 pl-1">
+              <ParameterSlider label="Count" name="sideStyleCount"
+                min={1} max={16} step={1}
+                value={parameters.sideStyleCount as number || 6}
+                onChange={(v) => setParameter('sideStyleCount', v)} />
               <ParameterSlider label="Depth (mm)" name="sideStyleDepth"
-                min={0.5} max={8} step={0.5}
+                min={1} max={12} step={0.5}
                 value={parameters.sideStyleDepth as number || 3}
                 onChange={(v) => setParameter('sideStyleDepth', v)} />
-              <ParameterSlider label="Count" name="sideStyleCount"
-                min={3} max={20} step={1}
-                value={parameters.sideStyleCount as number || 8}
-                onChange={(v) => setParameter('sideStyleCount', v)} />
+              {(parameters.sideStyle as string) === 'sawtooth' && (
+                <>
+                  <ParameterSlider label="Curve" name="sawtoothCurve"
+                    min={0} max={1} step={0.1}
+                    value={parameters.sawtoothCurve as number || 0}
+                    onChange={(v) => setParameter('sawtoothCurve', v)} />
+                  <label className="flex items-center gap-2 text-xs mt-1">
+                    <input type="checkbox" className="w-3 h-3"
+                      checked={!!(parameters.sawtoothReverse)}
+                      onChange={(e) => setParameter('sawtoothReverse', e.target.checked)} />
+                    Reverse direction
+                  </label>
+                </>
+              )}
             </div>
           )}
           </div>
@@ -748,22 +736,14 @@ export default function ParameterPanel() {
           </button>
           {openSections.transformations && (
           <div className="space-y-3 mt-2">
-            <div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={parameters.mantleRounding as boolean || false}
-                  onChange={(e) => setParameter('mantleRounding', e.target.checked)} className="w-4 h-4" />
-                <span>Rounding</span>
-              </label>
-              <p className="text-[10px] text-gray-500 ml-6">Curve the bottom rim into a U-shape</p>
-              {parameters.mantleRounding && (
-                <div className="ml-6 mt-1">
-                  <ParameterSlider label="Amount" name="mantleRoundingAmount"
-                    min={0.1} max={1.0} step={0.05}
-                    value={(parameters.mantleRoundingAmount as number) || 0.5}
-                    onChange={(v) => setParameter('mantleRoundingAmount', v)} />
-                </div>
-              )}
-            </div>
+            <ParameterSlider label="Bottom Curve" name="mantleBottomCurve"
+              min={0} max={1.0} step={0.05}
+              value={(parameters.mantleBottomCurve as number) || 0}
+              onChange={(v) => setParameter('mantleBottomCurve', v)} />
+            <ParameterSlider label="Side Curve" name="sideCurve"
+              min={-1} max={1} step={0.1}
+              value={parameters.sideCurve as number || 0}
+              onChange={(v) => setParameter('sideCurve', v)} />
           </div>
           )}
         </section>
@@ -784,7 +764,7 @@ export default function ParameterPanel() {
                 value={(parameters[`${elementType}EdgeStyle`] as string) || 'none'}
                 onChange={(e) => {
                   setParameter(`${elementType}EdgeStyle`, e.target.value);
-                  setParameter(`${elementType}EdgeDepth`, 2);
+                  setParameter(`${elementType}EdgeDepth`, 3);
                   setParameter(`${elementType}EdgeCount`, 6);
                 }}>
                 {EDGE_STYLE_NAMES.map((s) => (
@@ -792,16 +772,30 @@ export default function ParameterPanel() {
                 ))}
               </select>
             </div>
-            {(parameters[`${elementType}EdgeStyle`] as string || 'none') !== 'none' && (
+            {(parameters[`${elementType}EdgeStyle`] as string || 'none') !== 'none' && (parameters[`${elementType}EdgeStyle`] as string) !== 'flame' && (
             <div className="space-y-2">
-              <ParameterSlider label="Depth (mm)" name={`${elementType}EdgeDepth`}
-                min={0.5} max={8} step={0.5}
-                value={(parameters[`${elementType}EdgeDepth`] as number) || 2}
-                onChange={(v) => setParameter(`${elementType}EdgeDepth`, v)} />
               <ParameterSlider label="Count" name={`${elementType}EdgeCount`}
-                min={2} max={20} step={1}
+                min={1} max={16} step={1}
                 value={(parameters[`${elementType}EdgeCount`] as number) || 6}
                 onChange={(v) => setParameter(`${elementType}EdgeCount`, v)} />
+              <ParameterSlider label="Depth (mm)" name={`${elementType}EdgeDepth`}
+                min={1} max={12} step={0.5}
+                value={(parameters[`${elementType}EdgeDepth`] as number) || 3}
+                onChange={(v) => setParameter(`${elementType}EdgeDepth`, v)} />
+              {(parameters[`${elementType}EdgeStyle`] as string) === 'sawtooth' && (
+                <>
+                  <ParameterSlider label="Curve" name="sawtoothCurve"
+                    min={0} max={1} step={0.1}
+                    value={parameters.sawtoothCurve as number || 0}
+                    onChange={(v) => setParameter('sawtoothCurve', v)} />
+                  <label className="flex items-center gap-2 text-xs mt-1">
+                    <input type="checkbox" className="w-3 h-3"
+                      checked={!!(parameters.sawtoothReverse)}
+                      onChange={(e) => setParameter('sawtoothReverse', e.target.checked)} />
+                    Reverse direction
+                  </label>
+                </>
+              )}
             </div>
             )}
           </div>
@@ -863,7 +857,7 @@ function SailParameterPanel({ parameters, setParameter }: {
   const isSquare = templateVariant === 'square-sail' || isCustomWing;
   const isPolygon = templateVariant === 'polygon-sail';
   const holeType = (parameters.sailHoleType as string) || 'grommet';
-  const edgeStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn', 'pointed', 'flame', 'stepped', 'dovetail', 'fishtail', 'feathered', 'cloud', 'sawtooth', 'arrow', 'picot'] as const;
+  const edgeStyles = EDGE_STYLE_NAMES;
 
   return (
     <>
@@ -1000,6 +994,22 @@ function SailParameterPanel({ parameters, setParameter }: {
       </section>
       )}
 
+      {/* Transformations — sail/wings */}
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('transformations')}>
+          <h3 className="panel-section-title">Transformations</h3>
+          <span className="text-gray-400 text-xs">{openSections.transformations ? '▾' : '▸'}</span>
+        </button>
+        {openSections.transformations && (
+          <div className="space-y-3 mt-2">
+            <ParameterSlider label="Side Curve" name="sideCurve"
+              min={-1} max={1} step={0.1}
+              value={parameters.sideCurve as number || 0}
+              onChange={(v) => setParameter('sideCurve', v)} />
+          </div>
+        )}
+      </section>
+
       {/* Edge Styles */}
       {!isCustomWing ? (
       <section className="panel-section border-t pt-4">
@@ -1088,14 +1098,31 @@ function SailParameterPanel({ parameters, setParameter }: {
             )}
 
             {/* Global fallback depth + count */}
-            <ParameterSlider label="Default edge depth (mm)" name="sailEdgeDepth"
+            <ParameterSlider label="Count" name="sailEdgeCount"
+              min={1} max={16} step={1}
+              value={parameters.sailEdgeCount as number || 6}
+              onChange={(v) => setParameter('sailEdgeCount', v)} />
+            <ParameterSlider label="Depth (mm)" name="sailEdgeDepth"
               min={1} max={12} step={0.5}
               value={parameters.sailEdgeDepth as number || 3}
               onChange={(v) => setParameter('sailEdgeDepth', v)} />
-            <ParameterSlider label="Edge count" name="sailEdgeCount"
-              min={3} max={16} step={1}
-              value={parameters.sailEdgeCount as number || 6}
-              onChange={(v) => setParameter('sailEdgeCount', v)} />
+
+            {/* Sawtooth curve/reverse — shown when any edge uses sawtooth */}
+            {([parameters.sailTopStyle, parameters.sailBottomStyle, parameters.sailLeftStyle, parameters.sailRightStyle].some(s => s === 'sawtooth')) && (
+              <div className="border-t pt-2 mt-2 space-y-1">
+                <label className="text-xs font-medium text-gray-700">Sawtooth Options</label>
+                <ParameterSlider label="Curve" name="sawtoothCurve"
+                  min={0} max={1} step={0.1}
+                  value={parameters.sawtoothCurve as number || 0}
+                  onChange={(v) => setParameter('sawtoothCurve', v)} />
+                <label className="flex items-center gap-2 text-xs mt-1">
+                  <input type="checkbox" className="w-3 h-3"
+                    checked={!!(parameters.sawtoothReverse)}
+                    onChange={(e) => setParameter('sawtoothReverse', e.target.checked)} />
+                  Reverse direction
+                </label>
+              </div>
+            )}
 
             {/* Torn seed presets — only shown when any edge uses torn style */}
             {([parameters.sailTopStyle, parameters.sailBottomStyle, parameters.sailLeftStyle, parameters.sailRightStyle].some(s => s === 'torn')) && (
@@ -1155,6 +1182,20 @@ function SailParameterPanel({ parameters, setParameter }: {
                   min={3} max={20} step={1}
                   value={(parameters.wingEdgeCount as number) || 6}
                   onChange={(v) => setParameter('wingEdgeCount', v)} />
+                {(parameters.wingEdgeStyle as string) === 'sawtooth' && (
+                  <>
+                    <ParameterSlider label="Curve" name="sawtoothCurve"
+                      min={0} max={1} step={0.1}
+                      value={parameters.sawtoothCurve as number || 0}
+                      onChange={(v) => setParameter('sawtoothCurve', v)} />
+                    <label className="flex items-center gap-2 text-xs mt-1">
+                      <input type="checkbox" className="w-3 h-3"
+                        checked={!!(parameters.sawtoothReverse)}
+                        onChange={(e) => setParameter('sawtoothReverse', e.target.checked)} />
+                      Reverse direction
+                    </label>
+                  </>
+                )}
               </div>
             )}
             {['torn', 'flame', 'feathered', 'cloud'].includes((parameters.wingEdgeStyle as string) || 'none') && (
@@ -2042,7 +2083,7 @@ function FlagParameterPanel({ parameters, setParameter }: {
   const bottomStyle = (parameters.flagBottomStyle as string) || 'none';
   const leftStyle = (parameters.flagLeftStyle as string) || 'none';
   const rightStyle = (parameters.flagRightStyle as string) || 'none';
-  const sideStyles = ['none', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn', 'pointed', 'flame', 'stepped', 'dovetail', 'fishtail', 'feathered', 'cloud', 'sawtooth', 'arrow', 'picot'] as const;
+  const sideStyles = EDGE_STYLE_NAMES;
 
   return (
     <>
@@ -2218,6 +2259,24 @@ function FlagParameterPanel({ parameters, setParameter }: {
       </section>
       )}
 
+      {/* Custom flag: Transformations */}
+      {isCustom && (
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('transformations')}>
+          <h3 className="panel-section-title">Transformations</h3>
+          <span className="text-gray-400 text-xs">{openSections.transformations ? '▾' : '▸'}</span>
+        </button>
+        {openSections.transformations && (
+          <div className="space-y-3 mt-2">
+            <ParameterSlider label="Side Curve" name="sideCurve"
+              min={-1} max={1} step={0.1}
+              value={parameters.sideCurve as number || 0}
+              onChange={(v) => setParameter('sideCurve', v)} />
+          </div>
+        )}
+      </section>
+      )}
+
       {/* Custom flag: Bottom Edge */}
       {isCustom && (
       <section className="panel-section border-t pt-4">
@@ -2230,96 +2289,111 @@ function FlagParameterPanel({ parameters, setParameter }: {
         </button>
         {openSections.flagBottom && (
           <div className="mt-2 space-y-2">
-            <p className="text-xs text-gray-500 mb-2">Style of the bottom edge</p>
-            {(['none', 'flames', 'pointed', 'swallowtail', 'straight', 'scalloped', 'zigzag', 'wavy', 'castellated', 'torn', 'stepped', 'dovetail', 'feathered', 'cloud', 'sawtooth', 'arrow', 'picot'] as const).map((style) => (
-              <div key={style}>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="flagBottomStyle" className="w-4 h-4"
-                    checked={bottomStyle === style}
-                    onChange={() => setParameter('flagBottomStyle', style)} />
-                  <span className="capitalize">{style}</span>
-                </label>
-                {/* Inline sub-options for this style */}
-                {bottomStyle === style && (style === 'scalloped' || style === 'zigzag' || style === 'wavy' || style === 'castellated' || style === 'stepped' || style === 'dovetail' || style === 'feathered' || style === 'arrow' || style === 'picot') && (
-                  <div className="ml-6 mt-1">
-                    <ParameterSlider label="Count" name="flagBottomCount"
-                      min={2} max={12} step={1}
-                      value={parameters.flagBottomCount as number || 5}
-                      onChange={(v) => setParameter('flagBottomCount', v)} />
-                    <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
-                      min={style === 'scalloped' ? 5 : 1} max={style === 'scalloped' ? 20 : 10} step={0.5}
-                      value={parameters.flagBottomDepth as number || (style === 'scalloped' ? 5 : 3)}
-                      onChange={(v) => setParameter('flagBottomDepth', v)} />
-                  </div>
-                )}
-                {bottomStyle === style && (style === 'torn' || style === 'cloud') && (
-                  <div className="ml-6 mt-1">
-                    <ParameterSlider label="Count" name="flagBottomCount"
-                      min={2} max={12} step={1}
-                      value={parameters.flagBottomCount as number || 5}
-                      onChange={(v) => setParameter('flagBottomCount', v)} />
-                    <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
-                      min={1} max={10} step={0.5}
-                      value={parameters.flagBottomDepth as number || 3}
-                      onChange={(v) => setParameter('flagBottomDepth', v)} />
-                    <ParameterSlider label="Seed" name="flagBottomSeed"
-                      min={1} max={100} step={1}
-                      value={parameters.flagBottomSeed as number || 42}
-                      onChange={(v) => setParameter('flagBottomSeed', v)} />
-                  </div>
-                )}
-                {bottomStyle === style && style === 'sawtooth' && (
-                  <div className="ml-6 mt-1">
-                    <ParameterSlider label="Count" name="flagBottomCount"
-                      min={2} max={12} step={1}
-                      value={parameters.flagBottomCount as number || 8}
-                      onChange={(v) => setParameter('flagBottomCount', v)} />
-                    <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
-                      min={1} max={10} step={0.5}
-                      value={parameters.flagBottomDepth as number || 3}
-                      onChange={(v) => setParameter('flagBottomDepth', v)} />
-                    <ParameterSlider label="Curve" name="flagSawtoothCurve"
-                      min={0} max={1} step={0.1}
-                      value={parameters.flagSawtoothCurve as number || 0}
-                      onChange={(v) => setParameter('flagSawtoothCurve', v)} />
-                    <label className="flex items-center gap-2 text-xs mt-1">
-                      <input type="checkbox" className="w-3 h-3"
-                        checked={!!(parameters.flagSawtoothReverse)}
-                        onChange={(e) => setParameter('flagSawtoothReverse', e.target.checked)} />
-                      Reverse direction
-                    </label>
-                  </div>
-                )}
-                {bottomStyle === style && style === 'swallowtail' && (
-                  <div className="ml-6 mt-1">
-                    <ParameterSlider label="Depth" name="flagBottomDepth"
-                      min={0.1} max={0.5} step={0.05}
-                      value={parameters.flagBottomDepth as number || 0.3}
-                      onChange={(v) => setParameter('flagBottomDepth', v)} />
-                  </div>
-                )}
-                {bottomStyle === style && style === 'pointed' && (
-                  <div className="ml-6 mt-1">
-                    <ParameterSlider label="Depth" name="flagBottomDepth"
-                      min={0.1} max={0.5} step={0.05}
-                      value={parameters.flagBottomDepth as number || 0.25}
-                      onChange={(v) => setParameter('flagBottomDepth', v)} />
-                  </div>
-                )}
-                {bottomStyle === style && style === 'flames' && (
-                  <div className="ml-6 mt-1">
-                    <ParameterSlider label="Count" name="flagBottomCount"
-                      min={2} max={12} step={1}
-                      value={parameters.flagBottomCount as number || 5}
-                      onChange={(v) => setParameter('flagBottomCount', v)} />
-                    <ParameterSlider label="Depth" name="flagBottomDepth"
-                      min={0.05} max={0.4} step={0.05}
-                      value={parameters.flagBottomDepth as number || 0.15}
-                      onChange={(v) => setParameter('flagBottomDepth', v)} />
-                  </div>
-                )}
+            <select className="w-full border rounded px-2 py-1.5 text-sm"
+              value={bottomStyle}
+              onChange={(e) => {
+                const style = e.target.value;
+                setParameter('flagBottomStyle', style);
+                if (style === 'pointed') setParameter('flagBottomDepth', 4);
+                else if (style === 'swallowtail') setParameter('flagBottomDepth', 0.25);
+                else if (style === 'flames') setParameter('flagBottomDepth', 0.15);
+                else if (style !== 'none' && style !== 'straight') setParameter('flagBottomDepth', 3);
+              }}>
+              <option value="none">None</option>
+              <option value="straight">Straight</option>
+              <option value="arched">Arched</option>
+              <option value="arrow">Arrow</option>
+              <option value="castellated">Castellated</option>
+              <option value="cloud">Cloud</option>
+              <option value="dovetail">Dovetail</option>
+              <option value="feathered">Feathered</option>
+              <option value="notched">Notched</option>
+              <option value="flames">Flames</option>
+              <option value="picot">Picot</option>
+              <option value="pointed">Pointed</option>
+              <option value="sawtooth">Sawtooth</option>
+              <option value="scalloped">Scalloped</option>
+              <option value="stepped">Stepped</option>
+              <option value="swallowtail">Swallowtail</option>
+              <option value="torn">Torn</option>
+              <option value="wavy">Wavy</option>
+              <option value="zigzag">Zigzag</option>
+            </select>
+
+            {(bottomStyle === 'scalloped' || bottomStyle === 'arched' || bottomStyle === 'zigzag' || bottomStyle === 'wavy' || bottomStyle === 'castellated' || bottomStyle === 'stepped' || bottomStyle === 'dovetail' || bottomStyle === 'notched' || bottomStyle === 'feathered' || bottomStyle === 'arrow' || bottomStyle === 'picot') && (
+              <div className="space-y-1 pl-1">
+                <ParameterSlider label="Count" name="flagBottomCount"
+                  min={1} max={16} step={1}
+                  value={parameters.flagBottomCount as number || 6}
+                  onChange={(v) => setParameter('flagBottomCount', v)} />
+                <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
+                  min={1} max={12} step={0.5}
+                  value={parameters.flagBottomDepth as number || 3}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
               </div>
-            ))}
+            )}
+            {(bottomStyle === 'torn' || bottomStyle === 'cloud') && (
+              <div className="space-y-1 pl-1">
+                <ParameterSlider label="Count" name="flagBottomCount"
+                  min={1} max={16} step={1}
+                  value={parameters.flagBottomCount as number || 6}
+                  onChange={(v) => setParameter('flagBottomCount', v)} />
+                <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
+                  min={1} max={12} step={0.5}
+                  value={parameters.flagBottomDepth as number || 3}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+                <ParameterSlider label="Seed" name="flagBottomSeed"
+                  min={1} max={99999} step={1}
+                  value={parameters.flagBottomSeed as number || 42}
+                  onChange={(v) => setParameter('flagBottomSeed', v)} />
+              </div>
+            )}
+            {bottomStyle === 'sawtooth' && (
+              <div className="space-y-1 pl-1">
+                <ParameterSlider label="Count" name="flagBottomCount"
+                  min={1} max={16} step={1}
+                  value={parameters.flagBottomCount as number || 6}
+                  onChange={(v) => setParameter('flagBottomCount', v)} />
+                <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
+                  min={1} max={12} step={0.5}
+                  value={parameters.flagBottomDepth as number || 3}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+                <ParameterSlider label="Curve" name="sawtoothCurve"
+                  min={0} max={1} step={0.1}
+                  value={parameters.sawtoothCurve as number || 0}
+                  onChange={(v) => setParameter('sawtoothCurve', v)} />
+                <label className="flex items-center gap-2 text-xs mt-1">
+                  <input type="checkbox" className="w-3 h-3"
+                    checked={!!(parameters.sawtoothReverse)}
+                    onChange={(e) => setParameter('sawtoothReverse', e.target.checked)} />
+                  Reverse direction
+                </label>
+              </div>
+            )}
+            {bottomStyle === 'swallowtail' && (
+              <div className="space-y-1 pl-1">
+                <ParameterSlider label="Depth" name="flagBottomDepth"
+                  min={0.1} max={0.5} step={0.05}
+                  value={parameters.flagBottomDepth as number || 0.3}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+              </div>
+            )}
+            {bottomStyle === 'pointed' && (
+              <div className="space-y-1 pl-1">
+                <ParameterSlider label="Depth (mm)" name="flagBottomDepth"
+                  min={1} max={12} step={0.5}
+                  value={parameters.flagBottomDepth as number || 4}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+              </div>
+            )}
+            {bottomStyle === 'flames' && (
+              <div className="space-y-1 pl-1">
+                <ParameterSlider label="Depth" name="flagBottomDepth"
+                  min={0.05} max={0.4} step={0.05}
+                  value={parameters.flagBottomDepth as number || 0.15}
+                  onChange={(v) => setParameter('flagBottomDepth', v)} />
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -2355,12 +2429,12 @@ function FlagParameterPanel({ parameters, setParameter }: {
             </div>
             {(leftStyle !== 'none' || rightStyle !== 'none') && (
               <div>
-                <ParameterSlider label="Side count" name="flagSideCount"
-                  min={3} max={12} step={1}
-                  value={parameters.flagSideCount as number || 5}
+                <ParameterSlider label="Count" name="flagSideCount"
+                  min={1} max={16} step={1}
+                  value={parameters.flagSideCount as number || 6}
                   onChange={(v) => setParameter('flagSideCount', v)} />
-                <ParameterSlider label="Side depth (mm)" name="flagSideDepth"
-                  min={1} max={8} step={0.5}
+                <ParameterSlider label="Depth (mm)" name="flagSideDepth"
+                  min={1} max={12} step={0.5}
                   value={parameters.flagSideDepth as number || 3}
                   onChange={(v) => setParameter('flagSideDepth', v)} />
               </div>

@@ -1,0 +1,80 @@
+Flame Edge Seed Specification
+==============================
+Reference: Flames.svg (Inkscape, 230.7 x 142.1mm)
+
+Overview
+--------
+The flame edge style generates organic flame tongues using a seeded
+pseudo-random number generator (SeededRNG) for reproducible output.
+The same seed always produces identical flame patterns.
+
+Implementation: drawStyledEdge() in src/geometry/edgeStyles.ts, case 'flame'
+Applies to: capes, flags, mantles, kamas, shoulder armor, high collar, full skirt
+
+Seed Handling
+-------------
+Input seed (integer) is scrambled via golden-ratio hash:
+  scrambled = (seed * 2654435761) >>> 0
+A SeededRNG(scrambled) produces all per-flame randomized parameters
+in deterministic sequence.
+
+Per-Flame Parameters (drawn from RNG in order)
+-----------------------------------------------
+1. heightFactor  [0.40, 1.0]
+   Flame height as fraction of the depth parameter.
+   Produces varied tall/short flames across the edge.
+   Formula: h = depth * heightFactor
+
+2. lean  [-0.20, +0.20]  (fraction of segment width)
+   Tip lateral offset along the edge direction.
+   Positive = lean toward edge end, negative = lean toward edge start.
+   Formula: tipOffset = lean * segW
+
+3. widthBias  [0.25, 0.45]
+   How wide the flame's bulge is relative to segment width.
+   Controls the lateral position of the "wide" control points.
+   Lower values = narrower, more pointed flames.
+   Higher values = wider, more bulbous flames.
+
+Flame Shape Construction
+------------------------
+Each flame tongue is composed of two cubic bezier curves forming
+a teardrop/leaf shape — wide at the base, narrowing to a sharp tip.
+
+  a) Rising bezier (base → tip):
+     - CP1: widthBias along edge, 65% of height
+       Creates the wide base bulge
+     - CP2: 45% along edge + lean offset, 95% of height
+       Narrows the flame toward its tip
+
+  b) Falling bezier (tip → base):
+     - CP1: 55% along edge + lean offset, 95% of height
+       Holds the narrow shape near the tip
+     - CP2: (1-widthBias) from end, 65% of height
+       Creates the wide base bulge on the falling side
+
+The teardrop character means:
+  - Maximum width is at ~65% of the flame height
+  - The tip is sharp because both CP2 (rising) and CP1 (falling) are
+    at 95% height but close together laterally
+  - The lean shifts the entire upper portion sideways while the base
+    stays anchored
+
+Coordinate System
+-----------------
+- Edge runs from (x0,y0) to (x1,y1), divided into `count` segments
+- ux,uy = unit vector along edge direction
+- outwardX,outwardY = perpendicular outward direction (where flames extend)
+- segW = edge length / count (width of each flame tongue)
+- safeInset = inset from edges to avoid grommet/hole overlap
+
+Consistency Across Element Types
+---------------------------------
+All element types delegate to the same drawStyledEdge('flame', ...) call:
+  - Capes/mantles/kamas: via shared edge system directly
+  - Flags: 'flames' case delegates to drawStyledEdge('flame', ...)
+  - Shoulder armor/high collar: via modified generateCutPath()
+  - Full skirt: via modified generateCutPath()
+
+Flag-specific: flagBottomSeed parameter controls the seed via UI slider.
+Other types: seed parameter from params.seed (default 42).

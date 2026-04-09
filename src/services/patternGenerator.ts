@@ -8,8 +8,6 @@ import { ElementType, TemplateVariant, PatternExport } from '../utils/types';
 import { TemplateParams } from '../templates/base';
 import {
   CapeStandard,
-  CapeShort,
-  CapeLong,
   CapeTattered,
   CapeNarrowSingleHole,
 } from '../templates/cape';
@@ -63,14 +61,6 @@ export function generatePattern(
   // Route to appropriate template
   if (elementType === 'cape') {
     switch (templateVariant) {
-      case 'short':
-        template = new CapeShort();
-        name = 'Short Cape';
-        break;
-      case 'long':
-        template = new CapeLong();
-        name = 'Long Cape';
-        break;
       case 'tattered':
         template = new CapeTattered();
         name = 'Tattered Cape';

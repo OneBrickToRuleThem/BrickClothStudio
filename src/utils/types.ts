@@ -5,8 +5,6 @@
 export type ElementType = 'cape' | 'flag' | 'wings' | 'kama' | 'mantle' | 'sail' | 'custom';
 export type TemplateVariant = 
   | 'standard'
-  | 'short'
-  | 'long'
   | 'tattered'
   | 'wind-swept'
   | 'phantom-shroud'

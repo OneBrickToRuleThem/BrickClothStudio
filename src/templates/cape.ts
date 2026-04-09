@@ -6,6 +6,7 @@
 import { Template, TemplateParams, generateAttachmentHole } from './base';
 import { SVGPath, scallopedPath } from '../geometry/primitives';
 import { SeededRNG } from '../utils/rng';
+import { FLAME_PROFILE, drawStyledEdge } from '../geometry/edgeStyles';
 import type { PatternExport } from '../utils/types';
 
 /** Reference cape height in mm — upper portion stays fixed at this scale */
@@ -207,7 +208,7 @@ function generateSwordSlit(
  * Uses drawRefLeftSide (21 segs to ~0.897h), then the chosen hem, then drawRefRightSide.
  * Returns with the path at the right shoulder peak.
  *
- * hemType: 'standard' | 'tattered' | 'scalloped' | 'fishtail' | 'asymmetric'
+ * hemType: 'standard' | 'tattered' | 'scalloped' | 'notched' | 'asymmetric'
  */
 /**
  * Draw the standard bottom hem (no modifier) at actual cape height.
@@ -301,8 +302,37 @@ function leftSideXFrac(yFrac: number): number {
 }
 
 /**
- * Draw a styled left side. Samples the reference side profile and applies
- * a style offset perpendicular to it (outward = toward x=0).
+ * Compute the side edge endpoint position for a cape profile.
+ */
+function sidePoint(
+  w: number, h: number, hemWidth: number,
+  profileFn: (yFrac: number) => number,
+  yFrac: number, botYFrac: number,
+  shoulderH: number | undefined,
+  mirror: boolean
+): { x: number; y: number } {
+  const cx = w / 2;
+  const sh = shoulderH ?? h;
+  let xFrac = profileFn(yFrac);
+  if (mirror) xFrac = 1 - xFrac;
+  const rawX = w * xFrac;
+  const taper = Math.max(0, yFrac / botYFrac);
+  const x = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
+  // Y with shoulder blend
+  let y: number;
+  if (sh === h) {
+    y = h * yFrac;
+  } else {
+    const blend = Math.min(1, yFrac / 0.12);
+    const t = blend * blend * (3 - 2 * blend);
+    y = (sh + (h - sh) * t) * yFrac;
+  }
+  return { x, y };
+}
+
+/**
+ * Draw a styled left side. Delegates to drawStyledEdge with the correct
+ * endpoints and outward normal for the left side of the cape.
  */
 function drawStyledLeftSide(
   path: SVGPath, w: number, h: number, hemWidth: number,
@@ -310,134 +340,32 @@ function drawStyledLeftSide(
   shoulderH?: number,
   profileFn?: (yFrac: number) => number,
   topY?: number,
-  botY?: number
+  botY?: number,
+  sawtoothCurve: number = 0,
+  sawtoothReverse: boolean = false,
+  sideCurve: number = 0
 ) {
-  const cx = w / 2;
-  const sh = shoulderH ?? h;
   const topYFrac = topY ?? 0.02040;
   const botYFrac = botY ?? 0.89712;
-  const range = botYFrac - topYFrac;
-  const segments = Math.max(count * 4, 40);
   const _profileFn = profileFn ?? leftSideXFrac;
 
-  function yAt(yFrac: number): number {
-    if (sh === h) return h * yFrac;
-    const blend = Math.min(1, yFrac / 0.12);
-    const t = blend * blend * (3 - 2 * blend);
-    return (sh + (h - sh) * t) * yFrac;
-  }
+  const p0 = sidePoint(w, h, hemWidth, _profileFn, topYFrac, botYFrac, shoulderH, false);
+  const p1 = sidePoint(w, h, hemWidth, _profileFn, botYFrac, botYFrac, shoulderH, false);
 
-  // Pre-compute tattered offsets with step-limiting for smooth transitions
-  let tatteredOffsets: number[] | undefined;
-  if (style === 'tattered') {
-    const rng = new SeededRNG(seed + 1000);
-    const maxStep = depth * 0.4;
-    tatteredOffsets = [];
-    let prev = 0;
-    for (let i = 0; i <= segments; i++) {
-      let off = -rng.nextRange(0, depth);
-      if (Math.abs(off - prev) > maxStep) {
-        off = prev + Math.sign(off - prev) * maxStep;
-      }
-      prev = off;
-      tatteredOffsets.push(off);
-    }
-  }
+  // Outward normal: 90° CCW of edge direction → points left (away from center)
+  const dx = p1.x - p0.x;
+  const dy = p1.y - p0.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const outwardX = -dy / len;
+  const outwardY = dx / len;
 
-  for (let i = 1; i <= segments; i++) {
-    const t = i / segments;
-    const yFrac = topYFrac + range * t;
-    const refXFrac = _profileFn(yFrac);
-    // Apply hemWidth taper
-    const rawX = w * refXFrac;
-    const taper = Math.max(0, yFrac / botYFrac);
-    const adjustedX = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
-    const y = yAt(yFrac);
-
-    // Compute outward offset (negative X = outward for left side)
-    let offset = 0;
-    const st = t; // 0..1 along the side
-
-    if (style === 'tattered') {
-      offset = tatteredOffsets![i];
-    } else if (style === 'scalloped') {
-      const phase = (st * count) % 1;
-      offset = -depth * Math.sin(phase * Math.PI);
-    } else if (style === 'zigzag') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? -depth * (phase * 2) : -depth * (2 - phase * 2);
-    } else if (style === 'wavy') {
-      offset = -depth * Math.sin(st * count * Math.PI * 2);
-    } else if (style === 'castellated') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? -depth : 0;
-    } else if (style === 'serrated') {
-      const phase = (st * count) % 1;
-      offset = -depth * phase;
-    } else if (style === 'fringed') {
-      const phase = (st * count) % 1;
-      // Narrow spikes
-      offset = phase < 0.2 ? -depth * (phase / 0.2) : phase < 0.4 ? -depth * (1 - (phase - 0.2) / 0.2) : 0;
-    } else if (style === 'thorned') {
-      const phase = (st * count) % 1;
-      // Sharp triangular thorns
-      offset = phase < 0.15 ? -depth * (phase / 0.15) : phase < 0.3 ? -depth * (1 - (phase - 0.15) / 0.15) : 0;
-    } else if (style === 'torn') {
-      const rng = new SeededRNG(seed + i * 7 + 31);
-      const r1 = rng.nextRange(0, 1);
-      const r2 = rng.nextRange(0, 1);
-      offset = r1 < 0.2 ? -depth * (0.7 + r2 * 0.3) : -depth * r2 * 0.4;
-      if (rng.nextRange(0, 1) > 0.65) offset *= -0.3;
-    } else if (style === 'pointed') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? -depth * (phase * 2) : -depth * (2 - phase * 2);
-    } else if (style === 'flame') {
-      const rng = new SeededRNG(seed + i * 3 + 17);
-      const phase = (st * count) % 1;
-      // Multi-frequency jagged fire: primary tongue + secondary flicker + tertiary crackle
-      const primary = Math.sin(phase * Math.PI);
-      const secondary = 0.35 * Math.sin(phase * Math.PI * 3 + rng.nextRange(0, 2));
-      const tertiary = 0.15 * Math.sin(phase * Math.PI * 7 + rng.nextRange(0, 4));
-      const flicker = rng.nextRange(0.6, 1.2);
-      offset = -depth * flicker * Math.max(0, primary + secondary + tertiary);
-    } else if (style === 'stepped') {
-      const phase = (st * count) % 1;
-      offset = -depth * Math.floor(phase * 3) / 3;
-    } else if (style === 'dovetail') {
-      const phase = (st * count) % 1;
-      const dir = Math.floor(st * count) % 2 === 0 ? 1 : 0.3;
-      offset = phase > 0.2 && phase < 0.8 ? -depth * dir : 0;
-    } else if (style === 'fishtail') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? depth * 0.3 * (phase * 2) : -depth * 0.7 * ((phase - 0.5) * 2);
-    } else if (style === 'feathered') {
-      const rng = new SeededRNG(seed + i * 5 + 11);
-      const phase = (st * count) % 1;
-      const flicker = rng.nextRange(0.5, 1.3);
-      offset = -depth * flicker * Math.sin(phase * Math.PI);
-    } else if (style === 'cloud') {
-      const rng = new SeededRNG(seed + i * 2 + 7);
-      const phase = (st * count * 3) % 1;
-      const h = depth * (0.4 + rng.nextRange(0, 1) * 0.6);
-      offset = -h * Math.sin(phase * Math.PI);
-    } else if (style === 'sawtooth') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.25 ? -depth * (phase / 0.25) : -depth * (1 - (phase - 0.25) / 0.75);
-    } else if (style === 'arrow') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? -depth * (phase * 2) : depth * 0.3 - depth * 0.3 * ((phase - 0.5) * 2);
-    } else if (style === 'picot') {
-      const phase = (st * count) % 1;
-      offset = (phase > 0.35 && phase < 0.65) ? -depth * Math.sin((phase - 0.35) / 0.3 * Math.PI) : 0;
-    }
-
-    path.lineTo(adjustedX + offset, y);
-  }
+  drawStyledEdge(path, p0.x, p0.y, p1.x, p1.y, style, depth, count,
+    outwardX, outwardY, 0, seed, false, sawtoothCurve, sawtoothReverse, sideCurve);
 }
 
 /**
  * Draw a styled right side. Mirror of drawStyledLeftSide.
- * Offset is positive X (outward for right side).
+ * Draws bottom→top to maintain path continuity.
  */
 function drawStyledRightSide(
   path: SVGPath, w: number, h: number, hemWidth: number,
@@ -445,126 +373,28 @@ function drawStyledRightSide(
   shoulderH?: number,
   profileFn?: (yFrac: number) => number,
   topY?: number,
-  botY?: number
+  botY?: number,
+  sawtoothCurve: number = 0,
+  sawtoothReverse: boolean = false,
+  sideCurve: number = 0
 ) {
-  const cx = w / 2;
-  const sh = shoulderH ?? h;
   const topYFrac = topY ?? 0.02040;
   const botYFrac = botY ?? 0.89712;
-  const range = botYFrac - topYFrac;
-  const segments = Math.max(count * 4, 40);
   const _profileFn = profileFn ?? leftSideXFrac;
 
-  function yAt(yFrac: number): number {
-    if (sh === h) return h * yFrac;
-    const blend = Math.min(1, yFrac / 0.12);
-    const t = blend * blend * (3 - 2 * blend);
-    return (sh + (h - sh) * t) * yFrac;
-  }
+  // Drawing order: bottom → top (path continues from hem)
+  const p0 = sidePoint(w, h, hemWidth, _profileFn, botYFrac, botYFrac, shoulderH, true);
+  const p1 = sidePoint(w, h, hemWidth, _profileFn, topYFrac, botYFrac, shoulderH, true);
 
-  // Pre-compute tattered offsets with step-limiting for smooth transitions
-  let tatteredOffsets: number[] | undefined;
-  if (style === 'tattered') {
-    const rng = new SeededRNG(seed + 2000);
-    const maxStep = depth * 0.4;
-    tatteredOffsets = [];
-    let prev = 0;
-    for (let i = 0; i <= segments; i++) {
-      let off = rng.nextRange(0, depth);
-      if (Math.abs(off - prev) > maxStep) {
-        off = prev + Math.sign(off - prev) * maxStep;
-      }
-      prev = off;
-      tatteredOffsets.push(off);
-    }
-  }
+  // Outward normal: 90° CCW of edge direction → points right (away from center)
+  const dx = p1.x - p0.x;
+  const dy = p1.y - p0.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const outwardX = -dy / len;
+  const outwardY = dx / len;
 
-  for (let i = 0; i < segments; i++) {
-    // Right side goes from bottom to top — same number of points as left side
-    const t = 1 - (i / segments);
-    const yFrac = topYFrac + range * t;
-    const refXFrac = 1 - _profileFn(yFrac); // Mirror
-    const rawX = w * refXFrac;
-    const taper = Math.max(0, yFrac / botYFrac);
-    const adjustedX = hemWidth === 1.0 ? rawX : rawX + (cx + (rawX - cx) * hemWidth - rawX) * taper;
-    const y = yAt(yFrac);
-
-    let offset = 0;
-    const st = t;
-
-    if (style === 'tattered') {
-      offset = tatteredOffsets![i];
-    } else if (style === 'scalloped') {
-      const phase = (st * count) % 1;
-      offset = depth * Math.sin(phase * Math.PI);
-    } else if (style === 'zigzag') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? depth * (phase * 2) : depth * (2 - phase * 2);
-    } else if (style === 'wavy') {
-      offset = depth * Math.sin(st * count * Math.PI * 2);
-    } else if (style === 'castellated') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? depth : 0;
-    } else if (style === 'serrated') {
-      const phase = (st * count) % 1;
-      offset = depth * phase;
-    } else if (style === 'fringed') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.2 ? depth * (phase / 0.2) : phase < 0.4 ? depth * (1 - (phase - 0.2) / 0.2) : 0;
-    } else if (style === 'thorned') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.15 ? depth * (phase / 0.15) : phase < 0.3 ? depth * (1 - (phase - 0.15) / 0.15) : 0;
-    } else if (style === 'torn') {
-      const rng = new SeededRNG(seed + (segments - i) * 7 + 31);
-      const r1 = rng.nextRange(0, 1);
-      const r2 = rng.nextRange(0, 1);
-      offset = r1 < 0.2 ? depth * (0.7 + r2 * 0.3) : depth * r2 * 0.4;
-      if (rng.nextRange(0, 1) > 0.65) offset *= -0.3;
-    } else if (style === 'pointed') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? depth * (phase * 2) : depth * (2 - phase * 2);
-    } else if (style === 'flame') {
-      const rng = new SeededRNG(seed + (segments - i) * 3 + 17);
-      const phase = (st * count) % 1;
-      // Multi-frequency jagged fire: primary tongue + secondary flicker + tertiary crackle
-      const primary = Math.sin(phase * Math.PI);
-      const secondary = 0.35 * Math.sin(phase * Math.PI * 3 + rng.nextRange(0, 2));
-      const tertiary = 0.15 * Math.sin(phase * Math.PI * 7 + rng.nextRange(0, 4));
-      const flicker = rng.nextRange(0.6, 1.2);
-      offset = depth * flicker * Math.max(0, primary + secondary + tertiary);
-    } else if (style === 'stepped') {
-      const phase = (st * count) % 1;
-      offset = depth * Math.floor(phase * 3) / 3;
-    } else if (style === 'dovetail') {
-      const phase = (st * count) % 1;
-      const dir = Math.floor(st * count) % 2 === 0 ? 1 : 0.3;
-      offset = phase > 0.2 && phase < 0.8 ? depth * dir : 0;
-    } else if (style === 'fishtail') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? -depth * 0.3 * (phase * 2) : depth * 0.7 * ((phase - 0.5) * 2);
-    } else if (style === 'feathered') {
-      const rng = new SeededRNG(seed + (segments - i) * 5 + 11);
-      const phase = (st * count) % 1;
-      const flicker = rng.nextRange(0.5, 1.3);
-      offset = depth * flicker * Math.sin(phase * Math.PI);
-    } else if (style === 'cloud') {
-      const rng = new SeededRNG(seed + (segments - i) * 2 + 7);
-      const phase = (st * count * 3) % 1;
-      const h = depth * (0.4 + rng.nextRange(0, 1) * 0.6);
-      offset = h * Math.sin(phase * Math.PI);
-    } else if (style === 'sawtooth') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.25 ? depth * (phase / 0.25) : depth * (1 - (phase - 0.25) / 0.75);
-    } else if (style === 'arrow') {
-      const phase = (st * count) % 1;
-      offset = phase < 0.5 ? depth * (phase * 2) : -depth * 0.3 + depth * 0.3 * ((phase - 0.5) * 2);
-    } else if (style === 'picot') {
-      const phase = (st * count) % 1;
-      offset = (phase > 0.35 && phase < 0.65) ? depth * Math.sin((phase - 0.35) / 0.3 * Math.PI) : 0;
-    }
-
-    path.lineTo(adjustedX + offset, y);
-  }
+  drawStyledEdge(path, p0.x, p0.y, p1.x, p1.y, style, depth, count,
+    outwardX, outwardY, 0, seed, false, sawtoothCurve, sawtoothReverse, sideCurve, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -692,16 +522,14 @@ function drawModifiedOutline(
   const hemW = (params.hemWidth as number) || 1.0;
   const tattered = params.tattered as boolean;
   const scalloped = params.scalloped as boolean;
-  const fishtail = params.fishtail as boolean;
+  const notched = params.notched as boolean;
   const asymmetric = params.asymmetric as boolean;
-  const pointed = params.pointed as boolean;
   const zigzag = params.zigzag as boolean;
   const wavy = params.wavy as boolean;
   const castellated = params.castellated as boolean;
   const dovetail = params.dovetail as boolean;
   const flame = params.flame as boolean;
   const stepped = params.stepped as boolean;
-  const serrated = params.serrated as boolean;
   const thorned = params.thorned as boolean;
   const torn = params.torn as boolean;
   const feathered = params.feathered as boolean;
@@ -709,22 +537,25 @@ function drawModifiedOutline(
   const sawtooth = params.sawtooth as boolean;
   const arrow = params.arrow as boolean;
   const picot = params.picot as boolean;
-  const rounding = params.rounding as boolean;
-  const roundingAmt = (params.roundingAmount as number) || 0.5;
+  const bottomCurveAmt = (params.bottomCurve as number) || 0;
+  const rounding = bottomCurveAmt > 0;
 
-  const hasHemStyle = tattered || scalloped || fishtail || asymmetric || pointed || zigzag || wavy || castellated || dovetail || flame || stepped || serrated || thorned || torn || feathered || cloud || sawtooth || arrow || picot;
+  const hasHemStyle = tattered || scalloped || notched || asymmetric || zigzag || wavy || castellated || dovetail || flame || stepped || thorned || torn || feathered || cloud || sawtooth || arrow || picot;
 
   const sideStyle = (params.sideStyle as string) || 'none';
   const sideDepth = (params.sideStyleDepth as number) || 3;
   const sideCount = (params.sideStyleCount as number) || 8;
   const sideSeed = (params.seed as number) || 12345;
+  const sideSawCurve = (params.sawtoothCurve as number) || 0;
+  const sideSawReverse = !!(params.sawtoothReverse);
+  const sideCurve = (params.sideCurve as number) || 0;
 
   function drawLeft() {
-    if (sideStyle !== 'none') drawStyledLeftSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH, p.sideProfileFn, p.sideTopYFrac, p.sideBotYFrac);
+    if (sideStyle !== 'none' || sideCurve !== 0) drawStyledLeftSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH, p.sideProfileFn, p.sideTopYFrac, p.sideBotYFrac, sideSawCurve, sideSawReverse, sideCurve);
     else p.drawRefLeft(path, w, h, hemW, refH);
   }
   function drawRight() {
-    if (sideStyle !== 'none') drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH, p.sideProfileFn, p.sideTopYFrac, p.sideBotYFrac);
+    if (sideStyle !== 'none' || sideCurve !== 0) drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH, p.sideProfileFn, p.sideTopYFrac, p.sideBotYFrac, sideSawCurve, sideSawReverse, sideCurve);
     else p.drawRefRight(path, w, h, hemW, refH);
   }
 
@@ -732,7 +563,7 @@ function drawModifiedOutline(
   if (!hasHemStyle) {
     drawLeft();
     if (rounding) {
-      drawRoundedHem(path, w, h, hemW, roundingAmt, p.sideBotYFrac, p.sideLeftXFrac, p.sideRightXFrac);
+      drawRoundedHem(path, w, h, hemW, bottomCurveAmt, p.sideBotYFrac, p.sideLeftXFrac, p.sideRightXFrac);
     } else {
       p.drawRefHem(path, w, h, hemW);
     }
@@ -752,7 +583,7 @@ function drawModifiedOutline(
   const halfW = (rightX - leftX) / 2;
   const hemDepth = h - leftY;
   // When rounding is active the hem follows a deeper curved baseline
-  const effectiveDepth = rounding ? Math.max(hemDepth, roundingAmt * halfW) : hemDepth;
+  const effectiveDepth = rounding ? Math.max(hemDepth, bottomCurveAmt * halfW) : hemDepth;
   const hemSpan = rightX - leftX;
 
   // Baseline Y at parameter t (0 = left edge, 1 = right edge).
@@ -840,25 +671,27 @@ function drawModifiedOutline(
       const ctrl = offsetPoint(midX, midBY, d);
       path.quadraticBezierTo(ctrl.x, ctrl.y, ex, endY);
     }
-  } else if (fishtail) {
-    const depthFrac = (params.fishtailDepth as number) || 0.15;
-    const notchCount = (params.fishtailNotches as number) || 3;
-    const notchDepth = h * depthFrac;
-    const hemBottom = leftY + effectiveDepth;
-    const innerLeft = leftX + (rightX - leftX) * 0.06;
-    const innerRight = leftX + (rightX - leftX) * 0.94;
-    path.cubicBezierTo(leftX, leftY + (hemBottom - leftY) * 0.4, leftX + (innerLeft - leftX) * 0.5, hemBottom, innerLeft, hemBottom);
-    const innerSpan = innerRight - innerLeft;
-    const notchW = Math.min(w * 0.06, innerSpan / (notchCount * 2));
-    for (let i = 0; i < notchCount; i++) {
-      const nc = innerLeft + innerSpan * (i + 1) / (notchCount + 1);
-      path.lineTo(nc - notchW, hemBottom);
-      const tip = offsetPoint(nc, hemBottom, -notchDepth);
-      path.lineTo(tip.x, tip.y);
-      path.lineTo(nc + notchW, hemBottom);
+  } else if (notched) {
+    // Flat runs with distinct V-notch cuts (comb-like, matches drawStyledEdge)
+    const count = (params.notchedCount as number) || 6;
+    const depth = (params.notchedDepth as number) || 3;
+    const totalCells = 2 * count + 1;
+    const cellW = hemSpan / totalCells;
+    for (let i = 0; i < totalCells; i++) {
+      const t1 = (i + 1) / totalCells;
+      const x1 = leftX + (i + 1) * cellW;
+      if (i % 2 === 0) {
+        // Flat run along baseline
+        path.lineTo(x1, baseY(t1));
+      } else {
+        // V-notch: inward cut at center of cell
+        const midX = leftX + (i + 0.5) * cellW;
+        const tMid = (i + 0.5) / totalCells;
+        const peak = offsetPoint(midX, baseY(tMid), -depth);
+        path.lineTo(peak.x, peak.y);
+        path.lineTo(x1, baseY(t1));
+      }
     }
-    path.lineTo(innerRight, hemBottom);
-    path.cubicBezierTo(rightX - (rightX - innerRight) * 0.5, hemBottom, rightX, leftY + (hemBottom - leftY) * 0.4, rightX, leftY);
   } else if (asymmetric) {
     const skew = (params.asymmetricSkew as number) || 0.5;
     const side = (params.asymmetricSide as string) || 'left';
@@ -877,33 +710,19 @@ function drawModifiedOutline(
     path.lineTo(leftX + hemSpanW * 0.85, rightHem);
     const rcp1 = offsetPoint(rightX, leftY, (rightHem - leftY) * 0.3);
     path.cubicBezierTo(leftX + hemSpanW * 0.95, rightHem, rcp1.x, rcp1.y, rightX, leftY);
-  } else if (pointed) {
-    const depthFrac = (params.pointedDepth as number) || 0.3;
-    const roundness = (params.pointedRoundness as number) ?? 0.4;
-    const pointDepth = (rightX - leftX) * depthFrac;
-    const tipDepth = Math.max(pointDepth, effectiveDepth);
-    const tipY = leftY + tipDepth;
-    const midX = (leftX + rightX) / 2;
-    const lcp = offsetPoint(leftX, leftY, tipDepth * 0.3);
-    // roundness 0 = straight lines, 1 = maximum curve
-    const curveSpread = (midX - leftX) * roundness;
-    path.cubicBezierTo(lcp.x, lcp.y, midX - curveSpread, tipY, midX, tipY);
-    const rcp = offsetPoint(rightX, leftY, tipDepth * 0.3);
-    path.cubicBezierTo(midX + curveSpread, tipY, rcp.x, rcp.y, rightX, leftY);
   } else if (zigzag) {
-    const count = (params.zigzagCount as number) || 10;
-    const depth = (params.zigzagDepth as number) || 4;
+    // Repeating pointed arches per segment (matches drawStyledEdge)
+    const count = (params.zigzagCount as number) || 6;
+    const depth = (params.zigzagDepth as number) || 3;
     const segW = hemSpan / count;
     for (let i = 0; i < count; i++) {
-      const t0 = i / count;
-      const t1 = (i + 0.5) / count;
-      const t2 = (i + 1) / count;
-      const peakX = leftX + hemSpan * (t0 + 0.5 / count);
-      const peakBY = baseY(t1);
-      const peak = offsetPoint(peakX, peakBY, depth);
+      const tMid = (i + 0.5) / count;
+      const t1 = (i + 1) / count;
+      const midX = leftX + segW * (i + 0.5);
+      const endX = leftX + segW * (i + 1);
+      const peak = offsetPoint(midX, baseY(tMid), depth);
       path.lineTo(peak.x, peak.y);
-      const valleyX = leftX + segW * (i + 1);
-      path.lineTo(valleyX, baseY(t2));
+      path.lineTo(endX, baseY(t1));
     }
   } else if (wavy) {
     const count = (params.wavyCount as number) || 6;
@@ -976,115 +795,282 @@ function drawModifiedOutline(
       path.lineTo(rightX, baseY(1));
     }
   } else if (dovetail) {
-    const depthFrac = (params.dovetailDepth as number) || 0.25;
-    const widthFrac = (params.dovetailWidth as number) || 0.3;
-    const notchDepth = hemSpan * depthFrac;
-    const notchHalfW = hemSpan * widthFrac * 0.5;
-    const midX = (leftX + rightX) / 2;
-    const taperW = notchHalfW * 0.7; // narrower at the top of the notch
-    // Left side down to baseline center
-    path.lineTo(midX - notchHalfW, baseY(0.5 - widthFrac * 0.5));
-    // Notch: inward taper
-    const notchBY = baseY(0.5);
-    const notchBottom = offsetPoint(midX, notchBY, notchDepth);
-    path.lineTo(notchBottom.x - taperW, notchBottom.y);
-    path.lineTo(notchBottom.x + taperW, notchBottom.y);
-    // Back up
-    path.lineTo(midX + notchHalfW, baseY(0.5 + widthFrac * 0.5));
-    path.lineTo(rightX, baseY(1));
-  } else if (flame) {
-    const count = (params.flameCount as number) || 5;
-    const depth = (params.flameDepth as number) || 6;
-    // Fire effect: each main tongue has sub-tongues for a jagged, flickering look
-    const subCount = count * 3; // 3 sub-tongues per main flame
-    const segW = hemSpan / subCount;
-    const baseSeed = (params.seed as number) || 12345;
-    for (let i = 0; i < subCount; i++) {
-      const t0 = i / subCount;
-      const t1 = (i + 0.5) / subCount;
-      const t2 = (i + 1) / subCount;
-      const startX = leftX + segW * i;
-      const tipX = leftX + segW * (i + 0.5);
-      const endX = leftX + segW * (i + 1);
-      const bYStart = baseY(t0);
-      const bYTip = baseY(t1);
-      const bYEnd = baseY(t2);
-      // Main tongue envelope: taller at center
-      const envelope = Math.sin(((i + 0.5) / subCount) * Math.PI);
-      // Seed by distance from center so mirror-image tongues get identical randoms
-      const mirrorIdx = Math.abs(i - (subCount - 1) / 2);
-      const rng = new SeededRNG(baseSeed + Math.round(mirrorIdx * 1000) + 17);
-      // Alternate tall/short sub-tongues for fire texture
-      const isTall = i % 3 === 1; // middle sub-tongue of each group is tallest
-      const heightMul = isTall ? (0.8 + rng.nextRange(0, 0.4)) : (0.3 + rng.nextRange(0, 0.35));
-      const tongueDepth = depth * envelope * heightMul;
-      if (tongueDepth < 0.3) {
-        // Too shallow — just draw a line
-        path.lineTo(endX, bYEnd);
-        continue;
+    // Flat gaps alternating with trapezoidal dovetail tabs (matches flag)
+    const count = (params.dovetailCount as number) || 6;
+    const depth = (params.dovetailDepth as number) || 3;
+    const totalCells = 2 * count + 1;
+    const cellW = hemSpan / totalCells;
+    for (let i = 0; i < totalCells; i++) {
+      const x1 = leftX + (i + 1) * cellW;
+      const t1 = (i + 1) / totalCells;
+      if (i % 2 === 0) {
+        // Flat gap along baseline
+        path.lineTo(x1, baseY(t1));
+      } else {
+        // Dovetail tab: narrow at baseline, wider at depth
+        const midX = leftX + (i + 0.5) * cellW;
+        const narrowHalf = cellW * 0.35;
+        const wideHalf = cellW * 0.55;
+        const tNL = (midX - narrowHalf - leftX) / hemSpan;
+        const tWL = (midX - wideHalf - leftX) / hemSpan;
+        const tWR = (midX + wideHalf - leftX) / hemSpan;
+        const tNR = (midX + narrowHalf - leftX) / hemSpan;
+        // Left narrow neck at baseline (behind — path arrives from left)
+        path.lineTo(midX - narrowHalf, baseY(tNL));
+        // Left wide flare at depth
+        const ptWL = offsetPoint(midX - wideHalf, baseY(tWL), depth);
+        path.lineTo(ptWL.x, ptWL.y);
+        // Right wide flare at depth
+        const ptWR = offsetPoint(midX + wideHalf, baseY(tWR), depth);
+        path.lineTo(ptWR.x, ptWR.y);
+        // Right narrow neck at baseline (ahead)
+        path.lineTo(midX + narrowHalf, baseY(tNR));
       }
-      const tip = offsetPoint(tipX, bYTip, tongueDepth);
-      // Sharper control points for jagged fire look
-      const cp1 = offsetPoint(startX + segW * 0.25, baseY(t0 + 0.25 / subCount), tongueDepth * 0.3);
-      const cp2 = offsetPoint(tipX - segW * 0.05, bYTip, tongueDepth * 0.95);
-      path.cubicBezierTo(cp1.x, cp1.y, cp2.x, cp2.y, tip.x, tip.y);
-      const cp3 = offsetPoint(tipX + segW * 0.05, bYTip, tongueDepth * 0.95);
-      const cp4 = offsetPoint(endX - segW * 0.25, baseY(t2 - 0.25 / subCount), tongueDepth * 0.3);
-      path.cubicBezierTo(cp3.x, cp3.y, cp4.x, cp4.y, endX, bYEnd);
     }
+  } else if (flame) {
+    const depth = (params.flameDepth as number) || 6;
+    // Fixed flame profile from Flames.svg, projected onto the curved baseline
+    for (const cmd of FLAME_PROFILE) {
+      if (cmd[0] === 2) {
+        const t = cmd[1];
+        const h = cmd[2] * depth;
+        const x = leftX + t * hemSpan;
+        const pt = offsetPoint(x, baseY(t), h);
+        path.lineTo(pt.x, pt.y);
+      } else if (cmd[0] === 3) {
+        const pt1 = offsetPoint(leftX + cmd[1] * hemSpan, baseY(cmd[1]), cmd[2] * depth);
+        const pt2 = offsetPoint(leftX + cmd[3] * hemSpan, baseY(cmd[3]), cmd[4] * depth);
+        const pte = offsetPoint(leftX + cmd[5] * hemSpan, baseY(cmd[5]), cmd[6] * depth);
+        path.cubicBezierTo(pt1.x, pt1.y, pt2.x, pt2.y, pte.x, pte.y);
+      }
+    }
+    // Ensure path reaches the right edge
+    path.lineTo(rightX, baseY(1));
   } else if (stepped) {
+    // Staircase pyramid per segment: 3 steps ascending then 3 descending (matches drawStyledEdge)
     const count = (params.steppedCount as number) || 5;
     const depth = (params.steppedDepth as number) || 4;
     const segW = hemSpan / count;
+    const steps = 3;
+    const halfSteps = steps * 2;
+    const subW = segW / halfSteps;
     for (let i = 0; i < count; i++) {
-      const t = (i + 0.5) / count;
-      // Each step offset varies by position — deeper at center
-      const stepDepth = depth * Math.sin(((i + 0.5) / count) * Math.PI);
-      const startX = leftX + segW * i;
-      const endX = leftX + segW * (i + 1);
-      const bY = baseY(t);
-      const stepPt = offsetPoint((startX + endX) / 2, bY, stepDepth);
-      path.lineTo(startX, stepPt.y);
-      path.lineTo(endX, stepPt.y);
-      // Vertical connector to next step
-      if (i < count - 1) {
-        const nextT = (i + 1.5) / count;
-        const nextDepth = depth * Math.sin(((i + 1.5) / count) * Math.PI);
-        const nextBY = baseY(nextT);
-        const nextPt = offsetPoint((endX + leftX + segW * (i + 2)) / 2, nextBY, nextDepth);
-        path.lineTo(endX, nextPt.y);
+      const segStart = i / count;
+      // Ascending steps
+      for (let s = 0; s < steps; s++) {
+        const d = depth * ((s + 1) / steps);
+        const t0 = segStart + (s * subW) / hemSpan;
+        const t1 = segStart + ((s + 1) * subW) / hemSpan;
+        const x0 = leftX + segW * i + s * subW;
+        const x1 = x0 + subW;
+        const p0 = offsetPoint(x0, baseY(t0), d);
+        const p1 = offsetPoint(x1, baseY(t1), d);
+        path.lineTo(p0.x, p0.y);
+        path.lineTo(p1.x, p1.y);
+      }
+      // Descending steps (mirror of ascending)
+      for (let s = steps - 1; s >= 0; s--) {
+        const d = depth * ((s + 1) / steps);
+        const subIdx = halfSteps - 1 - s;
+        const t0 = segStart + (subIdx * subW) / hemSpan;
+        const t1 = segStart + ((subIdx + 1) * subW) / hemSpan;
+        const x0 = leftX + segW * i + subIdx * subW;
+        const x1 = x0 + subW;
+        const p0 = offsetPoint(x0, baseY(t0), d);
+        const p1 = offsetPoint(x1, baseY(t1), d);
+        path.lineTo(p0.x, p0.y);
+        path.lineTo(p1.x, p1.y);
       }
     }
-    path.lineTo(rightX, leftY);
   } else if (feathered) {
-    // Feathered: smooth organic bezier curves leaning toward center (like plumage)
+    // Overlapping elongated leaf/feather shapes (matches drawStyledEdge)
+    const count = (params.hemEdgeCount as number) || 8;
+    const depth = (params.hemEdgeDepth as number) || 3;
+    const seed = (params.seed as number) || 12345;
+    const scrambled = ((seed * 2654435761) >>> 0);
+    const rng = new SeededRNG(scrambled);
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const t0 = i / count;
+      const tMid = (i + 0.5) / count;
+      const t1 = (i + 1) / count;
+      const startX = leftX + segW * i;
+      const endX = leftX + segW * (i + 1);
+      const h = depth * (0.6 + rng.nextRange(0, 1) * 0.4);
+      // Tip at midpoint + slight overlap
+      const overlapT = 0.15 / count;
+      const tipX = leftX + segW * (i + 0.5);
+      const tipBY = baseY(tMid);
+      const tip = offsetPoint(tipX, tipBY, h);
+      // Smooth feather curve: up to tip
+      const cp1 = offsetPoint(startX + segW * 0.2, baseY(t0 + 0.2 / count), h * 0.3);
+      const cp2 = offsetPoint(tipX - segW * 0.1, tipBY, h * 0.1 + h);
+      path.cubicBezierTo(cp1.x, cp1.y, cp2.x, cp2.y, tip.x, tip.y);
+      // Smooth feather curve: down from tip
+      const cp3 = offsetPoint(tipX + segW * 0.1, tipBY, h * 0.1 + h);
+      const cp4 = offsetPoint(endX - segW * 0.2, baseY(t1 - 0.2 / count), h * 0.3);
+      path.cubicBezierTo(cp3.x, cp3.y, cp4.x, cp4.y, endX, baseY(t1));
+    }
+  } else if (cloud) {
+    // Billowy bumps of varying size, 3 arcs per segment (matches drawStyledEdge)
+    const count = (params.hemEdgeCount as number) || 8;
+    const depth = (params.hemEdgeDepth as number) || 3;
+    const seed = (params.seed as number) || 12345;
+    const scrambled = ((seed * 2654435761) >>> 0);
+    const rng = new SeededRNG(scrambled);
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const subCount = 3;
+      const subW = segW / subCount;
+      for (let j = 0; j < subCount; j++) {
+        const tStart = (i * segW + j * subW) / hemSpan;
+        const tEnd = (i * segW + (j + 1) * subW) / hemSpan;
+        const startX = leftX + i * segW + j * subW;
+        const endX = startX + subW;
+        const midX = (startX + endX) / 2;
+        const tMid = (tStart + tEnd) / 2;
+        const bumpH = depth * (0.4 + rng.nextRange(0, 1) * 0.6);
+        const ctrl = offsetPoint(midX, baseY(tMid), bumpH);
+        path.quadraticBezierTo(ctrl.x, ctrl.y, endX, baseY(tEnd));
+      }
+    }
+  } else if (sawtooth) {
+    // Asymmetric teeth — steep rise, gradual fall (matches drawStyledEdge)
+    const count = (params.hemEdgeCount as number) || 8;
+    const depth = (params.hemEdgeDepth as number) || 3;
+    const curve = (params.sawtoothCurve as number) || 0;
+    const reverse = !!(params.sawtoothReverse);
+    const segW = hemSpan / count;
+    for (let i = 0; i < count; i++) {
+      const t1 = (i + 1) / count;
+      const endX = leftX + segW * (i + 1);
+      if (reverse) {
+        // Gradual rise then steep drop
+        const peakFrac = 0.75;
+        const tPeak = (i + peakFrac) / count;
+        const peakX = leftX + segW * (i + peakFrac);
+        const peak = offsetPoint(peakX, baseY(tPeak), depth);
+        if (curve > 0) {
+          const tMid = (i + peakFrac / 2) / count;
+          const midX = leftX + segW * (i + peakFrac / 2);
+          const cp = offsetPoint(midX, baseY(tMid), depth * curve * 0.3);
+          path.quadraticBezierTo(cp.x, cp.y, peak.x, peak.y);
+        } else {
+          path.lineTo(peak.x, peak.y);
+        }
+        path.lineTo(endX, baseY(t1));
+      } else {
+        // Steep rise then gradual slope
+        const peakFrac = 0.25;
+        const tPeak = (i + peakFrac) / count;
+        const peakX = leftX + segW * (i + peakFrac);
+        const peak = offsetPoint(peakX, baseY(tPeak), depth);
+        path.lineTo(peak.x, peak.y);
+        if (curve > 0) {
+          const tMid = (i + (1 + peakFrac) / 2) / count;
+          const midX = leftX + segW * (i + (1 + peakFrac) / 2);
+          const cp = offsetPoint(midX, baseY(tMid), depth * curve * 0.3);
+          path.quadraticBezierTo(cp.x, cp.y, endX, baseY(t1));
+        } else {
+          path.lineTo(endX, baseY(t1));
+        }
+      }
+    }
+  } else if (arrow) {
+    // Arrow pattern: narrow stem with triangular arrowhead (matches flag)
+    const count = (params.hemEdgeCount as number) || 8;
+    const depth = (params.hemEdgeDepth as number) || 3;
+    const segW = hemSpan / count;
+    const stemW = segW * 0.15;
+    const headW = segW * 0.4;
+    for (let i = 0; i < count; i++) {
+      const tMid = (i + 0.5) / count;
+      const t1 = (i + 1) / count;
+      const midX = leftX + segW * (i + 0.5);
+      const endX = leftX + segW * (i + 1);
+      // Left side of stem
+      const stemL = offsetPoint(midX - stemW, baseY(tMid), 0);
+      path.lineTo(stemL.x, stemL.y);
+      const stemLBot = offsetPoint(midX - stemW, baseY(tMid), depth * 0.5);
+      path.lineTo(stemLBot.x, stemLBot.y);
+      // Arrowhead widens
+      const headL = offsetPoint(midX - headW, baseY(tMid), depth * 0.5);
+      path.lineTo(headL.x, headL.y);
+      // Tip
+      const tip = offsetPoint(midX, baseY(tMid), depth);
+      path.lineTo(tip.x, tip.y);
+      // Right side of arrowhead
+      const headR = offsetPoint(midX + headW, baseY(tMid), depth * 0.5);
+      path.lineTo(headR.x, headR.y);
+      // Right side of stem
+      const stemRBot = offsetPoint(midX + stemW, baseY(tMid), depth * 0.5);
+      path.lineTo(stemRBot.x, stemRBot.y);
+      const stemR = offsetPoint(midX + stemW, baseY(tMid), 0);
+      path.lineTo(stemR.x, stemR.y);
+      // Back to baseline
+      path.lineTo(endX, baseY(t1));
+    }
+  } else if (picot) {
+    // Small decorative loops (matches drawStyledEdge)
     const count = (params.hemEdgeCount as number) || 8;
     const depth = (params.hemEdgeDepth as number) || 3;
     const segW = hemSpan / count;
     for (let i = 0; i < count; i++) {
-      const t0 = i / count;
-      const t1 = (i + 0.5) / count;
-      const t2 = (i + 1) / count;
-      const startX = leftX + segW * i;
-      const tipX = leftX + segW * (i + 0.5);
+      const tMid = (i + 0.5) / count;
+      const t1 = (i + 1) / count;
+      const midX = leftX + segW * (i + 0.5);
       const endX = leftX + segW * (i + 1);
-      const bYTip = baseY(t1);
-      const bYEnd = baseY(t2);
-      const tip = offsetPoint(tipX, bYTip, depth);
-      // Mirror lean about cape center for symmetry
-      const isRightHalf = (i + 0.5) / count > 0.5;
-      const isCenter = count % 2 === 1 && i === Math.floor(count / 2);
-      const leanStart = isCenter ? 0.45 : isRightHalf ? 0.3 : 0.6;
-      const leanEnd = isCenter ? 0.45 : isRightHalf ? 0.6 : 0.3;
-      const cp1 = offsetPoint(startX + segW * 0.15, baseY(t0 + 0.15 / count), depth * leanStart);
-      const cp2 = offsetPoint(tipX - segW * 0.1, bYTip, depth * 0.9);
-      path.cubicBezierTo(cp1.x, cp1.y, cp2.x, cp2.y, tip.x, tip.y);
-      const cp3 = offsetPoint(tipX + segW * 0.1, bYTip, depth * 0.9);
-      const cp4 = offsetPoint(endX - segW * 0.15, baseY(t2 - 0.15 / count), depth * leanEnd);
-      path.cubicBezierTo(cp3.x, cp3.y, cp4.x, cp4.y, endX, bYEnd);
+      const loopR = Math.min(depth * 0.5, segW * 0.3);
+      // Line to just before loop
+      const preX = midX - segW * 0.15;
+      const preT = (i + 0.35) / count;
+      path.lineTo(preX, baseY(preT));
+      // Small circular bump
+      const peakPt = offsetPoint(midX, baseY(tMid), loopR * 2);
+      const cp1 = offsetPoint(midX - segW * 0.15, baseY(tMid), loopR * 1.5);
+      const cp2 = offsetPoint(midX - segW * 0.075, baseY(tMid), loopR * 2);
+      path.cubicBezierTo(cp1.x, cp1.y, cp2.x, cp2.y, peakPt.x, peakPt.y);
+      const cp3 = offsetPoint(midX + segW * 0.075, baseY(tMid), loopR * 2);
+      const cp4 = offsetPoint(midX + segW * 0.15, baseY(tMid), loopR * 1.5);
+      const postX = midX + segW * 0.15;
+      const postT = (i + 0.65) / count;
+      path.cubicBezierTo(cp3.x, cp3.y, cp4.x, cp4.y, postX, baseY(postT));
+      // Continue to segment end
+      path.lineTo(endX, baseY(t1));
     }
-  } else if (serrated || thorned || sawtooth || arrow || picot || cloud || torn) {
-    // Segment-based styles adapted from side edges
+  } else if (thorned) {
+    // Equally spaced sharp triangular thorns along the hem
+    // 2*count+1 cells: flat gaps alternating with thorn spikes
+    const count = (params.hemEdgeCount as number) || 8;
+    const depth = (params.hemEdgeDepth as number) || 3;
+    const totalCells = 2 * count + 1;
+    const cellW = hemSpan / totalCells;
+    for (let i = 0; i < totalCells; i++) {
+      const t1 = (i + 1) / totalCells;
+      const x1 = leftX + (i + 1) * cellW;
+      if (i % 2 === 0) {
+        // Flat gap along baseline
+        path.lineTo(x1, baseY(t1));
+      } else {
+        // Sharp thorn: narrow triangular spike
+        const tPeakStart = (i + 0.35) / totalCells;
+        const tPeak = (i + 0.5) / totalCells;
+        const tPeakEnd = (i + 0.65) / totalCells;
+        const peakStartX = leftX + (i + 0.35) * cellW;
+        const peakX = leftX + (i + 0.5) * cellW;
+        const peakEndX = leftX + (i + 0.65) * cellW;
+        // Rise to peak
+        path.lineTo(peakStartX, baseY(tPeakStart));
+        const peak = offsetPoint(peakX, baseY(tPeak), depth);
+        path.lineTo(peak.x, peak.y);
+        // Descend from peak
+        path.lineTo(peakEndX, baseY(tPeakEnd));
+        // Continue to cell end
+        path.lineTo(x1, baseY(t1));
+      }
+    }
+  } else if (torn) {
+    // Segment-based styles (torn remains as phase-based sampling)
     const count = (params.hemEdgeCount as number) || 8;
     const depth = (params.hemEdgeDepth as number) || 3;
     const seed = (params.seed as number) || 12345;
@@ -1093,45 +1079,11 @@ function drawModifiedOutline(
       const t = i / segments;
       const xPos = leftX + hemSpan * t;
       const bY = baseY(t);
-      const st = t;
-      let off = 0;
-      if (serrated) {
-        const reverse = params.hemSerratedReverse as boolean;
-        const phase = (st * count) % 1;
-        off = depth * (reverse ? (1 - phase) : phase);
-      } else if (thorned) {
-        const phase = (st * count) % 1;
-        off = phase < 0.15 ? depth * (phase / 0.15) : phase < 0.3 ? depth * (1 - (phase - 0.15) / 0.15) : 0;
-      } else if (sawtooth) {
-        const phase = (st * count) % 1;
-        off = phase < 0.25 ? depth * (phase / 0.25) : depth * (1 - (phase - 0.25) / 0.75);
-      } else if (arrow) {
-        // Chevron arrowhead notches: V-shaped cuts pointing outward
-        const phase = (st * count) % 1;
-        if (phase < 0.1 || phase > 0.9) {
-          off = 0; // flat between chevrons
-        } else if (phase < 0.5) {
-          // descend to tip
-          off = depth * ((phase - 0.1) / 0.4);
-        } else {
-          // ascend from tip
-          off = depth * ((0.9 - phase) / 0.4);
-        }
-      } else if (picot) {
-        const phase = (st * count) % 1;
-        off = (phase > 0.35 && phase < 0.65) ? depth * Math.sin((phase - 0.35) / 0.3 * Math.PI) : 0;
-      } else if (cloud) {
-        const rng = new SeededRNG(seed + i * 2 + 7);
-        const phase = (st * count * 3) % 1;
-        const h = depth * (0.4 + rng.nextRange(0, 1) * 0.6);
-        off = h * Math.sin(phase * Math.PI);
-      } else if (torn) {
-        const rng = new SeededRNG(seed + i * 7 + 31);
-        const r1 = rng.nextRange(0, 1);
-        const r2 = rng.nextRange(0, 1);
-        off = r1 < 0.2 ? depth * (0.7 + r2 * 0.3) : depth * r2 * 0.4;
-        if (rng.nextRange(0, 1) > 0.65) off *= -0.3;
-      }
+      const rng = new SeededRNG(seed + i * 7 + 31);
+      const r1 = rng.nextRange(0, 1);
+      const r2 = rng.nextRange(0, 1);
+      let off = r1 < 0.2 ? depth * (0.7 + r2 * 0.3) : depth * r2 * 0.4;
+      if (rng.nextRange(0, 1) > 0.65) off *= -0.3;
       const pt = offsetPoint(xPos, bY, off);
       path.lineTo(pt.x, pt.y);
     }
@@ -1555,16 +1507,12 @@ export class CapeStandard extends Template {
     const sideY = h * 0.89712;
     let maxY = h;
     const halfW = (rightX - leftX) / 2;
-    if (params.rounding) {
-      const roundingAmt = (params.roundingAmount as number) || 0.5;
-      maxY = Math.max(maxY, sideY + roundingAmt * halfW);
-    }
-    if (params.pointed) {
-      const depthFrac = (params.pointedDepth as number) || 0.3;
-      maxY = Math.max(maxY, sideY + (rightX - leftX) * depthFrac);
+    {
+      const bottomCurveAmt = (params.bottomCurve as number) || 0;
+      if (bottomCurveAmt > 0) maxY = Math.max(maxY, sideY + bottomCurveAmt * halfW);
     }
     if (params.zigzag) {
-      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.zigzagDepth as number) || 4));
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.zigzagDepth as number) || 3));
     }
     if (params.wavy) {
       maxY = Math.max(maxY, sideY + (h - sideY) + ((params.wavyDepth as number) || 3));
@@ -1573,14 +1521,37 @@ export class CapeStandard extends Template {
       maxY = Math.max(maxY, sideY + (h - sideY) + ((params.castellatedDepth as number) || 3));
     }
     if (params.dovetail) {
-      const dDepth = ((params.dovetailDepth as number) || 0.25) * (rightX - leftX);
-      maxY = Math.max(maxY, sideY + (h - sideY) + dDepth);
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.dovetailDepth as number) || 3));
+    }
+    if (params.notched) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.notchedDepth as number) || 3));
     }
     if (params.flame) {
       maxY = Math.max(maxY, sideY + (h - sideY) + ((params.flameDepth as number) || 6));
     }
     if (params.stepped) {
       maxY = Math.max(maxY, sideY + (h - sideY) + ((params.steppedDepth as number) || 4));
+    }
+    if (params.scalloped) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.scallopDepth as number) || 3));
+    }
+    if (params.torn) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.tornDepth as number) || 3));
+    }
+    if (params.feathered) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.featheredDepth as number) || 3));
+    }
+    if (params.cloud) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.cloudDepth as number) || 3));
+    }
+    if (params.sawtooth) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.sawtoothDepth as number) || 3));
+    }
+    if (params.arrow) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.arrowDepth as number) || 3));
+    }
+    if (params.picot) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.picotDepth as number) || 3));
     }
     if (maxY > result.boundingBox.height) {
       result.boundingBox.height = maxY;
@@ -1683,16 +1654,12 @@ export class CapeNarrowSingleHole extends Template {
     const sideY = h * 0.8464;
     let maxY = h;
     const halfW = (rightX - leftX) / 2;
-    if (params.rounding) {
-      const roundingAmt = (params.roundingAmount as number) || 0.5;
-      maxY = Math.max(maxY, sideY + roundingAmt * halfW);
-    }
-    if (params.pointed) {
-      const depthFrac = (params.pointedDepth as number) || 0.3;
-      maxY = Math.max(maxY, sideY + (rightX - leftX) * depthFrac);
+    {
+      const bottomCurveAmt = (params.bottomCurve as number) || 0;
+      if (bottomCurveAmt > 0) maxY = Math.max(maxY, sideY + bottomCurveAmt * halfW);
     }
     if (params.zigzag) {
-      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.zigzagDepth as number) || 4));
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.zigzagDepth as number) || 3));
     }
     if (params.wavy) {
       maxY = Math.max(maxY, sideY + (h - sideY) + ((params.wavyDepth as number) || 3));
@@ -1701,14 +1668,37 @@ export class CapeNarrowSingleHole extends Template {
       maxY = Math.max(maxY, sideY + (h - sideY) + ((params.castellatedDepth as number) || 3));
     }
     if (params.dovetail) {
-      const dDepth = ((params.dovetailDepth as number) || 0.25) * (rightX - leftX);
-      maxY = Math.max(maxY, sideY + (h - sideY) + dDepth);
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.dovetailDepth as number) || 3));
+    }
+    if (params.notched) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.notchedDepth as number) || 3));
     }
     if (params.flame) {
       maxY = Math.max(maxY, sideY + (h - sideY) + ((params.flameDepth as number) || 6));
     }
     if (params.stepped) {
       maxY = Math.max(maxY, sideY + (h - sideY) + ((params.steppedDepth as number) || 4));
+    }
+    if (params.scalloped) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.scallopDepth as number) || 3));
+    }
+    if (params.torn) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.tornDepth as number) || 3));
+    }
+    if (params.feathered) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.featheredDepth as number) || 3));
+    }
+    if (params.cloud) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.cloudDepth as number) || 3));
+    }
+    if (params.sawtooth) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.sawtoothDepth as number) || 3));
+    }
+    if (params.arrow) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.arrowDepth as number) || 3));
+    }
+    if (params.picot) {
+      maxY = Math.max(maxY, sideY + (h - sideY) + ((params.picotDepth as number) || 3));
     }
     if (maxY > result.boundingBox.height) {
       result.boundingBox.height = maxY;
@@ -1727,152 +1717,6 @@ export class CapeNarrowSingleHole extends Template {
     }
     result.boundingBox.x = minX;
     result.boundingBox.width = maxX - minX;
-    return result;
-  }
-}
-
-/**
- * CapeShort: Shorter cape, 60% of standard length
- * Same flowing drape shape as standard, just shorter height
- */
-export class CapeShort extends Template {
-  generateCutPath(params: TemplateParams): string {
-    const { length, width } = params;
-    const path = new SVGPath();
-    const w = width;
-    const h = length * 0.6;
-
-    path.moveTo(w / 2, h * 0.04778);
-    drawRefNeck(path, w, h);
-    drawRefOutline(path, w, h);
-    closeRefNeck(path, w, h);
-    return path.toString();
-  }
-
-  generateCutPaths(params: TemplateParams): string[] {
-    const { width, length, holeRadius } = params;
-    const h = length * 0.6;
-    const paths = [this.generateCutPath(params), ...generateRefHoles(width, h, holeRadius)];
-    paths.push(generateCenterSlit(width, h));
-    paths.push(generateCenterKeyhole(width, h));
-    if (params.swordSlit) {
-      paths.push(generateSwordSlit(
-        width, h,
-        params.swordSide as string || 'right',
-        params.swordAngle as number || 35,
-        params.swordY as number || 0.45
-      ));
-    }
-    return paths;
-  }
-
-  generateScorePaths(params: TemplateParams): string[] { return []; }
-  generateEngravePaths(params: TemplateParams): string[] { return []; }
-
-  export(
-    id: string,
-    name: string,
-    elementType: string,
-    variantName: string,
-    params: TemplateParams
-  ): PatternExport {
-    const result = super.export(id, name, elementType, variantName, params);
-    // CapeShort draws at 60% of params.length
-    result.boundingBox.height = params.length * 0.6;
-    return result;
-  }
-}
-
-/**
- * CapeLong: Extended cape, 140% of standard length
- * Same flowing drape shape as standard, just extended height
- * Optional tail split for dramatic effect
- */
-export class CapeLong extends Template {
-  generateCutPath(params: TemplateParams): string {
-    const { length, width, split = false } = params;
-    const path = new SVGPath();
-    const w = width;
-    const h = length * 1.4;
-
-    path.moveTo(w / 2, h * 0.04778);
-    drawRefNeck(path, w, h);
-
-    if (split) {
-      const splitY = h * 0.65;
-      const splitGap = w * 0.03;
-      const cx = w / 2;
-
-      // Left side: 9 smoothed reference beziers (shoulder → ~0.612h)
-      path.cubicBezierTo(w * 0.34058, h * 0.01217, w * 0.31290, h * 0.01849, w * 0.30793, h * 0.02040);
-      path.cubicBezierTo(w * 0.29702, h * 0.02459, w * 0.28376, h * 0.03298, w * 0.27895, h * 0.03873);
-      path.cubicBezierTo(w * 0.27002, h * 0.04942, w * 0.25938, h * 0.06828, w * 0.23779, h * 0.11174);
-      path.cubicBezierTo(w * 0.22615, h * 0.13518, w * 0.21624, h * 0.15492, w * 0.21578, h * 0.15561);
-      path.cubicBezierTo(w * 0.21459, h * 0.15739, w * 0.19440, h * 0.20213, w * 0.18948, h * 0.21389);
-      path.cubicBezierTo(w * 0.18724, h * 0.21926, w * 0.17947, h * 0.23755, w * 0.17222, h * 0.25453);
-      path.cubicBezierTo(w * 0.16105, h * 0.28069, w * 0.14615, h * 0.32208, w * 0.14517, h * 0.32427);
-      path.cubicBezierTo(w * 0.14150, h * 0.33246, w * 0.08892, h * 0.49630, w * 0.08734, h * 0.50149);
-      path.cubicBezierTo(w * 0.08405, h * 0.51230, w * 0.05631, h * 0.60828, w * 0.05526, h * 0.61175);
-
-      // Extend to split point, then tail geometry
-      path.lineTo(w * 0.05526, splitY);
-      path.lineTo(w * 0.05526, h);
-      path.lineTo(cx - splitGap, h);
-      path.lineTo(cx - splitGap, splitY);
-      path.lineTo(cx + splitGap, splitY);
-      path.lineTo(cx + splitGap, h);
-      path.lineTo(w * 0.94474, h);
-      path.lineTo(w * 0.94474, splitY);
-
-      // Right side: 9 smoothed mirrored reference beziers (~0.612h → shoulder)
-      path.lineTo(w * 0.94474, h * 0.61175);
-      path.cubicBezierTo(w * 0.94369, h * 0.60828, w * 0.91595, h * 0.51230, w * 0.91266, h * 0.50149);
-      path.cubicBezierTo(w * 0.91108, h * 0.49630, w * 0.85850, h * 0.33246, w * 0.85483, h * 0.32427);
-      path.cubicBezierTo(w * 0.85385, h * 0.32208, w * 0.83895, h * 0.28069, w * 0.82778, h * 0.25453);
-      path.cubicBezierTo(w * 0.82053, h * 0.23755, w * 0.81276, h * 0.21926, w * 0.81052, h * 0.21389);
-      path.cubicBezierTo(w * 0.80560, h * 0.20213, w * 0.78541, h * 0.15739, w * 0.78422, h * 0.15561);
-      path.cubicBezierTo(w * 0.78376, h * 0.15492, w * 0.77385, h * 0.13518, w * 0.76221, h * 0.11174);
-      path.cubicBezierTo(w * 0.74062, h * 0.06828, w * 0.72998, h * 0.04942, w * 0.72105, h * 0.03873);
-      path.cubicBezierTo(w * 0.71624, h * 0.03298, w * 0.70298, h * 0.02459, w * 0.69207, h * 0.02040);
-      path.cubicBezierTo(w * 0.68710, h * 0.01849, w * 0.65942, h * 0.01217, w * 0.64415, h * 0.00946);
-    } else {
-      drawRefOutline(path, w, h);
-    }
-
-    closeRefNeck(path, w, h);
-    return path.toString();
-  }
-
-  generateCutPaths(params: TemplateParams): string[] {
-    const { width, length, holeRadius } = params;
-    const h = length * 1.4;
-    const paths = [this.generateCutPath(params), ...generateRefHoles(width, h, holeRadius)];
-    paths.push(generateCenterSlit(width, h));
-    paths.push(generateCenterKeyhole(width, h));
-    if (params.swordSlit) {
-      paths.push(generateSwordSlit(
-        width, h,
-        params.swordSide as string || 'right',
-        params.swordAngle as number || 35,
-        params.swordY as number || 0.45
-      ));
-    }
-    return paths;
-  }
-
-  generateScorePaths(params: TemplateParams): string[] { return []; }
-  generateEngravePaths(params: TemplateParams): string[] { return []; }
-
-  export(
-    id: string,
-    name: string,
-    elementType: string,
-    variantName: string,
-    params: TemplateParams
-  ): PatternExport {
-    const result = super.export(id, name, elementType, variantName, params);
-    // CapeLong draws at 140% of params.length
-    result.boundingBox.height = params.length * 1.4;
     return result;
   }
 }

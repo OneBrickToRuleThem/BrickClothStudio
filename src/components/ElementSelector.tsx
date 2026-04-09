@@ -126,7 +126,7 @@ export default function ElementSelector() {
     // Default variant per element type
     const variants: Record<ElementType, string> = {
       cape: 'standard',
-      flag: 'small-flag',
+      flag: 'custom-flag',
       wings: 'tattered-wing',
       kama: 'wrap-skirt',
       mantle: 'shoulder-armor',
@@ -233,9 +233,9 @@ function ElementVariantSelector() {
     ],
 
     flag: [
+      { value: 'custom-flag', label: 'Custom' },
       { value: 'small-flag', label: 'Small Flag' },
       { value: 'large-flag', label: 'Large Flag' },
-      { value: 'custom-flag', label: 'Custom' },
     ],
 
     wings: [

@@ -170,7 +170,7 @@ class BannerFlag extends Template {
     const bottomStyle = (params.flagBottomStyle as string) || 'none';
     const leftStyle = (params.flagLeftStyle as string) || 'none';
     const rightStyle = (params.flagRightStyle as string) || 'none';
-    const depth = (params.flagBottomDepth as number) || 0.25;
+    const depth = (params.flagBottomDepth as number) || 5;
     const count = (params.flagBottomCount as number) || 5;
     const sideDepth = (params.flagSideDepth as number) || 3;
     const sideCount = (params.flagSideCount as number) || 5;
@@ -223,15 +223,17 @@ class BannerFlag extends Template {
   /** Calculate how far a bottom edge style extends below the body baseline */
   private getBottomExtension(style: string, depthParam: number, count: number, h: number, _margin: number): number {
     switch (style) {
-      case 'pointed': return h * depthParam;
+      case 'pointed': return depthParam || 4;
       case 'flames': return h * Math.min(depthParam || 0.15, 0.4);
       case 'scalloped': return depthParam || 3;
+      case 'arched': return depthParam || 3;
       case 'zigzag': return depthParam || 3;
       case 'wavy': return depthParam || 3;
       case 'castellated': return depthParam || 3;
       case 'torn': return depthParam || 3;
       case 'stepped': return depthParam || 3;
       case 'dovetail': return depthParam || 3;
+      case 'notched': return depthParam || 3;
       case 'feathered': return depthParam || 3;
       case 'cloud': return depthParam || 3;
       case 'sawtooth': return depthParam || 3;
@@ -335,26 +337,8 @@ class BannerFlag extends Template {
         break;
       }
       case 'flames': {
-        // Pointed flame tongues with curling spurs
-        const flameCount = count || 5;
-        const segW = usableW / flameCount;
-        const flameH = bottomExt;
-        for (let i = 0; i < flameCount; i++) {
-          const x0 = rightX - i * segW;
-          const x1 = rightX - (i + 1) * segW;
-          const midX = (x0 + x1) / 2;
-          // Rising curl spur
-          const spur1X = x0 - segW * 0.15;
-          const spur1Y = bodyBottom + flameH * 0.3;
-          path.quadraticBezierTo(spur1X, spur1Y, midX + segW * 0.1, bodyBottom + flameH * 0.55);
-          // Sharp pointed tip
-          path.lineTo(midX, bottomY);
-          // Falling curl spur
-          const spur2X = x1 + segW * 0.15;
-          const spur2Y = bodyBottom + flameH * 0.3;
-          path.quadraticBezierTo(midX - segW * 0.1, bodyBottom + flameH * 0.55, spur2X, spur2Y);
-          path.quadraticBezierTo(x1 + segW * 0.05, bodyBottom + flameH * 0.05, x1, bodyBottom);
-        }
+        // Fixed flame profile from Flames.svg — no count/seed needed
+        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, 'flame', bottomExt, 1, 0, 1, 0, 0, false, 0, false, (params as Record<string, number>).sideCurve || 0);
         break;
       }
       case 'scalloped': {
@@ -369,18 +353,29 @@ class BannerFlag extends Template {
         }
         break;
       }
+      case 'arched': {
+        // Inverted scallops — arches curve upward instead of downward
+        const arCount = count || 5;
+        const segW = usableW / arCount;
+        for (let i = 0; i < arCount; i++) {
+          const x0 = rightX - i * segW;
+          const x1 = rightX - (i + 1) * segW;
+          const cx = (x0 + x1) / 2;
+          path.quadraticBezierTo(cx, bodyBottom - bottomExt, x1, bodyBottom);
+        }
+        break;
+      }
       case 'zigzag': {
-        // Teeth alternate between bottomY and bodyBottom, centered for even counts
+        // Each count = one complete V-tooth (down then up), always centered
         const zzCount = count || 8;
         const segW = usableW / zzCount;
         for (let i = 0; i < zzCount; i++) {
-          const x = rightX - (i + 0.5) * segW;
-          // Start with a downward tooth so pattern is symmetric around center
-          const y = (i % 2 === 0) ? bottomY : bodyBottom;
-          path.lineTo(x, y);
+          const segStart = rightX - i * segW;
+          // Peak at segment midpoint
+          path.lineTo(segStart - segW * 0.5, bottomY);
+          // Return to baseline at segment end
+          path.lineTo(segStart - segW, bodyBottom);
         }
-        // End at bodyBottom on left, ensuring symmetry
-        path.lineTo(leftX, bodyBottom);
         break;
       }
       case 'wavy': {
@@ -404,72 +399,79 @@ class BannerFlag extends Template {
         path.lineTo(leftX, bodyBottom);
         break;
       case 'castellated': {
-        // Battlements: square notches along the bottom
+        // Symmetric battlements: merlon, crenel, merlon, ..., merlon
+        // 2*count+1 cells ensure both edges end with a merlon
         const castCount = count || 5;
-        const segW = usableW / castCount;
-        const notchW = segW * 0.5;
-        for (let i = 0; i < castCount; i++) {
-          const baseX = rightX - i * segW;
-          // Drop down to notch
-          path.lineTo(baseX, bottomY);
-          path.lineTo(baseX - notchW, bottomY);
-          // Back up to merlon
-          path.lineTo(baseX - notchW, bodyBottom);
-          const nextX = rightX - (i + 1) * segW;
-          path.lineTo(nextX, bodyBottom);
+        const totalCells = 2 * castCount + 1;
+        const cellW = usableW / totalCells;
+        for (let i = 0; i < totalCells; i++) {
+          const x1 = rightX - (i + 1) * cellW;
+          if (i % 2 === 0) {
+            // Merlon (flat at bodyBottom)
+            path.lineTo(x1, bodyBottom);
+          } else {
+            // Crenel (notch drops to bottomY)
+            const x0 = rightX - i * cellW;
+            path.lineTo(x0, bottomY);
+            path.lineTo(x1, bottomY);
+            path.lineTo(x1, bodyBottom);
+          }
         }
         break;
       }
       case 'torn': {
         // Torn/ripped edge — delegates to shared system with user seed
         const tornSeed = (params as Record<string, number>).flagBottomSeed ?? 42;
-        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, 'torn', bottomExt, count, 0, 1, 0, tornSeed);
+        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, 'torn', bottomExt, count, 0, 1, 0, tornSeed, false, 0, false, (params as Record<string, number>).sideCurve || 0);
         break;
       }
       case 'stepped': {
-        // Staircase steps descending then ascending per segment
+        // Symmetric staircase pyramid: steps descend then ascend within each segment
         const stepCount = count || 5;
         const segW = usableW / stepCount;
         const steps = 3;
+        const platW = segW / (2 * steps); // platform width for each step
         for (let i = 0; i < stepCount; i++) {
           const segStart = rightX - i * segW;
-          const stepW = segW / (steps * 2);
-          // Descend
+          // Descend (right to left, going deeper)
           for (let s = 0; s < steps; s++) {
-            const d = bottomExt * ((s + 1) / steps);
-            const sx = segStart - s * 2 * stepW;
-            path.lineTo(sx, bodyBottom + d);
-            path.lineTo(sx - stepW, bodyBottom + d);
+            const y = bodyBottom + bottomExt * ((s + 1) / steps);
+            const x = segStart - s * platW;
+            path.lineTo(x, y);           // vertical drop
+            path.lineTo(x - platW, y);   // horizontal platform
           }
-          // Ascend
+          // Ascend (continuing left, going shallower)
           for (let s = steps - 1; s >= 0; s--) {
-            const d = bottomExt * ((s + 1) / steps);
-            const sx = segStart - (steps + (steps - 1 - s)) * stepW * 2;
-            if (s < steps - 1) {
-              path.lineTo(sx + stepW, bodyBottom + d);
-            }
-            path.lineTo(sx, bodyBottom + d);
+            const y = bodyBottom + bottomExt * (s / steps);
+            const x = segStart - (steps + (steps - 1 - s)) * platW;
+            path.lineTo(x, y);           // vertical rise
+            path.lineTo(x - platW, y);   // horizontal platform
           }
-          path.lineTo(rightX - (i + 1) * segW, bodyBottom);
         }
         break;
       }
       case 'dovetail': {
-        // Trapezoidal dovetail notches
+        // Symmetric dovetail tabs: flat gaps with trapezoidal tabs between them
+        // 2*count+1 cells ensure both edges end with a flat gap
         const dtCount = count || 5;
-        const segW = usableW / dtCount;
-        for (let i = 0; i < dtCount; i++) {
-          const segStart = rightX - i * segW;
-          const dir = (i % 2 === 0) ? 1 : 0.3;
-          const d = bottomExt * dir;
-          // Narrow top entry
-          const topInset = segW * 0.35;
-          const botInset = segW * 0.2;
-          path.lineTo(segStart - topInset, bodyBottom + d);
-          path.lineTo(segStart - botInset, bodyBottom + d);
-          path.lineTo(segStart - (segW - botInset), bodyBottom + d);
-          path.lineTo(segStart - (segW - topInset), bodyBottom + d);
-          path.lineTo(rightX - (i + 1) * segW, bodyBottom);
+        const totalCells = 2 * dtCount + 1;
+        const cellW = usableW / totalCells;
+        for (let i = 0; i < totalCells; i++) {
+          const x0 = rightX - i * cellW;
+          const x1 = rightX - (i + 1) * cellW;
+          if (i % 2 === 0) {
+            // Flat gap at bodyBottom
+            path.lineTo(x1, bodyBottom);
+          } else {
+            // Dovetail tab: narrow at top (bodyBottom), wider at bottom (bottomY)
+            const midX = (x0 + x1) / 2;
+            const narrowHalf = cellW * 0.35;
+            const wideHalf = cellW * 0.55;
+            path.lineTo(midX + narrowHalf, bodyBottom);  // narrow right edge
+            path.lineTo(midX + wideHalf, bottomY);       // widen going down
+            path.lineTo(midX - wideHalf, bottomY);       // across at bottom
+            path.lineTo(midX - narrowHalf, bodyBottom);  // narrow going back up
+          }
         }
         break;
       }
@@ -529,8 +531,8 @@ class BannerFlag extends Template {
         // Asymmetric sawtooth — steep side, gradual slope; direction toggleable
         const stCount = count || 8;
         const segW = usableW / stCount;
-        const reverse = !!(params as Record<string, boolean>).flagSawtoothReverse;
-        const curve = (params as Record<string, number>).flagSawtoothCurve ?? 0;
+        const reverse = !!(params as Record<string, boolean>).sawtoothReverse;
+        const curve = (params as Record<string, number>).sawtoothCurve ?? 0;
         for (let i = 0; i < stCount; i++) {
           const x0 = rightX - i * segW;
           const x1 = rightX - (i + 1) * segW;
@@ -588,11 +590,13 @@ class BannerFlag extends Template {
       }
       case 'picot':
         // Delegate picot to shared system
-        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, 'picot', bottomExt, count, 0, 1, 0, 42);
+        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, 'picot', bottomExt, count, 0, 1, 0, 42, false, 0, false, (params as Record<string, number>).sideCurve || 0);
         break;
       default:
         // Delegate any remaining styles to shared edge style system
-        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, style, bottomExt, count, 0, 1, 0, 42);
+        drawStyledEdge(path, rightX, bodyBottom, leftX, bodyBottom, style, bottomExt, count, 0, 1, 0, 42, false,
+          (params as Record<string, number>).sawtoothCurve || 0, !!(params as Record<string, boolean>).sawtoothReverse,
+          (params as Record<string, number>).sideCurve || 0);
         break;
     }
   }
@@ -1173,7 +1177,7 @@ export class WingsCustom extends Template {
     const seed = (params.wingTornSeed as number) || 42;
     const edgeStyles = Array(n).fill(style);
     const edgeDepths = Array(n).fill(depth);
-    return buildSailCutPath(nodes, margin, edgeStyles, edgeDepths, count, 2, seed);
+    return buildSailCutPath(nodes, margin, edgeStyles, edgeDepths, count, 2, seed, 0, false, (params.sideCurve as number) || 0);
   }
 
   generateCutPaths(params: TemplateParams): string[] {
@@ -1217,6 +1221,9 @@ function getEdgeParams(params: TemplateParams, prefix: 'kama' | 'mantle') {
     depth: (params[`${prefix}EdgeDepth`] as number) || 2,
     count: (params[`${prefix}EdgeCount`] as number) || 6,
     seed: (params.seed as number) || 42,
+    sawtoothCurve: (params.sawtoothCurve as number) || 0,
+    sawtoothReverse: !!(params.sawtoothReverse),
+    sideCurve: (params.sideCurve as number) || 0,
   };
 }
 
@@ -1250,7 +1257,7 @@ export class Kama extends Template {
       const botY = h * 0.997;
       // Diagonal from slit corner to styled edge start avoids unstyled vertical gap
       drawStyledEdge(path, w * 0.45962, h * 0.94777, w * 0.12, botY,
-        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, false, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
       path.lineTo(w * 0.10213, h * 0.91690);
     } else {
       path.cubicBezierTo(w * 0.43045, h * 0.98427, w * 0.39359, h * 0.99631, w * 0.30792, h * 0.99729);
@@ -1299,7 +1306,7 @@ export class Kama extends Template {
       path.lineTo(w * 0.88, botY);
       // Diagonal from outer edge to slit corner avoids unstyled vertical gap
       drawStyledEdge(path, w * 0.88, botY, w * 0.54038, h * 0.94777,
-        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed + 1);
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, true, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
     } else {
       // RIGHT SIDE side-to-tab curve (included in styled path via lineTo above)
       path.cubicBezierTo(w * 0.89299, h * 0.93764, w * 0.82026, h * 0.99171, w * 0.79256, h * 0.99519);
@@ -1342,8 +1349,8 @@ export class Pauldron extends Template {
     const edge = getEdgeParams(params, 'mantle');
 
     // Start point: left edge at rim height (arc starts/ends at rimTopY)
-    const rounding = params.mantleRounding as boolean;
-    const roundingAmt = (params.mantleRoundingAmount as number) || 0.5;
+    const roundingAmt = (params.mantleBottomCurve as number) || 0;
+    const rounding = roundingAmt > 0;
     const rimTopY = h * 0.7582;
     const rimHalfW = (w * 0.8904 - w * 0.1096) / 2;
     const rimDepth = rounding ? roundingAmt * rimHalfW : 0;
@@ -1401,11 +1408,11 @@ export class Pauldron extends Template {
         const countPerSeg = Math.max(1, Math.round(edge.count / segs));
         for (let i = 0; i < pts.length - 1; i++) {
           drawStyledEdge(path, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y,
-            edge.style, edge.depth, countPerSeg, 0, 1, 0, edge.seed + i);
+            edge.style, edge.depth, countPerSeg, 0, 1, 0, edge.seed + i, false, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
         }
       } else {
         drawStyledEdge(path, w * 0.8904, rimTopY, w * 0.1096, rimTopY,
-          edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+          edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, false, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
       }
     } else if (rounding) {
       // Rounding without edge style: smooth U-arc expanding downward
@@ -1476,7 +1483,7 @@ export class KamaSplit extends Template {
     const rBotOutY = h * 0.92;
     if (edge.style !== 'none') {
       drawStyledEdge(path, rBotInX, rBotInY, rBotOutX, rBotOutY,
-        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, false, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
     } else {
       path.cubicBezierTo(w * 0.62, h * 0.96, w * 0.78, h * 0.97, rBotOutX, rBotOutY);
     }
@@ -1498,7 +1505,7 @@ export class KamaSplit extends Template {
     const lBotOutY = h * 0.92;
     if (edge.style !== 'none') {
       drawStyledEdge(path, lBotInX, lBotInY, lBotOutX, lBotOutY,
-        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed + 1);
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, true, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
     } else {
       path.cubicBezierTo(w * 0.38, h * 0.96, w * 0.22, h * 0.97, lBotOutX, lBotOutY);
     }
@@ -1547,7 +1554,7 @@ export class KamaWaistCape extends Template {
     // Bottom hem (styled)
     if (edge.style !== 'none') {
       drawStyledEdge(path, w * 0.85, h * 0.88, w * 0.15, h * 0.88,
-        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, false, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
     } else {
       path.cubicBezierTo(w * 0.72, h * 0.96, w * 0.58, h * 1.00, w * 0.50, h * 1.00);
       path.cubicBezierTo(w * 0.42, h * 1.00, w * 0.28, h * 0.96, w * 0.15, h * 0.88);
@@ -1598,7 +1605,7 @@ export class PauldronSingle extends Template {
     // Bottom rim (styled)
     if (edge.style !== 'none') {
       drawStyledEdge(path, w * 0.83, h * 0.87, w * 0.15, h * 0.87,
-        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, false, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
     } else {
       path.cubicBezierTo(w * 0.75, h * 0.95, w * 0.55, h * 1.00, w * 0.42, h * 1.00);
       path.cubicBezierTo(w * 0.30, h * 0.99, w * 0.20, h * 0.95, w * 0.15, h * 0.87);
@@ -1666,7 +1673,7 @@ export class PauldronWide extends Template {
     // Bottom rim (styled)
     if (edge.style !== 'none') {
       drawStyledEdge(path, w * 0.65, h * 0.9942, w * 0.35, h * 0.9942,
-        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed);
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, false, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
     } else {
       path.cubicBezierTo(w * 0.55, h * 1.00, w * 0.45, h * 1.00, w * 0.35, h * 0.9942);
     }
@@ -1765,7 +1772,10 @@ function buildSailCutPath(
   edgeDepths: number[],
   count: number,
   safeInset: number,
-  tornSeed: number = 42
+  tornSeed: number = 42,
+  sawtoothCurve: number = 0,
+  sawtoothReverse: boolean = false,
+  sideCurve: number = 0
 ): string {
   const n = corners.length;
   const path = new SVGPath();
@@ -1852,7 +1862,7 @@ function buildSailCutPath(
     drawStyledEdge(
       path, effDepartures[i].x, effDepartures[i].y,
       effArrivals[nextIdx].x, effArrivals[nextIdx].y,
-      edgeStyles[i], edgeDepths[i] ?? 3, count, outX, outY, safeInset, tornSeed + i
+      edgeStyles[i], edgeDepths[i] ?? 3, count, outX, outY, safeInset, tornSeed + i, false, sawtoothCurve, sawtoothReverse, sideCurve
     );
 
     // Corner at nextIdx
@@ -1954,7 +1964,7 @@ export class SailSquare extends Template {
       ];
       const count = (params.sailEdgeCount as number) || 6;
       const tornSeed = (params.sailTornSeed as number) || 42;
-      return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed);
+      return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed, 0, false, (params.sideCurve as number) || 0);
     }
 
     // Outline rectangle: always gap mm outside every grommet hole edge
@@ -1972,16 +1982,17 @@ export class SailSquare extends Template {
     const count = (params.sailEdgeCount as number) || 6;
     const tornSeed = (params.sailTornSeed as number) || 42;
     const safeInset = 0;
+    const sailSideCurve = (params.sideCurve as number) || 0;
 
     const path = new SVGPath();
     path.moveTo(left + r, top);
-    drawStyledEdge(path, left + r, top, right - r, top, topStyle, topDepth, count, 0, -1, safeInset, tornSeed);
+    drawStyledEdge(path, left + r, top, right - r, top, topStyle, topDepth, count, 0, -1, safeInset, tornSeed, false, 0, false, sailSideCurve);
     path.arcTo(r, r, 0, 0, 1, right, top + r);
-    drawStyledEdge(path, right, top + r, right, bottom - r, rightStyle, rightDepth, count, 1, 0, safeInset, tornSeed + 1);
+    drawStyledEdge(path, right, top + r, right, bottom - r, rightStyle, rightDepth, count, 1, 0, safeInset, tornSeed + 1, false, 0, false, sailSideCurve);
     path.arcTo(r, r, 0, 0, 1, right - r, bottom);
-    drawStyledEdge(path, right - r, bottom, left + r, bottom, bottomStyle, bottomDepth, count, 0, 1, safeInset, tornSeed + 2);
+    drawStyledEdge(path, right - r, bottom, left + r, bottom, bottomStyle, bottomDepth, count, 0, 1, safeInset, tornSeed + 2, false, 0, false, sailSideCurve);
     path.arcTo(r, r, 0, 0, 1, left, bottom - r);
-    drawStyledEdge(path, left, bottom - r, left, top + r, leftStyle, leftDepth, count, -1, 0, safeInset, tornSeed + 3);
+    drawStyledEdge(path, left, bottom - r, left, top + r, leftStyle, leftDepth, count, -1, 0, safeInset, tornSeed + 3, false, 0, false, sailSideCurve);
     path.arcTo(r, r, 0, 0, 1, left + r, top);
     path.closePath();
     return path.toString();
@@ -2059,7 +2070,7 @@ export class SailTriangular extends Template {
       ];
       const count = (params.sailEdgeCount as number) || 6;
       const tornSeed = (params.sailTornSeed as number) || 42;
-      return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed);
+      return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed, 0, false, (params.sideCurve as number) || 0);
     }
 
     // Outline triangle: always gap mm outside every grommet hole edge
@@ -2072,12 +2083,13 @@ export class SailTriangular extends Template {
     const count = (params.sailEdgeCount as number) || 6;
     const tornSeed = (params.sailTornSeed as number) || 42;
     const safeInset = 0;
+    const sailSideCurve = (params.sideCurve as number) || 0;
 
     const path = new SVGPath();
     path.moveTo(left, top);
     path.lineTo(right, bottom);
-    drawStyledEdge(path, right, bottom, left, bottom, bottomStyle, bottomDepth, count, 0, 1, safeInset, tornSeed + 2);
-    drawStyledEdge(path, left, bottom, left, top, leftStyle, leftDepth, count, -1, 0, safeInset, tornSeed + 3);
+    drawStyledEdge(path, right, bottom, left, bottom, bottomStyle, bottomDepth, count, 0, 1, safeInset, tornSeed + 2, false, 0, false, sailSideCurve);
+    drawStyledEdge(path, left, bottom, left, top, leftStyle, leftDepth, count, -1, 0, safeInset, tornSeed + 3, false, 0, false, sailSideCurve);
     path.closePath();
     return path.toString();
   }
@@ -2165,7 +2177,7 @@ export class SailPolygon extends Template {
     const edgeDepths: number[] = new Array(sides).fill(globalDepth);
     const count = (params.sailEdgeCount as number) || 6;
     const tornSeed = (params.sailTornSeed as number) || 42;
-    return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed);
+    return buildSailCutPath(grommets, margin, edgeStyles, edgeDepths, count, 2, tornSeed, 0, false, (params.sideCurve as number) || 0);
   }
 
   generateCutPaths(params: TemplateParams): string[] {

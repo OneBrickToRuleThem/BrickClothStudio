@@ -7,6 +7,7 @@
 
 import { Template, TemplateParams, generateAttachmentHole } from './base';
 import { SVGPath, circlePath } from '../geometry/primitives';
+import { drawStyledEdge } from '../geometry/edgeStyles';
 import { HOLE_STANDARDS } from '../utils/constants';
 
 type FracCmd = number[];
@@ -28,6 +29,21 @@ function renderFracPath(cmds: FracCmd[], w: number, h: number): string {
     }
   }
   return path.toString();
+}
+
+/**
+ * Append a range of fractional commands to an existing SVGPath (for partial outline rendering).
+ */
+function renderFracCmdsToPath(path: SVGPath, cmds: FracCmd[], w: number, h: number, startIdx: number, endIdx: number): void {
+  for (let i = startIdx; i <= endIdx; i++) {
+    const cmd = cmds[i];
+    switch (cmd[0]) {
+      case 0: path.closePath(); break;
+      case 1: path.moveTo(w * cmd[1], h * cmd[2]); break;
+      case 2: path.lineTo(w * cmd[1], h * cmd[2]); break;
+      case 3: path.cubicBezierTo(w * cmd[1], h * cmd[2], w * cmd[3], h * cmd[4], w * cmd[5], h * cmd[6]); break;
+    }
+  }
 }
 
 // AsymetricCapeTemplate.svg (47.3 x 50.7mm original)
@@ -613,7 +629,22 @@ export class CapeSevenPoints extends Template {
  */
 export class KamaFullSkirt extends Template {
   generateCutPath(params: TemplateParams): string {
-    return renderFracPath(KAMA_FULL_OUTLINE, params.width, params.length);
+    const { width: w, length: h } = params;
+    const style = (params.kamaEdgeStyle as string) || 'none';
+    if (style === 'none') {
+      return renderFracPath(KAMA_FULL_OUTLINE, w, h);
+    }
+    const depth = (params.kamaEdgeDepth as number) || 2;
+    const count = (params.kamaEdgeCount as number) || 6;
+    const seed = (params.seed as number) || 42;
+    const path = new SVGPath();
+    // Upper outline: moveTo left-bottom → up left side → across top → down right side → right-bottom (cmds 0-33)
+    renderFracCmdsToPath(path, KAMA_FULL_OUTLINE, w, h, 0, 33);
+    // Styled bottom edge: right-bottom (0.7926, 0.9972) → left-bottom (0.2074, 0.9972), replacing cmd 35
+    drawStyledEdge(path, 0.7926 * w, 0.9972 * h, 0.2074 * w, 0.9972 * h,
+      style, depth, count, 0, 1, 0, seed);
+    path.closePath();
+    return path.toString();
   }
 
   generateCutPaths(params: TemplateParams): string[] {
@@ -640,7 +671,24 @@ export class KamaFullSkirt extends Template {
  */
 export class MantleHighCollar extends Template {
   generateCutPath(params: TemplateParams): string {
-    return renderFracPath(HIGH_COLLAR_OUTLINE, params.width, params.length);
+    const { width: w, length: h } = params;
+    const style = (params.mantleEdgeStyle as string) || 'none';
+    if (style === 'none') {
+      return renderFracPath(HIGH_COLLAR_OUTLINE, w, h);
+    }
+    const depth = (params.mantleEdgeDepth as number) || 2;
+    const count = (params.mantleEdgeCount as number) || 6;
+    const seed = (params.seed as number) || 42;
+    const path = new SVGPath();
+    // Start at left transition point (endpoint of cmd 12)
+    path.moveTo(0.0036 * w, 0.8092 * h);
+    // Upper outline: left side up → collar → right side down (cmds 13-71)
+    renderFracCmdsToPath(path, HIGH_COLLAR_OUTLINE, w, h, 13, 71);
+    // Styled bottom edge: right transition → left transition (replacing bottom cmds 72-88 + 1-12)
+    drawStyledEdge(path, 0.9970 * w, 0.8499 * h, 0.0036 * w, 0.8092 * h,
+      style, depth, count, 0, 1, 0, seed);
+    path.closePath();
+    return path.toString();
   }
 
   generateCutPaths(params: TemplateParams): string[] {
@@ -881,7 +929,103 @@ export class CapeManBatSingleHole extends Template {
 
 export class MantleShoulderArmor extends Template {
   generateCutPath(params: TemplateParams): string {
-    return renderFracPath(SHOULDER_ARMOR_OUTLINE, params.width, params.length);
+    const { width: w, length: h } = params;
+    const style = (params.mantleEdgeStyle as string) || 'none';
+    const roundingAmt = (params.mantleBottomCurve as number) || 0;
+    const rounding = roundingAmt > 0;
+
+    if (style === 'none' && !rounding) {
+      return renderFracPath(SHOULDER_ARMOR_OUTLINE, w, h);
+    }
+
+    const depth = (params.mantleEdgeDepth as number) || 2;
+    const count = (params.mantleEdgeCount as number) || 6;
+    const seed = (params.seed as number) || 42;
+    const path = new SVGPath();
+
+    // Upper outline: top center → left side → left-bottom anchor (cmds 0-9)
+    renderFracCmdsToPath(path, SHOULDER_ARMOR_OUTLINE, w, h, 0, 9);
+
+    const leftX = 0.09565 * w;
+    const rightX = 0.90435 * w;
+    const topY = 0.84231 * h;
+
+    if (rounding && style === 'none') {
+      // Rounded bottom: elliptical arc using two cubic beziers
+      const halfW = (rightX - leftX) / 2;
+      const arcDepth = roundingAmt * halfW;
+      const bottomY = topY + arcDepth;
+      const k = 0.5522847498; // kappa for quarter-circle
+      const midX = (leftX + rightX) / 2;
+      path.cubicBezierTo(leftX, topY + arcDepth * k, midX - halfW * k, bottomY, midX, bottomY);
+      path.cubicBezierTo(midX + halfW * k, bottomY, rightX, topY + arcDepth * k, rightX, topY);
+    } else if (rounding) {
+      // Rounding + styled edge: apply style along a curved baseline.
+      // Use the sin-curve baseline approach (same as capes).
+      const halfW = (rightX - leftX) / 2;
+      const arcDepth = roundingAmt * halfW;
+      const hemSpan = rightX - leftX;
+      const segments = Math.max(count * 6, 60);
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const x = leftX + hemSpan * t;
+        const bY = topY + arcDepth * Math.sin(t * Math.PI);
+        // Apply style offset
+        let off = 0;
+        const phase = (t * count) % 1;
+        if (style === 'scalloped') {
+          off = depth * Math.sin(phase * Math.PI);
+        } else if (style === 'arched') {
+          off = -depth * Math.sin(phase * Math.PI);
+        } else if (style === 'zigzag') {
+          const mi = Math.floor(t * count);
+          const mirIdx = mi < count / 2 ? mi : count - 1 - mi;
+          const dir = mirIdx % 2 === 0 ? 1 : -1;
+          const subPhase = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+          off = depth * dir * subPhase;
+        } else if (style === 'wavy') {
+          const mi = Math.floor(t * count);
+          const mirIdx = mi < count / 2 ? mi : count - 1 - mi;
+          const dir = mirIdx % 2 === 0 ? 1 : -1;
+          off = depth * dir * Math.sin(phase * Math.PI);
+        } else if (style === 'castellated') {
+          const mi = Math.floor(t * count);
+          const doMirror = mi >= count / 2;
+          const isMerlon = doMirror ? (mi % 2 !== 0) : (mi % 2 === 0);
+          off = isMerlon ? depth : 0;
+        } else if (style === 'stepped') {
+          const steps = 3;
+          const half = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+          const step = Math.floor(half * steps);
+          off = depth * ((step + 1) / steps);
+        } else if (style === 'zigzag') {
+          off = depth * (phase < 0.5 ? phase * 2 : (1 - phase) * 2);
+        } else {
+          // For all other styles, fall back to non-rounded
+          break;
+        }
+        path.lineTo(x, bY + off);
+        if (i === segments) {
+          // Successfully drew all segments with rounding
+          // Skip to right side
+        }
+      }
+      // Fallback for styles that broke out of the loop
+      if (style !== 'scalloped' && style !== 'arched' && style !== 'zigzag' &&
+          style !== 'wavy' && style !== 'castellated' && style !== 'stepped') {
+        drawStyledEdge(path, leftX, topY, rightX, topY,
+          style, depth, count, 0, 1, 0, seed);
+      }
+    } else {
+      // Styled edge, no rounding: flat bottom with style
+      drawStyledEdge(path, leftX, topY, rightX, topY,
+        style, depth, count, 0, 1, 0, seed);
+    }
+
+    // Upper outline: right-bottom → right side → top center (cmds 15-23)
+    renderFracCmdsToPath(path, SHOULDER_ARMOR_OUTLINE, w, h, 15, 23);
+    path.closePath();
+    return path.toString();
   }
 
   generateCutPaths(params: TemplateParams): string[] {

@@ -17,23 +17,31 @@
 
 | Element | Variants | Default Size | Notes |
 |---------|----------|-------------|-------|
-| **Cape** | Standard, Wind-Swept, Phantom Shroud, Seven Points, Narrow, Top, Stepped | 40×39 mm | Attachment holes, edge styles, sword/arm slits, weathering, rounding |
-| **Flag/Banner** | Small, Large, Custom | 22×60 / 40×64 / 30×60 mm | Custom has configurable edges and 1–6 clip holes |
-| **Sail** | Square, Triangular, Polygon | 60×60 mm | Draggable grommets (4 types + extra), per-edge styling, stud-based sizing, 5–12 sided polygon |
+| **Cape** | Standard, Wind-Swept, Phantom Shroud, Seven Points, Narrow, Top, Stepped, Man-Bat | 40×39 mm | Attachment holes, edge styles, sword/arm slits, weathering, bottom curve, side curve |
+| **Flag/Banner** | Small, Large, Custom | 22×60 / 40×64 / 30×60 mm | Custom has configurable edges, side curve, and 1–6 clip holes |
+| **Sail** | Square, Triangular, Polygon | 60×60 mm | Draggable grommets (4 types + extra), per-edge styling, side curve, stud-based sizing, 5–12 sided polygon |
 | **Kama/Skirt** | Wrap Skirt, Full Skirt | 47×19 mm | 2–4 attachment holes, bottom hem edge styles |
-| **Pauldron** | Shoulder Armor, High Collar | 23×26 mm | Head pin holes, bottom rim rounding, edge styles |
-| **Wing** | Tattered Wing, Custom Wing | 173×101 mm | Ball-joint holes, pin hole, decorative tear holes |
+| **Pauldron** | Shoulder Armor, High Collar | 23×26 mm | Head pin holes, bottom rim curve, edge styles |
+| **Wing** | Tattered Wing, Custom Wing | 173×101 mm | Ball-joint holes, pin hole, decorative tear holes, side curve |
 | **Custom** | Traced Image | varies | Import PNG/JPG, auto-trace to cut path |
 
 ### Edge Styles
 
-Different elements support different edge style options:
+17 edge styles available (16 decorative + none; not all elements support every style):
 
-- **Cape bottom**: Tattered, scalloped, arched, notched, zigzag, wavy, castellated, dovetail, flame, stepped, pointed, serrated, thorned, torn, feathered, cloud, sawtooth, arrow, picot
-- **Cape sides**: Tattered, scalloped, zigzag, wavy, castellated, serrated, thorned, torn, pointed, flame, stepped, dovetail, fishtail, feathered, cloud, sawtooth, arrow, picot
-- **Sail edges** (per-edge): Scalloped, zigzag, wavy, castellated, torn, pointed, flame, stepped, dovetail, fishtail, feathered, cloud, sawtooth, arrow, picot
+arched, arrow, castellated, cloud, dovetail, feathered, flame, notched, picot, sawtooth, scalloped, stepped, thorned, torn, wavy, zigzag
+
+- **Cape bottom**: All 16 decorative styles
+- **Cape sides**: All 16 decorative styles
+- **Sail edges** (per-edge): All 16 decorative styles
 - **Flag Custom** edges: Same as sail edges
-- **Kama / Pauldron** bottom: Scalloped, zigzag, wavy, castellated, torn
+- **Kama** bottom hem: All 16 decorative styles
+- **Mantle** bottom rim: All 16 decorative styles
+
+### Transformations
+
+- **Side Curve** — bows the side edges inward or outward without requiring an edge style. Works on capes, flags, sails, mantles, and wings. Can be combined with any edge style.
+- **Bottom Curve** — rounds the bottom hem of capes and mantles.
 
 ### Save & Load Designs
 - **Export design spec** — save all parameters to a JSON file
@@ -64,6 +72,7 @@ Different elements support different edge style options:
 - **Calibration test strip** — hole diameter test for your equipment
 - **Compound paths** — outline + holes merged as a single `<path>` with `fill-rule="evenodd"` for correct Cricut/Silhouette/laser cutter interpretation
 - **Layer separation**: Cut (red), Score (blue), Engrave (green), Reference (gray, hidden)
+- **Self-intersection warning** — yellow banner alerts when cut paths cross themselves (prevents cutter issues)
 
 ---
 
@@ -95,7 +104,7 @@ npm run build
 ## Usage
 
 1. **Select element & variant** — left panel
-2. **Adjust parameters** — right panel (dimensions, holes, edge styles, rounding, etc.)
+2. **Adjust parameters** — right panel (dimensions, holes, edge styles, side curve, bottom curve, etc.)
 3. **Add decorations** *(optional)* — import SVG/images, position on canvas
 4. **Export** — click Export Pattern at top of right panel
 5. **Cut** — open SVG in your cutter software (Cricut, Silhouette, Glowforge, xTool, etc.)
@@ -172,7 +181,7 @@ Use the **Calibration Test Strip** before cutting final designs:
 - **Tailwind CSS** for styling
 - **Zustand** for state management
 - **Vite 5** for build tooling
-- **Vitest** for unit testing (symmetry verification, geometry, packing)
+- **Vitest** for unit testing (567 tests: symmetry, parameter sensitivity, self-intersection, edge isolation, geometry, packing)
 - **jszip** for multi-file downloads
 - Custom **SVGPath** geometry builder
 - **SeededRNG** for reproducible torn/tattered edges
@@ -191,7 +200,8 @@ src/
 │   └── ExportPanel.tsx
 ├── geometry/            # SVG path primitives
 │   ├── primitives.ts
-│   └── edgeStyles.ts    # Shared edge style functions
+│   ├── edgeStyles.ts    # Shared edge style functions
+│   └── intersections.ts # Self-intersection detection utility
 ├── templates/           # Shape generators
 │   ├── base.ts          # Base Template class
 │   ├── cape.ts          # Cape + edge styles
@@ -207,10 +217,13 @@ src/
 │   └── patternGenerator.ts
 ├── store/
 │   └── editor.ts        # Zustand store + defaults
-├── test/                # Unit tests
-│   ├── symmetry.test.ts # Symmetry verification (245 tests)
-│   ├── geometry.test.ts # Geometry primitives
-│   └── packing.test.ts  # Print sheet packing
+├── test/                # Unit tests (567 tests)
+│   ├── symmetry.test.ts           # Bilateral symmetry verification (191 tests)
+│   ├── parameterSensitivity.test.ts # Parameter → SVG change detection (148 tests)
+│   ├── intersection.test.ts       # Self-intersection detection (142 tests)
+│   ├── edgeStyleIsolation.test.ts # Edge style independence (62 tests)
+│   ├── geometry.test.ts           # Geometry primitives & export (15 tests)
+│   └── packing.test.ts            # Print sheet layout (9 tests)
 └── utils/
     ├── constants.ts
     ├── types.ts
@@ -224,16 +237,23 @@ src/
 ```bash
 npm test              # Run all tests in watch mode
 npm run test:symmetry  # Watch symmetry tests only
+npx vitest run        # Single run (all 567 tests)
 ```
 
-The **symmetry test suite** (245 tests) automatically verifies that all symmetric element variants remain symmetric when parameters are adjusted, and that intentionally asymmetric variants are correctly identified. Tests run in watch mode during development — any change to template or geometry files triggers an immediate re-run.
+| Suite | Tests | What it verifies |
+|-------|-------|------------------|
+| **Symmetry** | 191 | Bilateral symmetry of all symmetric variants across parameter changes |
+| **Parameter Sensitivity** | 148 | Every user-facing parameter actually changes the exported SVG |
+| **Self-Intersection** | 142 | Cut paths don't cross themselves across all variants, edge styles, and curve combos |
+| **Edge Style Isolation** | 62 | Changing one edge style doesn't affect unrelated styles or variants |
+| **Geometry** | 15 | SVGPath primitives, pattern generation, SVG export structure |
+| **Packing** | 9 | Print sheet layout, multi-page, margins, orientation |
 
 ---
 
 ## Known Limitations
 
 - Print sheet packing is grid-based (not advanced nesting)
-- No undo/redo
 - No on-canvas bezier path editing
 
 ---
