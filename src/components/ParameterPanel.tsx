@@ -29,6 +29,10 @@ const MM_TO_UNIT: Record<MeasurementUnit, number> = {
 
 export default function ParameterPanel() {
   const { parameters, setParameter, resetToDefaults, elementType, templateVariant } = useEditorStore();
+
+  // Fixed-shape cape variants that don't support edge styles, transformations, or cuts
+  const capeSupportsFeatures = elementType === 'cape' && !['top-single-hole', 'stepped-single-hole', 'man-bat-single-hole', 'wind-swept', 'phantom-shroud', 'seven-points'].includes(templateVariant);
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     transformations: false,
     attachment: false,
@@ -273,7 +277,7 @@ export default function ParameterPanel() {
         </section>
         )}
 
-        {elementType === 'cape' && (
+        {capeSupportsFeatures && (
         <>
         {/* Transformations Section */}
         <section className="panel-section border-t pt-4">
@@ -664,6 +668,16 @@ export default function ParameterPanel() {
                     min={0.15} max={0.75} step={0.05}
                     value={parameters.swordY as number || 0.45}
                     onChange={(v) => setParameter('swordY', v)} />
+                  <ParameterSlider label="Slit Count" name="swordSlitCount"
+                    min={1} max={2} step={1}
+                    value={parameters.swordSlitCount as number || 1}
+                    onChange={(v) => setParameter('swordSlitCount', v)} />
+                  {(parameters.swordSlitCount as number || 1) >= 2 && (
+                    <ParameterSlider label="Slit Spacing (mm)" name="swordSlitSpacing"
+                      min={1} max={8} step={0.5}
+                      value={parameters.swordSlitSpacing as number || 3}
+                      onChange={(v) => setParameter('swordSlitSpacing', v)} />
+                  )}
                 </div>
               )}
             </div>
@@ -736,6 +750,10 @@ export default function ParameterPanel() {
           </button>
           {openSections.transformations && (
           <div className="space-y-3 mt-2">
+            <ParameterSlider label="Hem Width" name="mantleHemWidth"
+              min={0.5} max={1.5} step={0.05}
+              value={(parameters.mantleHemWidth as number) ?? 1.0}
+              onChange={(v) => setParameter('mantleHemWidth', v)} />
             <ParameterSlider label="Bottom Curve" name="mantleBottomCurve"
               min={0} max={1.0} step={0.05}
               value={(parameters.mantleBottomCurve as number) || 0}
@@ -772,17 +790,69 @@ export default function ParameterPanel() {
                 ))}
               </select>
             </div>
-            {(parameters[`${elementType}EdgeStyle`] as string || 'none') !== 'none' && (parameters[`${elementType}EdgeStyle`] as string) !== 'flame' && (
+            {(parameters[`${elementType}EdgeStyle`] as string || 'none') !== 'none' && (
             <div className="space-y-2">
+              {(parameters[`${elementType}EdgeStyle`] as string) !== 'flame' && (
               <ParameterSlider label="Count" name={`${elementType}EdgeCount`}
                 min={1} max={16} step={1}
                 value={(parameters[`${elementType}EdgeCount`] as number) || 6}
                 onChange={(v) => setParameter(`${elementType}EdgeCount`, v)} />
+              )}
               <ParameterSlider label="Depth (mm)" name={`${elementType}EdgeDepth`}
                 min={1} max={12} step={0.5}
                 value={(parameters[`${elementType}EdgeDepth`] as number) || 3}
                 onChange={(v) => setParameter(`${elementType}EdgeDepth`, v)} />
               {(parameters[`${elementType}EdgeStyle`] as string) === 'sawtooth' && (
+                <>
+                  <ParameterSlider label="Curve" name="sawtoothCurve"
+                    min={0} max={1} step={0.1}
+                    value={parameters.sawtoothCurve as number || 0}
+                    onChange={(v) => setParameter('sawtoothCurve', v)} />
+                  <label className="flex items-center gap-2 text-xs mt-1">
+                    <input type="checkbox" className="w-3 h-3"
+                      checked={!!(parameters.sawtoothReverse)}
+                      onChange={(e) => setParameter('sawtoothReverse', e.target.checked)} />
+                    Reverse direction
+                  </label>
+                </>
+              )}
+            </div>
+            )}
+          </div>
+          )}
+        </section>
+        )}
+
+        {/* --- Mantle Side Edges --- */}
+        {elementType === 'mantle' && (
+        <section className="panel-section border-t pt-4">
+          <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('mantleSideStyle')}>
+            <h3 className="panel-section-title">Side Edges</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 capitalize">{(parameters.mantleSideStyle as string || 'none') === 'none' ? 'None' : (parameters.mantleSideStyle as string)}</span>
+              <span className="text-gray-400 text-xs">{openSections.mantleSideStyle ? '▾' : '▸'}</span>
+            </div>
+          </button>
+          {openSections.mantleSideStyle && (
+          <div className="mt-2 space-y-2">
+            <select className="w-full border rounded px-2 py-1.5 text-sm"
+              value={(parameters.mantleSideStyle as string) || 'none'}
+              onChange={(e) => setParameter('mantleSideStyle', e.target.value)}>
+              {EDGE_STYLE_NAMES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            {(parameters.mantleSideStyle as string || 'none') !== 'none' && (parameters.mantleSideStyle as string) !== 'flame' && (
+            <div className="space-y-1 pl-1">
+              <ParameterSlider label="Count" name="mantleSideStyleCount"
+                min={1} max={16} step={1}
+                value={(parameters.mantleSideStyleCount as number) || 6}
+                onChange={(v) => setParameter('mantleSideStyleCount', v)} />
+              <ParameterSlider label="Depth (mm)" name="mantleSideStyleDepth"
+                min={1} max={12} step={0.5}
+                value={(parameters.mantleSideStyleDepth as number) || 3}
+                onChange={(v) => setParameter('mantleSideStyleDepth', v)} />
+              {(parameters.mantleSideStyle as string) === 'sawtooth' && (
                 <>
                   <ParameterSlider label="Curve" name="sawtoothCurve"
                     min={0} max={1} step={0.1}
@@ -2081,6 +2151,7 @@ function FlagParameterPanel({ parameters, setParameter }: {
   }
 
   const bottomStyle = (parameters.flagBottomStyle as string) || 'none';
+  const topStyle = (parameters.flagTopStyle as string) || 'none';
   const leftStyle = (parameters.flagLeftStyle as string) || 'none';
   const rightStyle = (parameters.flagRightStyle as string) || 'none';
   const sideStyles = EDGE_STYLE_NAMES;
@@ -2272,6 +2343,80 @@ function FlagParameterPanel({ parameters, setParameter }: {
               min={-1} max={1} step={0.1}
               value={parameters.sideCurve as number || 0}
               onChange={(v) => setParameter('sideCurve', v)} />
+          </div>
+        )}
+      </section>
+      )}
+
+      {/* Custom flag: Top Edge */}
+      {isCustom && (
+      <section className="panel-section border-t pt-4">
+        <button type="button" className="flex items-center justify-between w-full text-left" onClick={() => toggleSection('flagTop')}>
+          <h3 className="panel-section-title">Top Edge</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 capitalize">{topStyle}</span>
+            <span className="text-gray-400 text-xs">{openSections.flagTop ? '▾' : '▸'}</span>
+          </div>
+        </button>
+        {openSections.flagTop && (
+          <div className="mt-2 space-y-2">
+            <select className="w-full border rounded px-2 py-1.5 text-sm"
+              value={topStyle}
+              onChange={(e) => {
+                const style = e.target.value;
+                setParameter('flagTopStyle', style);
+                if (style !== 'none' && style !== 'straight') setParameter('flagTopDepth', 3);
+              }}>
+              <option value="none">None</option>
+              <option value="straight">Straight</option>
+              <option value="arched">Arched</option>
+              <option value="arrow">Arrow</option>
+              <option value="castellated">Castellated</option>
+              <option value="cloud">Cloud</option>
+              <option value="dovetail">Dovetail</option>
+              <option value="feathered">Feathered</option>
+              <option value="notched">Notched</option>
+              <option value="picot">Picot</option>
+              <option value="sawtooth">Sawtooth</option>
+              <option value="scalloped">Scalloped</option>
+              <option value="stepped">Stepped</option>
+              <option value="torn">Torn</option>
+              <option value="wavy">Wavy</option>
+              <option value="zigzag">Zigzag</option>
+            </select>
+
+            {topStyle !== 'none' && topStyle !== 'straight' && (
+              <div className="space-y-1 pl-1">
+                <ParameterSlider label="Count" name="flagTopCount"
+                  min={1} max={16} step={1}
+                  value={parameters.flagTopCount as number || 6}
+                  onChange={(v) => setParameter('flagTopCount', v)} />
+                <ParameterSlider label="Depth (mm)" name="flagTopDepth"
+                  min={1} max={12} step={0.5}
+                  value={parameters.flagTopDepth as number || 3}
+                  onChange={(v) => setParameter('flagTopDepth', v)} />
+                {topStyle === 'sawtooth' && (
+                  <>
+                    <ParameterSlider label="Curve" name="sawtoothCurve"
+                      min={0} max={1} step={0.1}
+                      value={parameters.sawtoothCurve as number || 0}
+                      onChange={(v) => setParameter('sawtoothCurve', v)} />
+                    <label className="flex items-center gap-2 text-xs mt-1">
+                      <input type="checkbox" className="w-3 h-3"
+                        checked={!!(parameters.sawtoothReverse)}
+                        onChange={(e) => setParameter('sawtoothReverse', e.target.checked)} />
+                      Reverse direction
+                    </label>
+                  </>
+                )}
+                {(topStyle === 'torn' || topStyle === 'cloud') && (
+                  <ParameterSlider label="Seed" name="flagBottomSeed"
+                    min={1} max={99999} step={1}
+                    value={parameters.flagBottomSeed as number || 42}
+                    onChange={(v) => setParameter('flagBottomSeed', v)} />
+                )}
+              </div>
+            )}
           </div>
         )}
       </section>

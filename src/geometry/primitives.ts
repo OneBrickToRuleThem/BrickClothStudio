@@ -108,12 +108,101 @@ export class SVGPath {
     return this.commands.join(' ');
   }
 
+  /** Get a copy of the raw command strings */
+  getCommands(): string[] {
+    return [...this.commands];
+  }
+
+  /** Append pre-built SVG command strings */
+  pushCommands(cmds: string[]): SVGPath {
+    this.commands.push(...cmds);
+    return this;
+  }
+
   /**
    * Format number to 2 decimal places for SVG output
    */
   private fmt(n: number): string {
     return n.toFixed(2);
   }
+}
+
+/**
+ * Mirror SVG path commands about a vertical axis and reverse direction.
+ * Generates a perfectly symmetric left edge from a right edge (or vice versa).
+ *
+ * @param commands Raw SVG command strings from SVGPath.getCommands()
+ * @param centerX The X coordinate of the mirror axis
+ * @returns Command strings for the mirrored+reversed edge (no leading M)
+ */
+export function mirrorAndReverseEdge(commands: string[], centerX: number): string[] {
+  const fmt = (n: number) => n.toFixed(2);
+  const mx = (x: number) => 2 * centerX - x;
+
+  interface ParsedCmd {
+    endpoint: { x: number; y: number };
+    reversed: (px: number, py: number) => string;
+  }
+
+  const parsed: ParsedCmd[] = [];
+
+  for (const cmd of commands) {
+    const type = cmd[0];
+    const nums = cmd.slice(1).trim().split(/\s+/).map(Number);
+
+    switch (type) {
+      case 'M':
+        parsed.push({
+          endpoint: { x: mx(nums[0]), y: nums[1] },
+          reversed: () => '',
+        });
+        break;
+      case 'L':
+        parsed.push({
+          endpoint: { x: mx(nums[0]), y: nums[1] },
+          reversed: (px, py) => `L ${fmt(px)} ${fmt(py)}`,
+        });
+        break;
+      case 'C': {
+        const mcx1 = mx(nums[0]), mcy1 = nums[1];
+        const mcx2 = mx(nums[2]), mcy2 = nums[3];
+        parsed.push({
+          endpoint: { x: mx(nums[4]), y: nums[5] },
+          reversed: (px, py) =>
+            `C ${fmt(mcx2)} ${fmt(mcy2)} ${fmt(mcx1)} ${fmt(mcy1)} ${fmt(px)} ${fmt(py)}`,
+        });
+        break;
+      }
+      case 'Q': {
+        const mcx = mx(nums[0]), mcy = nums[1];
+        parsed.push({
+          endpoint: { x: mx(nums[2]), y: nums[3] },
+          reversed: (px, py) => `Q ${fmt(mcx)} ${fmt(mcy)} ${fmt(px)} ${fmt(py)}`,
+        });
+        break;
+      }
+      case 'A': {
+        const rx = nums[0], ry = nums[1], rot = nums[2];
+        const la = nums[3], sw = nums[4];
+        parsed.push({
+          endpoint: { x: mx(nums[5]), y: nums[6] },
+          reversed: (px, py) =>
+            `A ${fmt(rx)} ${fmt(ry)} ${rot} ${la} ${sw} ${fmt(px)} ${fmt(py)}`,
+        });
+        break;
+      }
+    }
+  }
+
+  if (parsed.length < 2) return [];
+
+  const result: string[] = [];
+  for (let i = parsed.length - 1; i >= 1; i--) {
+    const prev = parsed[i - 1].endpoint;
+    result.push(parsed[i].reversed(prev.x, prev.y));
+  }
+
+  return result;
 }
 
 /**

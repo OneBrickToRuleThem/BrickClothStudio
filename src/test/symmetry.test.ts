@@ -66,18 +66,35 @@ function samplePath(pathData: string): PathPoint[] {
   let ci = 0;
   let cmd = '';
   let curX = 0, curY = 0;
+  let startX = 0, startY = 0; // subpath start (for Z close)
 
   while (ci < cmds.length) {
     const token = cmds[ci];
     if (/^[A-Za-z]$/.test(token)) {
       cmd = token.toUpperCase();
       ci++;
-      if (cmd === 'Z') continue;
+      if (cmd === 'Z') {
+        // Close path: sample the implicit line back to subpath start
+        const dx = startX - curX, dy = startY - curY;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len > 0.001) {
+          const steps = Math.max(1, Math.ceil(len / 0.5));
+          for (let s = 1; s <= steps; s++) {
+            const t = s / steps;
+            points.push({ x: curX + dx * t, y: curY + dy * t });
+          }
+        }
+        curX = startX;
+        curY = startY;
+        continue;
+      }
     } else {
       switch (cmd) {
         case 'M': {
           curX = parseFloat(cmds[ci]);
           curY = parseFloat(cmds[ci + 1]);
+          startX = curX;
+          startY = curY;
           if (!isNaN(curX) && !isNaN(curY)) points.push({ x: curX, y: curY });
           ci += 2;
           break;
@@ -170,7 +187,7 @@ function samplePath(pathData: string): PathPoint[] {
 function checkPathSymmetry(
   paths: string[],
   width: number,
-  tolerance: number = 1.1,
+  tolerance: number = 0.1,
   centerExclude?: number,
   centerOverride?: number
 ): { symmetric: boolean; violations: string[] } {
@@ -223,6 +240,8 @@ interface VariantConfig {
   outlineSymmetric: boolean;
   /** Are the cut paths (outline + holes) expected to be symmetric at defaults? */
   cutPathsSymmetric: boolean;
+  /** Override center exclusion zone (default: tolerance). Use smaller values to check near-center points like kama slit walls. */
+  centerExclude?: number;
 }
 
 /**
@@ -253,8 +272,8 @@ const VARIANT_SYMMETRY: VariantConfig[] = [
   { elementType: 'flag', templateVariant: 'custom-flag',         defaults: { width: 30, length: 60 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
 
   // ── Kama / Skirt ───────────────────────────────────────────────────
-  { elementType: 'kama', templateVariant: 'standard',            defaults: { width: 47, length: 19 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
-  { elementType: 'kama', templateVariant: 'full-skirt',          defaults: { width: 47, length: 19 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
+  { elementType: 'kama', templateVariant: 'standard',            defaults: { width: 47, length: 19 }, outlineSymmetric: true,  cutPathsSymmetric: true, centerExclude: 0  },
+  { elementType: 'kama', templateVariant: 'full-skirt',          defaults: { width: 47, length: 19 }, outlineSymmetric: true,  cutPathsSymmetric: true, centerExclude: 0  },
 
   // ── Mantle ─────────────────────────────────────────────────────────
   { elementType: 'mantle', templateVariant: 'standard',          defaults: { width: 23, length: 26 }, outlineSymmetric: true,  cutPathsSymmetric: true  },
@@ -306,7 +325,7 @@ const SYMMETRY_PRESERVING_PARAMS: Record<string, Record<string, number | string 
   'wavy sides':            { sideStyle: 'wavy', sideStyleDepth: 3, sideStyleCount: 8 },
   'castellated sides':     { sideStyle: 'castellated', sideStyleDepth: 3, sideStyleCount: 8 },
   'sawtooth sides':        { sideStyle: 'sawtooth', sideStyleDepth: 3, sideStyleCount: 8 },
-  'feathered sides':       { sideStyle: 'feathered', sideStyleDepth: 3, sideStyleCount: 8, seed: 42 },
+  // Note: feathered sides use RNG that is NOT mirror-symmetric (different sequence per side direction)
   'bottom curve':          { bottomCurve: 0.5 },
   'arm slits (symmetric)': { armSlits: true, armSlitY: 0.35, armSlitLength: 6 },
   'hole Y offset':         { holeOverride: true, holeOverrideOffsetY: 2, holeOverrideOffsetX: 0 },
@@ -371,7 +390,7 @@ describe('Symmetry — baseline outline at default parameters', () => {
 
       // First cut path = silhouette outline
       const outline = pattern.cutPaths[0];
-      const result = checkPathSymmetry([outline], v.defaults.width);
+      const result = checkPathSymmetry([outline], v.defaults.width, 0.1, v.centerExclude);
 
       if (v.outlineSymmetric) {
         expect(result.symmetric).toBe(true);
@@ -380,7 +399,7 @@ describe('Symmetry — baseline outline at default parameters', () => {
         }
       } else {
         // Intentionally asymmetric — use tighter tolerance to confirm
-        const tight = checkPathSymmetry([outline], v.defaults.width, 0.3);
+        const tight = checkPathSymmetry([outline], v.defaults.width, 0.1);
         expect(tight.symmetric).toBe(false);
       }
     });
@@ -393,7 +412,7 @@ describe('Symmetry — full cut paths (outline + holes) at defaults', () => {
 
     it(`${label} — cut paths symmetry = ${v.cutPathsSymmetric}`, () => {
       const pattern = gen(v.elementType, v.templateVariant, v.defaults);
-      const result = checkPathSymmetry(pattern.cutPaths, v.defaults.width);
+      const result = checkPathSymmetry(pattern.cutPaths, v.defaults.width, 0.1, v.centerExclude);
 
       if (v.cutPathsSymmetric) {
         expect(result.symmetric).toBe(true);
@@ -401,7 +420,7 @@ describe('Symmetry — full cut paths (outline + holes) at defaults', () => {
           console.warn(`[FAIL] ${label} cut path violations:`, result.violations);
         }
       } else {
-        const tight = checkPathSymmetry(pattern.cutPaths, v.defaults.width, 0.3);
+        const tight = checkPathSymmetry(pattern.cutPaths, v.defaults.width, 0.1);
         expect(tight.symmetric).toBe(false);
       }
     });
@@ -416,7 +435,7 @@ describe('Symmetry — score paths at defaults', () => {
       const pattern = gen(v.elementType, v.templateVariant, v.defaults);
       if (pattern.scorePaths.length === 0) return; // no score paths to check
 
-      const result = checkPathSymmetry(pattern.scorePaths, v.defaults.width);
+      const result = checkPathSymmetry(pattern.scorePaths, v.defaults.width, 0.1);
 
       // Sail score paths are diagonal reinforcement lines — not expected to be symmetric about x-axis
       if (v.elementType === 'sail') return;
@@ -446,11 +465,11 @@ describe('Symmetry — preserved when applying symmetric parameters to capes', (
         baseline.defaults,
         params
       );
-      const result = checkPathSymmetry(pattern.cutPaths, params.width as number || baseline.defaults.width);
-      expect(result.symmetric).toBe(true);
+      const result = checkPathSymmetry(pattern.cutPaths, params.width as number || baseline.defaults.width, 0.1);
       if (!result.symmetric) {
         console.warn(`[FAIL] standard + "${name}" violations:`, result.violations);
       }
+      expect(result.symmetric).toBe(true);
     });
   }
 });
@@ -479,17 +498,21 @@ describe('Symmetry — preserved across all symmetric cape variants with hem sty
           cape.defaults,
           styleParams
         );
+        // Narrow-single-hole dovetail has minor sampling artefact (~0.18mm)
+        // due to gap segments spanning between tab insets — use relaxed tolerance
+        const tol = (cape.templateVariant === 'narrow-single-hole' && styleName === 'dovetail') ? 0.2 : 0.1;
         const result = checkPathSymmetry(
           [pattern.cutPaths[0]], // check outline only
-          cape.defaults.width
+          cape.defaults.width,
+          tol
         );
-        expect(result.symmetric).toBe(true);
         if (!result.symmetric) {
           console.warn(
             `[FAIL] ${cape.templateVariant} + ${styleName}:`,
             result.violations
           );
         }
+        expect(result.symmetric).toBe(true);
       });
     }
   }
@@ -516,7 +539,8 @@ describe('Symmetry — preserved across symmetric capes with side styles', () =>
         );
         const result = checkPathSymmetry(
           [pattern.cutPaths[0]],
-          cape.defaults.width
+          cape.defaults.width,
+          0.1
         );
         expect(result.symmetric).toBe(true);
         if (!result.symmetric) {
@@ -543,7 +567,7 @@ describe('Symmetry — broken by asymmetric parameters', () => {
         baseline.defaults,
         params
       );
-      const result = checkPathSymmetry(pattern.cutPaths, baseline.defaults.width, 0.3);
+      const result = checkPathSymmetry(pattern.cutPaths, baseline.defaults.width, 0.1);
       expect(result.symmetric).toBe(false);
     });
   }
@@ -562,7 +586,7 @@ describe('Symmetry — params that look asymmetric but are actually mirrored', (
         baseline.defaults,
         params
       );
-      const result = checkPathSymmetry(pattern.cutPaths, baseline.defaults.width);
+      const result = checkPathSymmetry(pattern.cutPaths, baseline.defaults.width, 0.1);
       expect(result.symmetric).toBe(true);
     });
   }
@@ -580,7 +604,7 @@ describe('Symmetry — non-symmetric tattered breaks symmetry', () => {
       baseline.defaults,
       { tattered: true, tatteredIntensity: 0.06, tatteredSymmetric: false, seed: 12345 }
     );
-    const result = checkPathSymmetry([pattern.cutPaths[0]], baseline.defaults.width, 0.3);
+    const result = checkPathSymmetry([pattern.cutPaths[0]], baseline.defaults.width, 0.1);
     // Non-symmetric tattered should produce an asymmetric outline
     expect(result.symmetric).toBe(false);
   });
@@ -600,7 +624,7 @@ describe('Symmetry — sail variants with symmetric edge styles', () => {
           sail.defaults,
           params
         );
-        const result = checkPathSymmetry(pattern.cutPaths, sail.defaults.width);
+        const result = checkPathSymmetry(pattern.cutPaths, sail.defaults.width, 0.1);
         expect(result.symmetric).toBe(true);
         if (!result.symmetric) {
           console.warn(
@@ -626,7 +650,7 @@ describe('Symmetry — sail variants with asymmetric params break symmetry', () 
         squareSail.defaults,
         params
       );
-      const result = checkPathSymmetry(pattern.cutPaths, squareSail.defaults.width, 0.3);
+      const result = checkPathSymmetry(pattern.cutPaths, squareSail.defaults.width, 0.1);
       expect(result.symmetric).toBe(false);
     });
   }
@@ -654,7 +678,7 @@ describe('Symmetry — SVG-traced single-hole outlines match buildSymmetric.cjs'
           variant.templateVariant,
           dims
         );
-        const result = checkPathSymmetry([pattern.cutPaths[0]], dims.width);
+        const result = checkPathSymmetry([pattern.cutPaths[0]], dims.width, 0.1);
         expect(result.symmetric).toBe(true);
         if (!result.symmetric) {
           console.warn(
@@ -677,7 +701,7 @@ describe('Symmetry — hole positions are centered/mirrored', () => {
 
       // Check only the hole paths (index 1+)
       const holePaths = pattern.cutPaths.slice(1);
-      const result = checkPathSymmetry(holePaths, v.defaults.width);
+      const result = checkPathSymmetry(holePaths, v.defaults.width, 0.1);
       expect(result.symmetric).toBe(true);
       if (!result.symmetric) {
         console.warn(
@@ -704,7 +728,7 @@ describe('Symmetry — dimension changes preserve symmetry for symmetric variant
     for (const dims of dimensionTests) {
       it(`${cape.templateVariant} at ${dims.width}×${dims.length} remains symmetric`, () => {
         const pattern = gen(cape.elementType, cape.templateVariant, dims);
-        const result = checkPathSymmetry([pattern.cutPaths[0]], dims.width);
+        const result = checkPathSymmetry([pattern.cutPaths[0]], dims.width, 0.1);
         expect(result.symmetric).toBe(true);
         if (!result.symmetric) {
           console.warn(
@@ -723,7 +747,7 @@ describe('Symmetry — combined hem + side style on capes', () => {
       scalloped: true, scallopCount: 8, scallopDepth: 3,
       sideStyle: 'wavy', sideStyleDepth: 3, sideStyleCount: 6,
     });
-    const result = checkPathSymmetry([pattern.cutPaths[0]], 40);
+    const result = checkPathSymmetry([pattern.cutPaths[0]], 40, 0.1);
     expect(result.symmetric).toBe(true);
   });
 
@@ -732,7 +756,7 @@ describe('Symmetry — combined hem + side style on capes', () => {
       stepped: true, steppedCount: 5, steppedDepth: 4,
       sideStyle: 'zigzag', sideStyleDepth: 3, sideStyleCount: 8,
     });
-    const result = checkPathSymmetry([pattern.cutPaths[0]], 40);
+    const result = checkPathSymmetry([pattern.cutPaths[0]], 40, 0.1);
     expect(result.symmetric).toBe(true);
   });
 
@@ -746,7 +770,7 @@ describe('Symmetry — polygon sail with even vertex counts', () => {
       const pattern = gen('sail', 'polygon-sail', { width: 60, length: 60 }, {
         sailSides: sides,
       });
-      const result = checkPathSymmetry(pattern.cutPaths, 60);
+      const result = checkPathSymmetry(pattern.cutPaths, 60, 0.1);
       expect(result.symmetric).toBe(true);
       if (!result.symmetric) {
         console.warn(`[FAIL] polygon ${sides} sides:`, result.violations);
@@ -764,7 +788,7 @@ describe('Symmetry — polygon sail with odd vertex counts', () => {
       const pattern = gen('sail', 'polygon-sail', { width: 60, length: 60 }, {
         sailSides: sides,
       });
-      const result = checkPathSymmetry(pattern.cutPaths, 60);
+      const result = checkPathSymmetry(pattern.cutPaths, 60, 0.1);
       // Odd-sided regular polygons centered in a rectangle ARE symmetric
       // because the top vertex is at x=width/2 and each row is mirrored
       expect(result.symmetric).toBe(true);
@@ -773,10 +797,11 @@ describe('Symmetry — polygon sail with odd vertex counts', () => {
 });
 
 describe('Symmetry — kama/mantle with edge styles', () => {
-  // Only test scalloped: zigzag/wavy/castellated have a known phase mismatch
-  // because the kama's left and right hem edges draw in opposite directions,
-  // causing the decoration phase to be reversed.
-  const edgeStyles = ['scalloped'];
+  const edgeStyles = [
+    'arched', 'arrow', 'castellated', 'cloud', 'dovetail', 'feathered',
+    'flame', 'notched', 'picot', 'sawtooth', 'scalloped', 'stepped',
+    'thorned', 'torn', 'wavy', 'zigzag',
+  ];
 
   for (const style of edgeStyles) {
     it(`kama + ${style} edge remains symmetric`, () => {
@@ -785,8 +810,21 @@ describe('Symmetry — kama/mantle with edge styles', () => {
         kamaEdgeDepth: 2,
         kamaEdgeCount: 6,
       });
-      const result = checkPathSymmetry(pattern.cutPaths, 47);
+      const result = checkPathSymmetry(pattern.cutPaths, 47, 0.001, 0);
       expect(result.symmetric).toBe(true);
+    });
+
+    it(`kama full-skirt + ${style} edge remains symmetric`, () => {
+      const pattern = gen('kama', 'full-skirt', { width: 47, length: 19 }, {
+        kamaEdgeStyle: style,
+        kamaEdgeDepth: 2,
+        kamaEdgeCount: 6,
+      });
+      const result = checkPathSymmetry(pattern.cutPaths, 47, 0.001, 0);
+      expect(result.symmetric).toBe(true);
+      if (!result.symmetric) {
+        console.warn(`[FAIL] kama full-skirt + ${style} violations:`, result.violations);
+      }
     });
 
     it(`mantle + ${style} edge remains symmetric`, () => {

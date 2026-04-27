@@ -246,14 +246,15 @@ export function drawStyledEdge(
       break;
 
     case 'wavy':
-      // Mirror-symmetric: direction mirrors about center
+      // Mirror-symmetric wave: mirrors about center, endpoints always outward
+      // Uses cape's proven formula — mirrorI=0 at both ends → always outward
       for (let i = 0; i < count; i++) {
         const ax = bpx(i * segW);
         const ay = bpy(i * segW);
         const bx = bpx((i + 1) * segW);
         const by = bpy((i + 1) * segW);
         const mi = i < count / 2 ? i : count - 1 - i;
-        const dir = ((mi + (mirror ? 1 : 0)) % 2 === 0) ? 1 : -1;
+        const dir = (mi % 2 === 0) ? 1 : -1;
         const cx = (ax + bx) / 2 + outwardX * depth * dir;
         const cy = (ay + by) / 2 + outwardY * depth * dir;
         path.quadraticBezierTo(cx, cy, bx, by);
@@ -261,28 +262,23 @@ export function drawStyledEdge(
       break;
 
     case 'castellated': {
-      const merlonW = segW * 0.5;
-      // Mirror-symmetric: second half mirrors the first half's merlon/crenel order
-      for (let i = 0; i < count; i++) {
-        const baseX = bpx(i * segW);
-        const baseY = bpy(i * segW);
-        const halfX = bpx(i * segW + merlonW);
-        const halfY = bpy(i * segW + merlonW);
-        const nextX = bpx((i + 1) * segW);
-        const nextY = bpy((i + 1) * segW);
-        const doMirror = i >= count / 2 ? !mirror : mirror;
-        if (!doMirror) {
-          // Normal: merlon (down) then crenel (flat)
-          path.lineTo(baseX + outwardX * depth, baseY + outwardY * depth);
-          path.lineTo(halfX + outwardX * depth, halfY + outwardY * depth);
-          path.lineTo(halfX, halfY);
-          path.lineTo(nextX, nextY);
+      // Alternating flat gaps and merlon tabs: 2*count+1 cells
+      // Always starts and ends with a gap — inherently symmetric, no abutting
+      const totalCells = 2 * count + 1;
+      const cellLen = safeLen / totalCells;
+      for (let i = 0; i < totalCells; i++) {
+        const cx0 = bpx(i * cellLen);
+        const cy0 = bpy(i * cellLen);
+        const cx1 = bpx((i + 1) * cellLen);
+        const cy1 = bpy((i + 1) * cellLen);
+        const isGap = (i + (mirror ? 1 : 0)) % 2 === 0;
+        if (isGap) {
+          path.lineTo(cx1, cy1);
         } else {
-          // Mirror: crenel (flat) then merlon (down)
-          path.lineTo(halfX, halfY);
-          path.lineTo(halfX + outwardX * depth, halfY + outwardY * depth);
-          path.lineTo(nextX + outwardX * depth, nextY + outwardY * depth);
-          path.lineTo(nextX, nextY);
+          // Merlon: drop to depth, run along, come back up
+          path.lineTo(cx0 + outwardX * depth, cy0 + outwardY * depth);
+          path.lineTo(cx1 + outwardX * depth, cy1 + outwardY * depth);
+          path.lineTo(cx1, cy1);
         }
       }
       break;
@@ -609,6 +605,32 @@ export function drawStyledEdge(
         const endX = bpx((i + 1) * segW);
         const endY = bpy((i + 1) * segW);
         path.lineTo(endX, endY);
+      }
+      break;
+    }
+
+    case 'thorned': {
+      // Equally spaced sharp triangular thorns
+      // 2*count+1 cells: flat gaps alternating with thorn spikes
+      const totalThornCells = 2 * count + 1;
+      const thornCellLen = safeLen / totalThornCells;
+      for (let i = 0; i < totalThornCells; i++) {
+        const t1 = (i + 1) * thornCellLen;
+        const x1t = bpx(t1);
+        const y1t = bpy(t1);
+        if (i % 2 === 0) {
+          // Flat gap along baseline
+          path.lineTo(x1t, y1t);
+        } else {
+          // Sharp thorn: narrow triangular spike
+          const peakStartD = (i + 0.35) * thornCellLen;
+          const peakD = (i + 0.5) * thornCellLen;
+          const peakEndD = (i + 0.65) * thornCellLen;
+          path.lineTo(bpx(peakStartD), bpy(peakStartD));
+          path.lineTo(bpx(peakD) + outwardX * depth, bpy(peakD) + outwardY * depth);
+          path.lineTo(bpx(peakEndD), bpy(peakEndD));
+          path.lineTo(x1t, y1t);
+        }
       }
       break;
     }

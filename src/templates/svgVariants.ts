@@ -6,7 +6,7 @@
  */
 
 import { Template, TemplateParams, generateAttachmentHole } from './base';
-import { SVGPath, circlePath } from '../geometry/primitives';
+import { SVGPath, circlePath, mirrorAndReverseEdge } from '../geometry/primitives';
 import { drawStyledEdge } from '../geometry/edgeStyles';
 import { HOLE_STANDARDS } from '../utils/constants';
 
@@ -637,12 +637,35 @@ export class KamaFullSkirt extends Template {
     const depth = (params.kamaEdgeDepth as number) || 2;
     const count = (params.kamaEdgeCount as number) || 6;
     const seed = (params.seed as number) || 42;
+    const sawtoothCurve = (params.sawtoothCurve as number) || 0;
+    const sawtoothReverse = !!(params.sawtoothReverse);
+    const sideCurve = (params.sideCurve as number) || 0;
     const path = new SVGPath();
-    // Upper outline: moveTo left-bottom → up left side → across top → down right side → right-bottom (cmds 0-33)
-    renderFracCmdsToPath(path, KAMA_FULL_OUTLINE, w, h, 0, 33);
-    // Styled bottom edge: right-bottom (0.7926, 0.9972) → left-bottom (0.2074, 0.9972), replacing cmd 35
-    drawStyledEdge(path, 0.7926 * w, 0.9972 * h, 0.2074 * w, 0.9972 * h,
-      style, depth, count, 0, 1, 0, seed);
+    // Tangent-projected intersection points where side edges meet the bottom level (y=0.9972)
+    const rightBottomX = 0.8798;
+    const leftBottomX = 1 - rightBottomX; // symmetric about center
+    const botY = 0.9972;
+    const halfCount = Math.ceil(count / 2);
+    const centerX = w / 2;
+    // Generate right half of bottom edge, then mirror for left half
+    const tempPath = new SVGPath();
+    tempPath.moveTo(rightBottomX * w, botY * h);
+    drawStyledEdge(tempPath, rightBottomX * w, botY * h, centerX, botY * h,
+      style, depth, halfCount, 0, 1, 0, seed, false, sawtoothCurve, sawtoothReverse, sideCurve);
+    const rightCmds = tempPath.getCommands().slice(1); // skip M
+    const mirroredLeftCmds = mirrorAndReverseEdge(tempPath.getCommands(), centerX);
+    // Start at left bottom intersection
+    path.moveTo(leftBottomX * w, botY * h);
+    // Angled line up to left side point, maintaining side edge direction
+    path.lineTo(0.1021 * w, 0.9186 * h);
+    // Left side up, across top, right side down (cmds 2-32)
+    renderFracCmdsToPath(path, KAMA_FULL_OUTLINE, w, h, 2, 32);
+    // Angled line down to right bottom intersection, maintaining side edge direction
+    path.lineTo(rightBottomX * w, botY * h);
+    // Right half of styled bottom edge
+    path.pushCommands(rightCmds);
+    // Mirrored left half of styled bottom edge
+    path.pushCommands(mirroredLeftCmds);
     path.closePath();
     return path.toString();
   }
@@ -673,20 +696,143 @@ export class MantleHighCollar extends Template {
   generateCutPath(params: TemplateParams): string {
     const { width: w, length: h } = params;
     const style = (params.mantleEdgeStyle as string) || 'none';
-    if (style === 'none') {
+    const roundingAmt = (params.mantleBottomCurve as number) || 0;
+    const rounding = roundingAmt > 0;
+    const hemWidth = (params.mantleHemWidth as number) ?? 1.0;
+    const sideCurve = (params.sideCurve as number) || 0;
+    const sawCurve = (params.sawtoothCurve as number) || 0;
+    const sawRev = !!(params.sawtoothReverse);
+    const sideStyle = (params.mantleSideStyle as string) || 'none';
+    const sideDepth = (params.mantleSideStyleDepth as number) || 3;
+    const sideCount = (params.mantleSideStyleCount as number) || 6;
+
+    // Short-circuit when no transformations are active
+    if (style === 'none' && !rounding && hemWidth === 1.0 && sideCurve === 0 && sideStyle === 'none') {
       return renderFracPath(HIGH_COLLAR_OUTLINE, w, h);
     }
+
     const depth = (params.mantleEdgeDepth as number) || 2;
     const count = (params.mantleEdgeCount as number) || 6;
     const seed = (params.seed as number) || 42;
+    const cx = w / 2;
+    const botAnchorFrac = 0.83; // avg of left/right transition Y fractions
     const path = new SVGPath();
-    // Start at left transition point (endpoint of cmd 12)
-    path.moveTo(0.0036 * w, 0.8092 * h);
-    // Upper outline: left side up → collar → right side down (cmds 13-71)
-    renderFracCmdsToPath(path, HIGH_COLLAR_OUTLINE, w, h, 13, 71);
-    // Styled bottom edge: right transition → left transition (replacing bottom cmds 72-88 + 1-12)
-    drawStyledEdge(path, 0.9970 * w, 0.8499 * h, 0.0036 * w, 0.8092 * h,
-      style, depth, count, 0, 1, 0, seed);
+
+    // Combined X-adjustment for hemWidth (progressive taper) and sideCurve (sinusoidal bow)
+    function adjX(x: number, y: number): number {
+      let result = x;
+      const t = Math.max(0, Math.min(1, (y / h) / botAnchorFrac));
+      if (hemWidth !== 1.0) {
+        const hemAdj = cx + (x - cx) * hemWidth;
+        result = x + (hemAdj - x) * t;
+      }
+      if (sideCurve !== 0) {
+        const bowAmt = sideCurve * w * 0.12;
+        const dist = (result - cx) / cx;
+        result += dist * bowAmt * Math.sin(Math.PI * t);
+      }
+      return result;
+    }
+
+    // Render fractional commands with X-adjustment applied to all coordinates
+    function renderAdjusted(cmds: FracCmd[], startIdx: number, endIdx: number): void {
+      for (let i = startIdx; i <= endIdx; i++) {
+        const cmd = cmds[i];
+        switch (cmd[0]) {
+          case 0: path.closePath(); break;
+          case 1: path.moveTo(adjX(w * cmd[1], h * cmd[2]), h * cmd[2]); break;
+          case 2: path.lineTo(adjX(w * cmd[1], h * cmd[2]), h * cmd[2]); break;
+          case 3: path.cubicBezierTo(
+            adjX(w * cmd[1], h * cmd[2]), h * cmd[2],
+            adjX(w * cmd[3], h * cmd[4]), h * cmd[4],
+            adjX(w * cmd[5], h * cmd[6]), h * cmd[6]
+          ); break;
+        }
+      }
+    }
+
+    // Key reference points (adjusted for hemWidth/sideCurve)
+    const leftTransX = adjX(0.0036 * w, 0.8092 * h);
+    const leftTransY = 0.8092 * h;
+    const leftSideTopX = adjX(0.1070 * w, 0.3731 * h);
+    const leftSideTopY = 0.3731 * h;
+    const rightSideTopX = adjX(0.8570 * w, 0.2598 * h);
+    const rightSideTopY = 0.2598 * h;
+    const rightTransX = adjX(0.9970 * w, 0.8499 * h);
+    const rightTransY = 0.8499 * h;
+
+    // Start at left transition
+    path.moveTo(leftTransX, leftTransY);
+
+    // LEFT SIDE (cmds 13-24: left transition up to left shoulder peak)
+    if (sideStyle !== 'none') {
+      const dx = leftSideTopX - leftTransX;
+      const dy = leftSideTopY - leftTransY;
+      const len = Math.hypot(dx, dy) || 1;
+      const outwardX = dy / len;  // 90° CW perpendicular — points outward (left)
+      const outwardY = -dx / len;
+      drawStyledEdge(path, leftTransX, leftTransY, leftSideTopX, leftSideTopY,
+        sideStyle, sideDepth, sideCount, outwardX, outwardY, 0,
+        seed, false, sawCurve, sawRev, sideCurve);
+      // Shoulder + collar (cmds 25-64)
+      renderAdjusted(HIGH_COLLAR_OUTLINE, 25, 64);
+    } else {
+      // Left side + shoulder + collar (cmds 13-64)
+      renderAdjusted(HIGH_COLLAR_OUTLINE, 13, 64);
+    }
+
+    // RIGHT SIDE (cmds 65-71: right shoulder peak down to right transition)
+    if (sideStyle !== 'none') {
+      const dx = rightTransX - rightSideTopX;
+      const dy = rightTransY - rightSideTopY;
+      const len = Math.hypot(dx, dy) || 1;
+      const outwardX = dy / len;  // 90° CW perpendicular — points outward (right)
+      const outwardY = -dx / len;
+      drawStyledEdge(path, rightSideTopX, rightSideTopY, rightTransX, rightTransY,
+        sideStyle, sideDepth, sideCount, outwardX, outwardY, 0,
+        seed, false, sawCurve, sawRev, sideCurve, true);
+    } else {
+      renderAdjusted(HIGH_COLLAR_OUTLINE, 65, 71);
+    }
+
+    // BOTTOM (right transition → left transition)
+    if (rounding && style !== 'none') {
+      // Rounded bottom with styled edge: sample arc, chain drawStyledEdge segments
+      const halfW = (rightTransX - leftTransX) / 2;
+      const arcDepth = roundingAmt * halfW;
+      const midX = (leftTransX + rightTransX) / 2;
+      const baseY = (leftTransY + rightTransY) / 2;
+      const segs = Math.max(3, Math.ceil(count / 2));
+      const countPerSeg = Math.max(1, Math.round(count / segs));
+      const pts: { x: number; y: number }[] = [];
+      for (let i = 0; i <= segs; i++) {
+        const t = (i / segs) * Math.PI;
+        pts.push({ x: midX + halfW * Math.cos(t), y: baseY + arcDepth * Math.sin(t) });
+      }
+      for (let i = 0; i < pts.length - 1; i++) {
+        drawStyledEdge(path, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y,
+          style, depth, countPerSeg, 0, 1, 0, seed + i, false, sawCurve, sawRev, 0);
+      }
+    } else if (rounding) {
+      // Rounded bottom: smooth elliptical arc
+      const halfW = (rightTransX - leftTransX) / 2;
+      const arcDepth = roundingAmt * halfW;
+      const midX = (leftTransX + rightTransX) / 2;
+      const baseY = (leftTransY + rightTransY) / 2;
+      const bottomY = baseY + arcDepth;
+      const k = 0.5522847498;
+      path.cubicBezierTo(rightTransX, rightTransY + arcDepth * k, midX + halfW * k, bottomY, midX, bottomY);
+      path.cubicBezierTo(midX - halfW * k, bottomY, leftTransX, leftTransY + arcDepth * k, leftTransX, leftTransY);
+    } else if (style !== 'none') {
+      // Styled bottom edge (flat)
+      drawStyledEdge(path, rightTransX, rightTransY, leftTransX, leftTransY,
+        style, depth, count, 0, 1, 0, seed, false, sawCurve, sawRev, sideCurve);
+    } else {
+      // Default traced bottom curve (cmds 72-88 right→center, then 1-12 center→left)
+      renderAdjusted(HIGH_COLLAR_OUTLINE, 72, 88);
+      renderAdjusted(HIGH_COLLAR_OUTLINE, 1, 12);
+    }
+
     path.closePath();
     return path.toString();
   }
@@ -777,7 +923,7 @@ const SINGLE_HOLE_TOP_OUTLINE: FracCmd[] = [
   [2, 0, 0.887],
   [3, 0, 0.7612, 0.3339, 0.345, 0.3344, 0.2156],
   [3, 0.3397, 0.1284, 0.3147, 0.089, 0.3992, 0.0267],
-  [3, 0.4205, 0.0125, 0.4499, 0.0038, 0.482, 0.0019],
+  [3, 0.4205, 0.0125, 0.4499, 0.0038, 0.5, 0.0019],
   [3, 0.5501, 0.0038, 0.5795, 0.0125, 0.6008, 0.0267],
   [3, 0.6853, 0.089, 0.6603, 0.1284, 0.6656, 0.2156],
   [3, 0.6661, 0.345, 1, 0.7612, 1, 0.887],
@@ -803,7 +949,7 @@ const SINGLE_HOLE_STEPPED_OUTLINE: FracCmd[] = [
   [3, 0.3673, 0.1988, 0.3723, 0.1857, 0.3752, 0.1447],
   [3, 0.3775, 0.1118, 0.3787, 0.1071, 0.3927, 0.0744],
   [3, 0.4033, 0.05, 0.4206, 0.0348, 0.44, 0.021],
-  [3, 0.4609, 0.0054, 0.4695, 0.0026, 0.499, 0.0014],
+  [3, 0.4609, 0.0054, 0.4695, 0.0026, 0.5, 0.0014],
   [3, 0.5305, 0.0026, 0.5391, 0.0054, 0.56, 0.021],
   [3, 0.5794, 0.0348, 0.5967, 0.05, 0.6073, 0.0744],
   [3, 0.6213, 0.1071, 0.6225, 0.1118, 0.6248, 0.1447],
@@ -933,97 +1079,172 @@ export class MantleShoulderArmor extends Template {
     const style = (params.mantleEdgeStyle as string) || 'none';
     const roundingAmt = (params.mantleBottomCurve as number) || 0;
     const rounding = roundingAmt > 0;
+    const hemWidth = (params.mantleHemWidth as number) ?? 1.0;
+    const sideCurve = (params.sideCurve as number) || 0;
+    const sawCurve = (params.sawtoothCurve as number) || 0;
+    const sawRev = !!(params.sawtoothReverse);
+    const sideStyle = (params.mantleSideStyle as string) || 'none';
+    const sideDepth = (params.mantleSideStyleDepth as number) || 3;
+    const sideCount = (params.mantleSideStyleCount as number) || 6;
 
-    if (style === 'none' && !rounding) {
+    // Short-circuit when no transformations are active
+    if (style === 'none' && !rounding && hemWidth === 1.0 && sideCurve === 0 && sideStyle === 'none') {
       return renderFracPath(SHOULDER_ARMOR_OUTLINE, w, h);
     }
 
     const depth = (params.mantleEdgeDepth as number) || 2;
     const count = (params.mantleEdgeCount as number) || 6;
     const seed = (params.seed as number) || 42;
+    const cx = w / 2;
+    const botAnchorFrac = 0.84231; // fractional Y of bottom anchor
     const path = new SVGPath();
 
-    // Upper outline: top center → left side → left-bottom anchor (cmds 0-9)
-    renderFracCmdsToPath(path, SHOULDER_ARMOR_OUTLINE, w, h, 0, 9);
-
-    const leftX = 0.09565 * w;
-    const rightX = 0.90435 * w;
-    const topY = 0.84231 * h;
-
-    if (rounding && style === 'none') {
-      // Rounded bottom: elliptical arc using two cubic beziers
-      const halfW = (rightX - leftX) / 2;
-      const arcDepth = roundingAmt * halfW;
-      const bottomY = topY + arcDepth;
-      const k = 0.5522847498; // kappa for quarter-circle
-      const midX = (leftX + rightX) / 2;
-      path.cubicBezierTo(leftX, topY + arcDepth * k, midX - halfW * k, bottomY, midX, bottomY);
-      path.cubicBezierTo(midX + halfW * k, bottomY, rightX, topY + arcDepth * k, rightX, topY);
-    } else if (rounding) {
-      // Rounding + styled edge: apply style along a curved baseline.
-      // Use the sin-curve baseline approach (same as capes).
-      const halfW = (rightX - leftX) / 2;
-      const arcDepth = roundingAmt * halfW;
-      const hemSpan = rightX - leftX;
-      const segments = Math.max(count * 6, 60);
-      for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
-        const x = leftX + hemSpan * t;
-        const bY = topY + arcDepth * Math.sin(t * Math.PI);
-        // Apply style offset
-        let off = 0;
-        const phase = (t * count) % 1;
-        if (style === 'scalloped') {
-          off = depth * Math.sin(phase * Math.PI);
-        } else if (style === 'arched') {
-          off = -depth * Math.sin(phase * Math.PI);
-        } else if (style === 'zigzag') {
-          const mi = Math.floor(t * count);
-          const mirIdx = mi < count / 2 ? mi : count - 1 - mi;
-          const dir = mirIdx % 2 === 0 ? 1 : -1;
-          const subPhase = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-          off = depth * dir * subPhase;
-        } else if (style === 'wavy') {
-          const mi = Math.floor(t * count);
-          const mirIdx = mi < count / 2 ? mi : count - 1 - mi;
-          const dir = mirIdx % 2 === 0 ? 1 : -1;
-          off = depth * dir * Math.sin(phase * Math.PI);
-        } else if (style === 'castellated') {
-          const mi = Math.floor(t * count);
-          const doMirror = mi >= count / 2;
-          const isMerlon = doMirror ? (mi % 2 !== 0) : (mi % 2 === 0);
-          off = isMerlon ? depth : 0;
-        } else if (style === 'stepped') {
-          const steps = 3;
-          const half = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-          const step = Math.floor(half * steps);
-          off = depth * ((step + 1) / steps);
-        } else if (style === 'zigzag') {
-          off = depth * (phase < 0.5 ? phase * 2 : (1 - phase) * 2);
-        } else {
-          // For all other styles, fall back to non-rounded
-          break;
-        }
-        path.lineTo(x, bY + off);
-        if (i === segments) {
-          // Successfully drew all segments with rounding
-          // Skip to right side
-        }
+    // Combined X-adjustment for hemWidth (progressive taper) and sideCurve (sinusoidal bow)
+    function adjX(x: number, y: number): number {
+      let result = x;
+      const t = Math.max(0, Math.min(1, (y / h) / botAnchorFrac));
+      if (hemWidth !== 1.0) {
+        const hemAdj = cx + (x - cx) * hemWidth;
+        result = x + (hemAdj - x) * t;
       }
-      // Fallback for styles that broke out of the loop
-      if (style !== 'scalloped' && style !== 'arched' && style !== 'zigzag' &&
-          style !== 'wavy' && style !== 'castellated' && style !== 'stepped') {
-        drawStyledEdge(path, leftX, topY, rightX, topY,
-          style, depth, count, 0, 1, 0, seed);
+      if (sideCurve !== 0) {
+        const bowAmt = sideCurve * w * 0.12;
+        const dist = (result - cx) / cx; // -1..+1 from center
+        result += dist * bowAmt * Math.sin(Math.PI * t);
       }
-    } else {
-      // Styled edge, no rounding: flat bottom with style
-      drawStyledEdge(path, leftX, topY, rightX, topY,
-        style, depth, count, 0, 1, 0, seed);
+      return result;
     }
 
-    // Upper outline: right-bottom → right side → top center (cmds 15-23)
-    renderFracCmdsToPath(path, SHOULDER_ARMOR_OUTLINE, w, h, 15, 23);
+    // Render fractional commands with X-adjustment applied to all coordinates
+    function renderAdjusted(cmds: FracCmd[], startIdx: number, endIdx: number): void {
+      for (let i = startIdx; i <= endIdx; i++) {
+        const cmd = cmds[i];
+        switch (cmd[0]) {
+          case 0: path.closePath(); break;
+          case 1: path.moveTo(adjX(w * cmd[1], h * cmd[2]), h * cmd[2]); break;
+          case 2: path.lineTo(adjX(w * cmd[1], h * cmd[2]), h * cmd[2]); break;
+          case 3: path.cubicBezierTo(
+            adjX(w * cmd[1], h * cmd[2]), h * cmd[2],
+            adjX(w * cmd[3], h * cmd[4]), h * cmd[4],
+            adjX(w * cmd[5], h * cmd[6]), h * cmd[6]
+          ); break;
+        }
+      }
+    }
+
+    // Left side edge: from shoulder peak (end of cmd 5) to left-bottom anchor (end of cmd 9)
+    // Left side goes top-to-bottom along the left of the shape
+    const leftTopX = adjX(0.04043 * w, 0.32692 * h);
+    const leftTopY = 0.32692 * h;
+    const leftBotX = adjX(0.09565 * w, 0.84231 * h);
+    const leftBotY = 0.84231 * h;
+
+    if (sideStyle !== 'none') {
+      // Upper outline: top center → left shoulder peak (cmds 0-5)
+      renderAdjusted(SHOULDER_ARMOR_OUTLINE, 0, 5);
+      // Left side: styled edge from shoulder peak down to bottom anchor
+      const dx = leftBotX - leftTopX;
+      const dy = leftBotY - leftTopY;
+      const len = Math.hypot(dx, dy) || 1;
+      const outwardX = -dy / len; // perpendicular pointing left (outward)
+      const outwardY = dx / len;
+      drawStyledEdge(path, leftTopX, leftTopY, leftBotX, leftBotY,
+        sideStyle, sideDepth, sideCount, outwardX, outwardY, 0,
+        seed, false, sawCurve, sawRev, sideCurve);
+    } else {
+      // Upper outline: top center → left side → left-bottom anchor (cmds 0-9)
+      renderAdjusted(SHOULDER_ARMOR_OUTLINE, 0, 9);
+    }
+
+    // Adjusted bottom anchor positions
+    const topY = 0.84231 * h;
+
+    if (rounding && style !== 'none') {
+      // Rounded bottom with styled edge: sample right half arc, mirror for left half
+      const adjLeftX = adjX(0.09565 * w, topY);
+      const adjRightX = adjX(0.90435 * w, topY);
+      const arcHalfW = (adjRightX - adjLeftX) / 2;
+      const arcDepth = roundingAmt * arcHalfW;
+      const midX = (adjLeftX + adjRightX) / 2;
+      const segs = Math.max(3, Math.ceil(count / 2));
+      const countPerSeg = Math.max(1, Math.round(count / segs));
+      // Sample right half of arc (center to right)
+      const rightPts: { x: number; y: number }[] = [];
+      for (let i = 0; i <= segs; i++) {
+        const t = (i / segs) * (Math.PI / 2); // 0 to π/2 for right half
+        rightPts.push({ x: midX + arcHalfW * Math.sin(t), y: topY + arcDepth * Math.sin(t + Math.PI / 2 - Math.PI / 2) });
+      }
+      // Actually re-derive: at center t=π/2, x=midX, y=topY+arcDepth; at right t=π, x=adjRightX, y=topY
+      // Sample right half from center to right
+      const rightPts2: { x: number; y: number }[] = [];
+      for (let i = 0; i <= segs; i++) {
+        const t = (Math.PI / 2) + (i / segs) * (Math.PI / 2);
+        rightPts2.push({ x: midX - arcHalfW * Math.cos(t), y: topY + arcDepth * Math.sin(t) });
+      }
+      // Generate right half styled edge segments into temp path
+      const tempArc = new SVGPath();
+      tempArc.moveTo(rightPts2[0].x, rightPts2[0].y);
+      for (let i = 0; i < rightPts2.length - 1; i++) {
+        drawStyledEdge(tempArc, rightPts2[i].x, rightPts2[i].y, rightPts2[i + 1].x, rightPts2[i + 1].y,
+          style, depth, countPerSeg, 0, 1, 0, seed + i, false, sawCurve, sawRev, 0);
+      }
+      // Mirror for left half, then append right half
+      const mirroredLeftArc = mirrorAndReverseEdge(tempArc.getCommands(), midX);
+      path.pushCommands(mirroredLeftArc);
+      path.pushCommands(tempArc.getCommands().slice(1)); // skip M
+    } else if (rounding) {
+      // Rounded bottom without style: smooth elliptical arc
+      const adjLeftX = adjX(0.09565 * w, topY);
+      const adjRightX = adjX(0.90435 * w, topY);
+      const halfW = (adjRightX - adjLeftX) / 2;
+      const arcDepth = roundingAmt * halfW;
+      const bottomY = topY + arcDepth;
+      const k = 0.5522847498;
+      const midX = (adjLeftX + adjRightX) / 2;
+      path.cubicBezierTo(adjLeftX, topY + arcDepth * k, midX - halfW * k, bottomY, midX, bottomY);
+      path.cubicBezierTo(midX + halfW * k, bottomY, adjRightX, topY + arcDepth * k, adjRightX, topY);
+    } else if (style !== 'none') {
+      // Flat bottom with styled edge — generate right half and mirror for symmetry
+      const adjLeftX = adjX(0.09565 * w, topY);
+      const adjRightX = adjX(0.90435 * w, topY);
+      const midX = (adjLeftX + adjRightX) / 2;
+      const halfCount = Math.ceil(count / 2);
+      // Generate right half into temp path
+      const tempBot = new SVGPath();
+      tempBot.moveTo(midX, topY);
+      drawStyledEdge(tempBot, midX, topY, adjRightX, topY,
+        style, depth, halfCount, 0, 1, 0, seed, false, sawCurve, sawRev, sideCurve);
+      // Mirror for left half, then append right half
+      const mirroredLeft = mirrorAndReverseEdge(tempBot.getCommands(), midX);
+      path.pushCommands(mirroredLeft);
+      path.pushCommands(tempBot.getCommands().slice(1)); // skip M
+    } else {
+      // No rounding, no style — render default bottom outline with hemWidth/sideCurve
+      renderAdjusted(SHOULDER_ARMOR_OUTLINE, 10, 14);
+    }
+
+    // Right side edge: from right-bottom anchor (end of cmd 14 / start of right side) to shoulder peak
+    const rightBotX = adjX(0.90435 * w, 0.84231 * h);
+    const rightBotY = 0.84231 * h;
+    const rightTopX = adjX(0.95957 * w, 0.32692 * h);
+    const rightTopY = 0.32692 * h;
+
+    if (sideStyle !== 'none') {
+      // Right side: styled edge from bottom anchor up to shoulder peak (bottom→top)
+      const dx = rightTopX - rightBotX;
+      const dy = rightTopY - rightBotY;
+      const len = Math.hypot(dx, dy) || 1;
+      const outwardX = -dy / len; // perpendicular pointing right (outward)
+      const outwardY = dx / len;
+      drawStyledEdge(path, rightBotX, rightBotY, rightTopX, rightTopY,
+        sideStyle, sideDepth, sideCount, outwardX, outwardY, 0,
+        seed, false, sawCurve, sawRev, sideCurve, true);
+      // Continue with upper-right outline: shoulder peak → top center (cmds 19-23)
+      renderAdjusted(SHOULDER_ARMOR_OUTLINE, 19, 23);
+    } else {
+      // Upper outline: right-bottom → right side → top center (cmds 15-23)
+      renderAdjusted(SHOULDER_ARMOR_OUTLINE, 15, 23);
+    }
     path.closePath();
     return path.toString();
   }

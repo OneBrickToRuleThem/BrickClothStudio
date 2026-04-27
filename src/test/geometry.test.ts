@@ -107,7 +107,7 @@ describe('Pattern Generation', () => {
       slitWidth: 1.2,
       enableSlit: false,
     });
-    expect(pattern.name).toBe('Wing');
+    expect(pattern.name).toBe('Tattered Wing');
   });
 });
 
@@ -156,7 +156,7 @@ describe('SVG Export', () => {
     });
     const svg = exportSinglePatternSVG(pattern, { strokeWidth: 0.2 });
     
-    expect(svg).toContain('0.20mm');
+    expect(svg).toContain('0.2mm');
   });
 
   it('should use correct color codes', () => {

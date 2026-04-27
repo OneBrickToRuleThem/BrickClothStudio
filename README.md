@@ -21,7 +21,7 @@
 | **Flag/Banner** | Small, Large, Custom | 22×60 / 40×64 / 30×60 mm | Custom has configurable edges, side curve, and 1–6 clip holes |
 | **Sail** | Square, Triangular, Polygon | 60×60 mm | Draggable grommets (4 types + extra), per-edge styling, side curve, stud-based sizing, 5–12 sided polygon |
 | **Kama/Skirt** | Wrap Skirt, Full Skirt | 47×19 mm | 2–4 attachment holes, bottom hem edge styles |
-| **Pauldron** | Shoulder Armor, High Collar | 23×26 mm | Head pin holes, bottom rim curve, edge styles |
+| **Mantle** | Shoulder Armor, High Collar | 23×26 mm | Head pin holes, bottom rim curve, side edge styles, hem width, side curve |
 | **Wing** | Tattered Wing, Custom Wing | 173×101 mm | Ball-joint holes, pin hole, decorative tear holes, side curve |
 | **Custom** | Traced Image | varies | Import PNG/JPG, auto-trace to cut path |
 
@@ -37,6 +37,7 @@ arched, arrow, castellated, cloud, dovetail, feathered, flame, notched, picot, s
 - **Flag Custom** edges: Same as sail edges
 - **Kama** bottom hem: All 16 decorative styles
 - **Mantle** bottom rim: All 16 decorative styles
+- **Mantle** side edges: All 16 decorative styles (protrude outward from shape)
 
 ### Transformations
 
@@ -181,7 +182,7 @@ Use the **Calibration Test Strip** before cutting final designs:
 - **Tailwind CSS** for styling
 - **Zustand** for state management
 - **Vite 5** for build tooling
-- **Vitest** for unit testing (567 tests: symmetry, parameter sensitivity, self-intersection, edge isolation, geometry, packing)
+- **Vitest** for unit testing (615 tests: symmetry, parameter sensitivity, self-intersection, edge isolation, geometry, packing, debug)
 - **jszip** for multi-file downloads
 - Custom **SVGPath** geometry builder
 - **SeededRNG** for reproducible torn/tattered edges
@@ -217,13 +218,14 @@ src/
 │   └── patternGenerator.ts
 ├── store/
 │   └── editor.ts        # Zustand store + defaults
-├── test/                # Unit tests (567 tests)
-│   ├── symmetry.test.ts           # Bilateral symmetry verification (191 tests)
+├── test/                # Unit tests (615 tests)
+│   ├── symmetry.test.ts           # Bilateral symmetry verification (236 tests)
 │   ├── parameterSensitivity.test.ts # Parameter → SVG change detection (148 tests)
 │   ├── intersection.test.ts       # Self-intersection detection (142 tests)
 │   ├── edgeStyleIsolation.test.ts # Edge style independence (62 tests)
 │   ├── geometry.test.ts           # Geometry primitives & export (15 tests)
-│   └── packing.test.ts            # Print sheet layout (9 tests)
+│   ├── packing.test.ts            # Print sheet layout (9 tests)
+│   └── debug-failures.test.ts     # Debug regression tests (3 tests)
 └── utils/
     ├── constants.ts
     ├── types.ts
@@ -237,17 +239,18 @@ src/
 ```bash
 npm test              # Run all tests in watch mode
 npm run test:symmetry  # Watch symmetry tests only
-npx vitest run        # Single run (all 567 tests)
+npx vitest run        # Single run (all 615 tests)
 ```
 
 | Suite | Tests | What it verifies |
 |-------|-------|------------------|
-| **Symmetry** | 191 | Bilateral symmetry of all symmetric variants across parameter changes |
+| **Symmetry** | 236 | Bilateral symmetry of all symmetric variants across parameter changes, side styles, hem+side combos |
 | **Parameter Sensitivity** | 148 | Every user-facing parameter actually changes the exported SVG |
 | **Self-Intersection** | 142 | Cut paths don't cross themselves across all variants, edge styles, and curve combos |
 | **Edge Style Isolation** | 62 | Changing one edge style doesn't affect unrelated styles or variants |
 | **Geometry** | 15 | SVGPath primitives, pattern generation, SVG export structure |
 | **Packing** | 9 | Print sheet layout, multi-page, margins, orientation |
+| **Debug** | 3 | Regression tests for previously-fixed edge cases |
 
 ---
 

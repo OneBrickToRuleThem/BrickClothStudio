@@ -22,6 +22,12 @@ interface CapeOutlineProfile {
   sideLeftXFrac: number;
   sideRightXFrac: number;
   shoulderH?: number;
+  /** Y-fraction of the shoulder peak where the neck meets the side edge.
+   *  When set, drawStyledRightSide will lineTo the shoulder peak after
+   *  finishing the styled edge so closeRefNeck starts from the correct position. */
+  shoulderPeakYFrac?: number;
+  /** X-fraction of the right shoulder peak. Mirror of left. */
+  shoulderPeakXFrac?: number;
   sideProfileFn: (yFrac: number) => number;
   drawRefLeft: (path: SVGPath, w: number, h: number, hemW: number, shH?: number) => void;
   drawRefRight: (path: SVGPath, w: number, h: number, hemW: number, shH?: number) => void;
@@ -68,7 +74,7 @@ function drawRefOutline(path: SVGPath, w: number, h: number) {
   path.cubicBezierTo(w * 0.99172, h * 0.90362, w * 0.99591, h * 0.90125, w * 0.99807, h * 0.89712);
 
   // --- Right side: 14 smoothed mirrored cubics from side bottom up to right shoulder peak ---
-  path.cubicBezierTo(w * 1.00065, h * 0.87357, w * 1.00063, h * 0.89219, w * 0.99809, h * 0.85304);
+  path.cubicBezierTo(w * 1.00063, h * 0.89219, w * 1.00065, h * 0.87357, w * 0.99809, h * 0.85304);
   path.cubicBezierTo(w * 0.99667, h * 0.84161, w * 0.98716, h * 0.78513, w * 0.98576, h * 0.77681);
   path.cubicBezierTo(w * 0.98436, h * 0.76849, w * 0.98016, h * 0.74893, w * 0.97644, h * 0.73334);
   path.cubicBezierTo(w * 0.97272, h * 0.71775, w * 0.96882, h * 0.70130, w * 0.96777, h * 0.69680);
@@ -145,7 +151,7 @@ function drawRefRightSide(path: SVGPath, w: number, h: number, hemWidth: number 
     const t = blend * blend * (3 - 2 * blend); // smoothstep
     return (sh + (h - sh) * t) * yFrac;
   }
-  path.cubicBezierTo(xAdj(1.00065, 0.87357), h * 0.87357, xAdj(1.00063, 0.89219), h * 0.89219, xAdj(0.99809, 0.85304), h * 0.85304);
+  path.cubicBezierTo(xAdj(1.00063, 0.89219), h * 0.89219, xAdj(1.00065, 0.87357), h * 0.87357, xAdj(0.99809, 0.85304), h * 0.85304);
   path.cubicBezierTo(xAdj(0.99667, 0.84161), h * 0.84161, xAdj(0.98716, 0.78513), h * 0.78513, xAdj(0.98576, 0.77681), h * 0.77681);
   path.cubicBezierTo(xAdj(0.98436, 0.76849), h * 0.76849, xAdj(0.98016, 0.74893), h * 0.74893, xAdj(0.97644, 0.73334), h * 0.73334);
   path.cubicBezierTo(xAdj(0.97272, 0.71775), h * 0.71775, xAdj(0.96882, 0.70130), h * 0.70130, xAdj(0.96777, 0.69680), h * 0.69680);
@@ -178,7 +184,9 @@ function generateSwordSlit(
   side: string,
   angle: number,
   yFrac: number,
-  slitLen: number = 8
+  slitLen: number = 8,
+  slitCount: number = 1,
+  slitSpacing: number = 3
 ): string {
   const path = new SVGPath();
   const half = slitLen / 2;
@@ -192,9 +200,20 @@ function generateSwordSlit(
   const sinA = Math.sin(rad);
   const cosA = Math.cos(rad);
 
-  // Line endpoints
-  path.moveTo(cx - half * sinA, cy - half * cosA);
-  path.lineTo(cx + half * sinA, cy + half * cosA);
+  // Perpendicular direction (for offsetting parallel slits)
+  const perpX = cosA;
+  const perpY = -sinA;
+
+  const count = Math.max(1, Math.min(2, slitCount));
+  for (let i = 0; i < count; i++) {
+    // Offset from center: for 1 slit = 0, for 2 slits = ±spacing/2
+    const offset = count === 1 ? 0 : (i - 0.5) * slitSpacing;
+    const ox = cx + perpX * offset;
+    const oy = cy + perpY * offset;
+
+    path.moveTo(ox - half * sinA, oy - half * cosA);
+    path.lineTo(ox + half * sinA, oy + half * cosA);
+  }
 
   return path.toString();
 }
@@ -496,6 +515,8 @@ const STANDARD_PROFILE: CapeOutlineProfile = {
   sideLeftXFrac: 0.00193,
   sideRightXFrac: 0.99807,
   shoulderH: REF_H,
+  shoulderPeakYFrac: 0.00946,
+  shoulderPeakXFrac: 0.64415,
   sideProfileFn: leftSideXFrac,
   drawRefLeft: drawRefLeftSide,
   drawRefRight: drawRefRightSide,
@@ -555,7 +576,18 @@ function drawModifiedOutline(
     else p.drawRefLeft(path, w, h, hemW, refH);
   }
   function drawRight() {
-    if (sideStyle !== 'none' || sideCurve !== 0) drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH, p.sideProfileFn, p.sideTopYFrac, p.sideBotYFrac, sideSawCurve, sideSawReverse, sideCurve);
+    if (sideStyle !== 'none' || sideCurve !== 0) {
+      drawStyledRightSide(path, w, h, hemW, sideStyle, sideDepth, sideCount, sideSeed, refH, p.sideProfileFn, p.sideTopYFrac, p.sideBotYFrac, sideSawCurve, sideSawReverse, sideCurve);
+      // When using styled sides, the styled edge ends at sideTopYFrac which is
+      // below the shoulder peak. Connect to the shoulder peak with a straight
+      // line so closeRefNeck starts from the correct position (mirrors the
+      // implicit lineTo from shoulder peak down to sideTopYFrac on the left).
+      if (p.shoulderPeakYFrac != null && p.shoulderPeakXFrac != null) {
+        const peakY = (p.shoulderH ?? h) * p.shoulderPeakYFrac;
+        const peakX = w * p.shoulderPeakXFrac;
+        path.lineTo(peakX, peakY);
+      }
+    }
     else p.drawRefRight(path, w, h, hemW, refH);
   }
 
@@ -1089,6 +1121,9 @@ function drawModifiedOutline(
     }
   }
 
+  // Return path to baseline on the right before drawing the side curve
+  // (symmetric with the implicit rise from baseline to hem on the left)
+  path.lineTo(rightX, rightY);
   // Draw the right side back up at actual length with hemWidth taper
   drawRight();
 }
@@ -1611,7 +1646,10 @@ export class CapeNarrowSingleHole extends Template {
         width, length,
         params.swordSide as string || 'right',
         params.swordAngle as number || 35,
-        params.swordY as number || 0.45
+        params.swordY as number || 0.45,
+        8,
+        (params.swordSlitCount as number) || 1,
+        (params.swordSlitSpacing as number) || 3
       ));
     }
     if (params.starHoles) {
@@ -1772,7 +1810,10 @@ export class CapeTattered extends Template {
         width, length,
         params.swordSide as string || 'right',
         params.swordAngle as number || 35,
-        params.swordY as number || 0.45
+        params.swordY as number || 0.45,
+        8,
+        (params.swordSlitCount as number) || 1,
+        (params.swordSlitSpacing as number) || 3
       ));
     }
     return paths;

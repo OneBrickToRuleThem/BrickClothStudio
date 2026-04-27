@@ -4,7 +4,7 @@
  */
 
 import { Template, TemplateParams, generateAttachmentHole } from './base';
-import { SVGPath, stadiumPath, circlePath } from '../geometry/primitives';
+import { SVGPath, stadiumPath, circlePath, mirrorAndReverseEdge } from '../geometry/primitives';
 import { drawStyledEdge } from '../geometry/edgeStyles';
 import { SAIL_HOLE_STANDARDS, SailHoleType } from '../utils/constants';
 import { SeededRNG } from '../utils/rng';
@@ -131,9 +131,10 @@ class BannerFlag extends Template {
     const bottomStyle = (params.flagBottomStyle as string) || 'none';
     const leftStyle = (params.flagLeftStyle as string) || 'none';
     const rightStyle = (params.flagRightStyle as string) || 'none';
+    const topStyle = (params.flagTopStyle as string) || 'none';
     
     // If any edge style is set, use a rectangular body with styled edges
-    if (bottomStyle !== 'none' || leftStyle !== 'none' || rightStyle !== 'none') {
+    if (bottomStyle !== 'none' || leftStyle !== 'none' || rightStyle !== 'none' || topStyle !== 'none') {
       return this.generateStyledFlagPath(params);
     }
     
@@ -170,10 +171,14 @@ class BannerFlag extends Template {
     const bottomStyle = (params.flagBottomStyle as string) || 'none';
     const leftStyle = (params.flagLeftStyle as string) || 'none';
     const rightStyle = (params.flagRightStyle as string) || 'none';
+    const topStyle = (params.flagTopStyle as string) || 'none';
     const depth = (params.flagBottomDepth as number) || 5;
     const count = (params.flagBottomCount as number) || 5;
     const sideDepth = (params.flagSideDepth as number) || 3;
     const sideCount = (params.flagSideCount as number) || 5;
+    const topDepth = (params.flagTopDepth as number) || 3;
+    const topCount = (params.flagTopCount as number) || 5;
+    const sideCurve = (params.sideCurve as number) || 0;
     const path = new SVGPath();
     const margin = 1;
     const r = 1.5;
@@ -183,18 +188,34 @@ class BannerFlag extends Template {
     const bottomExt = this.getBottomExtension(bottomStyle, depth, count, h, margin);
     const bodyBottom = h - margin - bottomExt;
 
+    // Calculate how much the top style extends above the body baseline
+    const topExt = this.getTopExtension(topStyle, topDepth);
+    const bodyTop = margin + topExt;
+
     // Bottom corners are straight when a bottom edge style is active or 'straight',
     // rounded only when 'none' (issue #1 + #4.2)
     const hasBottomEdge = bottomStyle !== 'none';
     const br = hasBottomEdge ? 0 : r; // bottom corner radius
+    const hasTopEdge = topStyle !== 'none';
+    const tr = hasTopEdge ? 0 : r; // top corner radius
 
     // Start top-left, go clockwise
-    path.moveTo(margin + r, margin);
-    path.lineTo(w - margin - r, margin);
-    path.arcTo(r, r, 0, 0, 1, w - margin, margin + r);
+    path.moveTo(margin + tr, bodyTop);
+
+    // Top edge (left to right)
+    if (hasTopEdge) {
+      this.drawStyledTopEdge(path, w, margin, bodyTop, topExt, topStyle, topDepth, topCount, tr, params as Record<string, unknown>);
+      path.lineTo(w - margin, bodyTop);
+    } else {
+      path.lineTo(w - margin - tr, bodyTop);
+    }
+    if (!hasTopEdge) {
+      path.arcTo(r, r, 0, 0, 1, w - margin, bodyTop + r);
+    }
 
     // Right edge (top to bottom)
-    this.drawStyledSideEdge(path, w - margin, margin + r, w - margin, bodyBottom - br, rightStyle, sideDepth, sideCount, 1);
+    const rightStartY = hasTopEdge ? bodyTop : bodyTop + r;
+    this.drawStyledSideEdge(path, w - margin, rightStartY, w - margin, bodyBottom - br, rightStyle, sideDepth, sideCount, 1, sideCurve);
 
     // Bottom-right corner: rounded only when no bottom edge style
     if (hasBottomEdge) {
@@ -214,8 +235,11 @@ class BannerFlag extends Template {
     }
 
     // Left edge (bottom to top)
-    this.drawStyledSideEdge(path, margin, bodyBottom - br, margin, margin + r, leftStyle, sideDepth, sideCount, -1);
-    path.arcTo(r, r, 0, 0, 1, margin + r, margin);
+    const leftEndY = hasTopEdge ? bodyTop : bodyTop + r;
+    this.drawStyledSideEdge(path, margin, bodyBottom - br, margin, leftEndY, leftStyle, sideDepth, sideCount, -1, sideCurve);
+    if (!hasTopEdge) {
+      path.arcTo(r, r, 0, 0, 1, margin + tr, bodyTop);
+    }
     path.closePath();
     return path.toString();
   }
@@ -243,13 +267,110 @@ class BannerFlag extends Template {
     }
   }
 
+  /** Calculate how far a top edge style extends above the body baseline */
+  private getTopExtension(style: string, depthParam: number): number {
+    if (style === 'none' || style === 'straight') return 0;
+    return depthParam || 3;
+  }
+
+  /**
+   * Draw a styled top edge (left to right).
+   * Decorations extend upward from bodyTop toward margin.
+   */
+  private drawStyledTopEdge(
+    path: SVGPath, w: number, margin: number, bodyTop: number, topExt: number,
+    style: string, depthParam: number, count: number, _cornerRadius: number,
+    params: Record<string, unknown> = {}
+  ): void {
+    const leftX = margin;
+    const rightX = w - margin;
+    const usableW = rightX - leftX;
+    const topY = margin; // absolute top boundary
+
+    switch (style) {
+      case 'straight':
+        path.lineTo(rightX, bodyTop);
+        break;
+      case 'scalloped': {
+        const scCount = count || 5;
+        const segW = usableW / scCount;
+        for (let i = 0; i < scCount; i++) {
+          const x0 = leftX + i * segW;
+          const x1 = leftX + (i + 1) * segW;
+          const cx = (x0 + x1) / 2;
+          path.quadraticBezierTo(cx, topY, x1, bodyTop);
+        }
+        break;
+      }
+      case 'arched': {
+        const arCount = count || 5;
+        const segW = usableW / arCount;
+        for (let i = 0; i < arCount; i++) {
+          const x0 = leftX + i * segW;
+          const x1 = leftX + (i + 1) * segW;
+          const cx = (x0 + x1) / 2;
+          path.quadraticBezierTo(cx, bodyTop + topExt, x1, bodyTop);
+        }
+        break;
+      }
+      case 'zigzag': {
+        const zzCount = count || 8;
+        const segW = usableW / zzCount;
+        for (let i = 0; i < zzCount; i++) {
+          const segStart = leftX + i * segW;
+          path.lineTo(segStart + segW * 0.5, topY);
+          path.lineTo(segStart + segW, bodyTop);
+        }
+        break;
+      }
+      case 'wavy': {
+        const wvCount = count || 5;
+        const segW = usableW / wvCount;
+        for (let i = 0; i < wvCount; i++) {
+          const x0 = leftX + i * segW;
+          const x1 = leftX + (i + 1) * segW;
+          const cx = (x0 + x1) / 2;
+          const cpY = (i % 2 === 0) ? topY : bodyTop + topExt;
+          path.quadraticBezierTo(cx, cpY, x1, bodyTop);
+        }
+        break;
+      }
+      case 'castellated': {
+        const castCount = count || 5;
+        const totalCells = 2 * castCount + 1;
+        const cellW = usableW / totalCells;
+        for (let i = 0; i < totalCells; i++) {
+          const x1 = leftX + (i + 1) * cellW;
+          if (i % 2 === 0) {
+            path.lineTo(x1, bodyTop);
+          } else {
+            const x0 = leftX + i * cellW;
+            path.lineTo(x0, topY);
+            path.lineTo(x1, topY);
+            path.lineTo(x1, bodyTop);
+          }
+        }
+        break;
+      }
+      default:
+        // Delegate all other styles to shared edge style system
+        drawStyledEdge(path, leftX, bodyTop, rightX, bodyTop, style, topExt, count, 0, -1, 0,
+          (params as Record<string, number>).seed || 42, false,
+          (params as Record<string, number>).sawtoothCurve || 0,
+          !!(params as Record<string, boolean>).sawtoothReverse,
+          (params as Record<string, number>).sideCurve || 0);
+        break;
+    }
+  }
+
   /**
    * Draw a styled vertical side edge (left or right).
    * direction: 1 = top-to-bottom, -1 = bottom-to-top
    */
   private drawStyledSideEdge(
     path: SVGPath, x: number, y1: number, _x2: number, y2: number,
-    style: string, depthMm: number, count: number, direction: number
+    style: string, depthMm: number, count: number, direction: number,
+    sideCurve: number = 0
   ): void {
     const len = Math.abs(y2 - y1);
     if (style === 'none' || style === 'straight') {
@@ -305,7 +426,7 @@ class BannerFlag extends Template {
       }
       default:
         // Delegate to shared edge style system for all other styles
-        drawStyledEdge(path, x, y1, x, y2, style, depthMm, segCount, outward, 0, 0, 42);
+        drawStyledEdge(path, x, y1, x, y2, style, depthMm, segCount, outward, 0, 0, 42, false, 0, false, sideCurve);
     }
   }
 
@@ -659,7 +780,7 @@ export class FlagSmall extends BannerFlag {
 
   generateCutPath(params: TemplateParams): string {
     // Small flag always uses reference SVG shape — ignore any style params
-    const cleanParams = { ...params, flagBottomStyle: 'none', flagLeftStyle: 'none', flagRightStyle: 'none' };
+    const cleanParams = { ...params, flagBottomStyle: 'none', flagLeftStyle: 'none', flagRightStyle: 'none', flagTopStyle: 'none' };
     return super.generateCutPath(cleanParams);
   }
 
@@ -683,7 +804,7 @@ export class FlagLarge extends BannerFlag {
 
   generateCutPath(params: TemplateParams): string {
     // Large flag always uses reference SVG shape — ignore any style params
-    const cleanParams = { ...params, flagBottomStyle: 'none', flagLeftStyle: 'none', flagRightStyle: 'none' };
+    const cleanParams = { ...params, flagBottomStyle: 'none', flagLeftStyle: 'none', flagRightStyle: 'none', flagTopStyle: 'none' };
     return super.generateCutPath(cleanParams);
   }
 
@@ -712,9 +833,10 @@ export class FlagCustom extends BannerFlag {
     const bottomStyle = (params.flagBottomStyle as string) || 'none';
     const leftStyle = (params.flagLeftStyle as string) || 'none';
     const rightStyle = (params.flagRightStyle as string) || 'none';
+    const topStyle = (params.flagTopStyle as string) || 'none';
 
     // If all styles are 'none', use a simple rectangle with rounded corners
-    if (bottomStyle === 'none' && leftStyle === 'none' && rightStyle === 'none') {
+    if (bottomStyle === 'none' && leftStyle === 'none' && rightStyle === 'none' && topStyle === 'none') {
       const w = params.width;
       const h = params.length;
       const margin = 1;
@@ -1242,22 +1364,36 @@ export class Kama extends Template {
     const edge = getEdgeParams(params, 'kama');
 
     // Symmetric outline (left half mirrored for right)
-    // Start at bottom-right of center slit
-    path.moveTo(w * 0.54038, h * 0.94777);
-    // Right slit wall (mirror of left, going up)
-    path.lineTo(w * 0.52376, h * 0.92697);
+    if (edge.style !== 'none') {
+      // Start at pt 1 (slit wall) — skip pt 0 (slit tip) to avoid inner indent
+      path.moveTo(w * 0.52376, h * 0.92697);
+    } else {
+      // Start at bottom-right of center slit
+      path.moveTo(w * 0.54038, h * 0.94777);
+      // Right slit wall (mirror of left, going up)
+      path.lineTo(w * 0.52376, h * 0.92697);
+    }
     path.cubicBezierTo(w * 0.50568, h * 0.55313, w * 0.50225, h * 0.52236, w * 0.50000, h * 0.53148);
-    // Left slit wall (going down)
-    path.cubicBezierTo(w * 0.49775, h * 0.52236, w * 0.49432, h * 0.55313, w * 0.48533, h * 0.73895);
-    path.lineTo(w * 0.47624, h * 0.92697);
-    path.lineTo(w * 0.45962, h * 0.94777);
+    // Left slit wall (going down) — mirrors right slit cubic
+    path.cubicBezierTo(w * 0.49775, h * 0.52236, w * 0.49432, h * 0.55313, w * 0.47624, h * 0.92697);
+    if (edge.style === 'none') {
+      path.lineTo(w * 0.45962, h * 0.94777);
+    }
 
     // LEFT BOTTOM HEM: from center slit down to bottom, across to left side
     if (edge.style !== 'none') {
       const botY = h * 0.997;
-      // Diagonal from slit corner to styled edge start avoids unstyled vertical gap
-      drawStyledEdge(path, w * 0.45962, h * 0.94777, w * 0.12, botY,
-        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, false, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
+      // Pre-generate right edge to mirror for the left — guarantees perfect symmetry
+      const tempPath = new SVGPath();
+      tempPath.moveTo(w * 0.89787, botY);
+      drawStyledEdge(tempPath, w * 0.89787, botY, w * 0.52376, botY,
+        edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, true, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
+      const mirroredCmds = mirrorAndReverseEdge(tempPath.getCommands(), w / 2);
+      // Straight down from slit wall to flat bottom (aligned with inner edge)
+      path.lineTo(w * 0.47624, botY);
+      // Mirrored styled edge (guaranteed symmetric with right panel)
+      path.pushCommands(mirroredCmds);
+      // Straight up to side corner
       path.lineTo(w * 0.10213, h * 0.91690);
     } else {
       path.cubicBezierTo(w * 0.43045, h * 0.98427, w * 0.39359, h * 0.99631, w * 0.30792, h * 0.99729);
@@ -1303,10 +1439,13 @@ export class Kama extends Template {
     // RIGHT BOTTOM HEM: from right side down to bottom, across to center slit
     if (edge.style !== 'none') {
       const botY = h * 0.997;
-      path.lineTo(w * 0.88, botY);
-      // Diagonal from outer edge to slit corner avoids unstyled vertical gap
-      drawStyledEdge(path, w * 0.88, botY, w * 0.54038, h * 0.94777,
+      // Straight down from side corner to flat bottom
+      path.lineTo(w * 0.89787, botY);
+      // Flat styled edge along the bottom (ends at slit wall x, aligned with inner edge)
+      drawStyledEdge(path, w * 0.89787, botY, w * 0.52376, botY,
         edge.style, edge.depth, edge.count, 0, 1, 0, edge.seed, true, edge.sawtoothCurve, edge.sawtoothReverse, edge.sideCurve);
+      // Rise up to start point (slit wall) — no step outward
+      path.lineTo(w * 0.52376, h * 0.92697);
     } else {
       // RIGHT SIDE side-to-tab curve (included in styled path via lineTo above)
       path.cubicBezierTo(w * 0.89299, h * 0.93764, w * 0.82026, h * 0.99171, w * 0.79256, h * 0.99519);

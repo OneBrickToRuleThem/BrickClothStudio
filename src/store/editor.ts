@@ -76,6 +76,8 @@ const defaultParameters = {
   swordSide: 'right',
   swordAngle: 35,
   swordY: 0.45,
+  swordSlitCount: 1,
+  swordSlitSpacing: 3,
   // Cape modifiers
   tattered: false,
   tatteredIntensity: 0.06,
@@ -165,6 +167,10 @@ const defaultParameters = {
   mantleEdgeDepth: 2,
   mantleEdgeCount: 6,
   mantleBottomCurve: 0,
+  mantleHemWidth: 1.0,
+  mantleSideStyle: 'none' as string,
+  mantleSideStyleDepth: 3,
+  mantleSideStyleCount: 6,
   // Custom flag
   flagCustomHoleCount: 2,
   // Custom hole override (applies to cape, flag, kama, mantle)
